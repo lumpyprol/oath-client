@@ -143,6 +143,10 @@ Commit: "Vendor OathParser card data with provenance"
 
 **Done when.** Hash test passes; `vendor/` is excluded from the TS build.
 
+**Status.** ✅ Completed 2026-09-08. `vendor/oathparser/` holds the six files
++ `PROVENANCE.md`; `test/oath/cards/provenance.test.ts` verifies the hashes
+(7 tests pass). `tsconfig` include stays `["src"]`.
+
 ---
 
 ## Unit 2 — Schema and types
