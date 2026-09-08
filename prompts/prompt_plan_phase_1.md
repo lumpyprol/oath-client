@@ -314,6 +314,11 @@ Commit: "Add line parser for the mod's Lua card table"
 
 **Done when.** Snippet tests pass; the real file parses with expected count.
 
+**Status.** ✅ Completed 2026-09-08. `src/oath/cards/lua.ts` exports
+`RawRecord` and `parseCardsLua`. Real file yields 255 records (23 Site, 198
+Denizen, 6 EdificeRuin, 5 Vision, 2 SuperRelic, 20 Relic, 1 None).
+`test/oath/cards/lua.test.ts` — 9 tests pass.
+
 ---
 
 ## Unit 5 — Build the database from raw records
