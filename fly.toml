@@ -1,0 +1,31 @@
+app = "oath-async"
+primary_region = "ewr"
+
+[build]
+
+[env]
+  PORT = "8080"
+  DB_PATH = "/data/games.db"
+  NODE_OPTIONS = "--experimental-sqlite"
+
+# SQLite lives on a volume. Create it once:
+#   fly volumes create data --size 1 --region ewr
+[mounts]
+  source = "data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Never scale past one machine: SQLite has a single writer, and the
+  # optimistic-concurrency check assumes one process owns the file.
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "5s"
+  interval = "30s"
+  method = "GET"
+  path = "/health"
+  timeout = "5s"

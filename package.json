@@ -1,0 +1,31 @@
+{
+  "name": "oath-async",
+  "version": "0.1.0",
+  "description": "",
+  "scripts": {
+    "dev": "NODE_OPTIONS=--experimental-sqlite tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "NODE_OPTIONS=--experimental-sqlite node dist/index.js",
+    "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.22.2",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
+}
