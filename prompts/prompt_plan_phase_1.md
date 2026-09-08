@@ -254,6 +254,11 @@ Commit: "Add card id derivation"
 
 **Done when.** Table test passes; every slug validates against the schema regex.
 
+**Status.** ✅ Completed 2026-09-08. `src/oath/cards/ids.ts` exports `slugify`
+and `cardId`; `ID_RE` is now exported from `schema.ts` so the test can assert
+against it. `test/oath/cards/ids.test.ts` — 15 tests pass (table + throw cases
++ every kind×name id matches `ID_RE`).
+
 ---
 
 ## Unit 4 — Lua table parser

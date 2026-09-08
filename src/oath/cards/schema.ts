@@ -25,7 +25,7 @@ export const SUIT_INDEX: Record<Suit, number> = Object.fromEntries(
 export const SetSchema = z.enum(['base']);
 export type CardSet = z.infer<typeof SetSchema>;
 
-const ID_RE = /^(denizen|site|relic|vision|edifice|banner):[a-z0-9-]+$/;
+export const ID_RE = /^(denizen|site|relic|vision|edifice|banner):[a-z0-9-]+$/;
 const saveId = z.number().int().min(0).max(254);
 const nonempty = z.string().min(1);
 
