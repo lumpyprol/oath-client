@@ -206,6 +206,11 @@ Commit: "Add card schema"
 
 **Done when.** Schema tests pass; no data files exist yet.
 
+**Status.** ✅ Completed 2026-09-08. `src/oath/cards/schema.ts` exports the zod
+schemas + inferred types, `SUITS`, `SUIT_INDEX`, `SetSchema`, and a `Card`
+union. `test/oath/cards/schema.test.ts` — 12 tests pass; `npm run build` clean.
+No data files.
+
 ---
 
 ## Unit 3 — Slug and id derivation
