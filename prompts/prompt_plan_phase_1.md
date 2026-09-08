@@ -315,8 +315,8 @@ Commit: "Add line parser for the mod's Lua card table"
 **Done when.** Snippet tests pass; the real file parses with expected count.
 
 **Status.** ✅ Completed 2026-09-08. `src/oath/cards/lua.ts` exports
-`RawRecord` and `parseCardsLua`. Real file yields 255 records (23 Site, 198
-Denizen, 6 EdificeRuin, 5 Vision, 2 SuperRelic, 20 Relic, 1 None).
+`RawRecord` and `parseCardsLua`. Real file yields 255 records (23 sites, 198
+denizens, 6 edifice/ruin, 5 visions, 2 banners, 20 relics, 1 None sentinel).
 `test/oath/cards/lua.test.ts` — 9 tests pass.
 
 ---
@@ -369,6 +369,13 @@ Commit: "Build typed card database from Lua records"
 ```
 
 **Done when.** Counts match; schema validation passes on real data.
+
+**Status.** ✅ Completed 2026-09-08. `src/oath/cards/build.ts` exports
+`buildDatabase`. Real data: 198 denizens, 23 sites, 20 relics, 5 visions,
+6 edifice/ruin, 2 banners; every suit among denizens; each suit once among
+edifices; schema-valid. `test/oath/cards/build.test.ts` — 8 tests pass.
+Banners are their own kind — the mod's `SuperRelic` tag is read only at the
+boundary in `build.ts` (one named constant) and never enters our model.
 
 ---
 
