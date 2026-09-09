@@ -1,0 +1,128 @@
+[
+  {
+    "id": "relic:sticky-fire",
+    "name": "Sticky Fire",
+    "set": "base",
+    "saveId": 218
+  },
+  {
+    "id": "relic:cursed-cauldron",
+    "name": "Cursed Cauldron",
+    "set": "base",
+    "saveId": 219
+  },
+  {
+    "id": "relic:brass-horse",
+    "name": "Brass Horse",
+    "set": "base",
+    "saveId": 220
+  },
+  {
+    "id": "relic:truthful-harp",
+    "name": "Truthful Harp",
+    "set": "base",
+    "saveId": 221
+  },
+  {
+    "id": "relic:grand-mask",
+    "name": "Grand Mask",
+    "set": "base",
+    "saveId": 222
+  },
+  {
+    "id": "relic:horned-mask",
+    "name": "Horned Mask",
+    "set": "base",
+    "saveId": 223
+  },
+  {
+    "id": "relic:cup-of-plenty",
+    "name": "Cup of Plenty",
+    "set": "base",
+    "saveId": 224
+  },
+  {
+    "id": "relic:whistle",
+    "name": "Whistle",
+    "set": "base",
+    "saveId": 225
+  },
+  {
+    "id": "relic:dowsing-sticks",
+    "name": "Dowsing Sticks",
+    "set": "base",
+    "saveId": 226
+  },
+  {
+    "id": "relic:cracked-horn",
+    "name": "Cracked Horn",
+    "set": "base",
+    "saveId": 227
+  },
+  {
+    "id": "relic:bandit-crown",
+    "name": "Bandit Crown",
+    "set": "base",
+    "saveId": 228
+  },
+  {
+    "id": "relic:ring-of-devotion",
+    "name": "Ring of Devotion",
+    "set": "base",
+    "saveId": 229,
+    "aliases": [
+      "Banner of Devotion"
+    ]
+  },
+  {
+    "id": "relic:skeleton-key",
+    "name": "Skeleton Key",
+    "set": "base",
+    "saveId": 230
+  },
+  {
+    "id": "relic:oracular-pig",
+    "name": "Oracular Pig",
+    "set": "base",
+    "saveId": 231
+  },
+  {
+    "id": "relic:circlet-of-command",
+    "name": "Circlet of Command",
+    "set": "base",
+    "saveId": 232
+  },
+  {
+    "id": "relic:ivory-eye",
+    "name": "Ivory Eye",
+    "set": "base",
+    "saveId": 233,
+    "aliases": [
+      "Proof of Nobility"
+    ]
+  },
+  {
+    "id": "relic:map",
+    "name": "Map",
+    "set": "base",
+    "saveId": 234
+  },
+  {
+    "id": "relic:obsidian-cage",
+    "name": "Obsidian Cage",
+    "set": "base",
+    "saveId": 235
+  },
+  {
+    "id": "relic:book-of-records",
+    "name": "Book of Records",
+    "set": "base",
+    "saveId": 236
+  },
+  {
+    "id": "relic:dragonskin-drum",
+    "name": "Dragonskin Drum",
+    "set": "base",
+    "saveId": 237
+  }
+]

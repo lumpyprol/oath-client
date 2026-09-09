@@ -1,0 +1,192 @@
+[
+  {
+    "id": "site:mine",
+    "name": "Mine",
+    "set": "base",
+    "saveId": 0,
+    "capacity": 1,
+    "relicCount": 1
+  },
+  {
+    "id": "site:salt-flats",
+    "name": "Salt Flats",
+    "set": "base",
+    "saveId": 1,
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:fertile-valley",
+    "name": "Fertile Valley",
+    "set": "base",
+    "saveId": 2,
+    "capacity": 3,
+    "relicCount": 0
+  },
+  {
+    "id": "site:barren-coast",
+    "name": "Barren Coast",
+    "set": "base",
+    "saveId": 3,
+    "capacity": 1,
+    "relicCount": 1
+  },
+  {
+    "id": "site:plains",
+    "name": "Plains",
+    "set": "base",
+    "saveId": 4,
+    "capacity": 3,
+    "relicCount": 0
+  },
+  {
+    "id": "site:river",
+    "name": "River",
+    "set": "base",
+    "saveId": 5,
+    "capacity": 2,
+    "relicCount": 0
+  },
+  {
+    "id": "site:steppe",
+    "name": "Steppe",
+    "set": "base",
+    "saveId": 6,
+    "capacity": 1,
+    "relicCount": 1
+  },
+  {
+    "id": "site:mountain",
+    "name": "Mountain",
+    "set": "base",
+    "saveId": 7,
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:lush-coast",
+    "name": "Lush Coast",
+    "set": "base",
+    "saveId": 8,
+    "capacity": 3,
+    "relicCount": 0
+  },
+  {
+    "id": "site:marshes",
+    "name": "Marshes",
+    "set": "base",
+    "saveId": 9,
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:wastes",
+    "name": "Wastes",
+    "set": "base",
+    "saveId": 10,
+    "capacity": 1,
+    "relicCount": 2
+  },
+  {
+    "id": "site:rocky-coast",
+    "name": "Rocky Coast",
+    "set": "base",
+    "saveId": 11,
+    "capacity": 2,
+    "relicCount": 0
+  },
+  {
+    "id": "site:narrow-pass",
+    "name": "Narrow Pass",
+    "set": "base",
+    "saveId": 12,
+    "capacity": 1,
+    "relicCount": 1
+  },
+  {
+    "id": "site:charming-valley",
+    "name": "Charming Valley",
+    "set": "base",
+    "saveId": 13,
+    "capacity": 3,
+    "relicCount": 0
+  },
+  {
+    "id": "site:deep-woods",
+    "name": "Deep Woods",
+    "set": "base",
+    "saveId": 14,
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:standing-stones",
+    "name": "Standing Stones",
+    "set": "base",
+    "saveId": 15,
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:ancient-city",
+    "name": "Ancient City",
+    "set": "base",
+    "saveId": 16,
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:drowned-city",
+    "name": "Drowned City",
+    "set": "base",
+    "saveId": 17,
+    "aliases": [
+      "The Drowned City"
+    ],
+    "capacity": 0,
+    "relicCount": 2
+  },
+  {
+    "id": "site:great-slum",
+    "name": "Great Slum",
+    "set": "base",
+    "saveId": 18,
+    "capacity": 3,
+    "relicCount": 0
+  },
+  {
+    "id": "site:buried-giant",
+    "name": "Buried Giant",
+    "set": "base",
+    "saveId": 19,
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:tribunal",
+    "name": "The Tribunal",
+    "set": "base",
+    "saveId": 20,
+    "aliases": [
+      "Imperial Seat"
+    ],
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:shrouded-wood",
+    "name": "Shrouded Wood",
+    "set": "base",
+    "saveId": 21,
+    "capacity": 2,
+    "relicCount": 1
+  },
+  {
+    "id": "site:hidden-place",
+    "name": "The Hidden Place",
+    "set": "base",
+    "saveId": 22,
+    "capacity": 2,
+    "relicCount": 1
+  }
+]

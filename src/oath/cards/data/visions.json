@@ -1,0 +1,32 @@
+[
+  {
+    "id": "vision:dynasty",
+    "name": "Dynasty",
+    "set": "base",
+    "saveId": 210
+  },
+  {
+    "id": "vision:rebellion",
+    "name": "Rebellion",
+    "set": "base",
+    "saveId": 211
+  },
+  {
+    "id": "vision:conspiracy",
+    "name": "Conspiracy",
+    "set": "base",
+    "saveId": 212
+  },
+  {
+    "id": "vision:faith",
+    "name": "Faith",
+    "set": "base",
+    "saveId": 213
+  },
+  {
+    "id": "vision:conquest",
+    "name": "Conquest",
+    "set": "base",
+    "saveId": 214
+  }
+]

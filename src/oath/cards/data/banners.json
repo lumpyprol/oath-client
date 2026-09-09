@@ -1,0 +1,21 @@
+[
+  {
+    "id": "banner:darkest-secret",
+    "name": "The Darkest Secret",
+    "set": "base",
+    "saveId": 215,
+    "faces": [
+      "The Darkest Secret"
+    ]
+  },
+  {
+    "id": "banner:peoples-favor",
+    "name": "The People's Favor",
+    "set": "base",
+    "saveId": 216,
+    "faces": [
+      "The People's Favor",
+      "The Mob's Favor"
+    ]
+  }
+]

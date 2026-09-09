@@ -1,0 +1,107 @@
+[
+  {
+    "id": "edifice:sprawling-rampart",
+    "name": "Sprawling Rampart",
+    "set": "base",
+    "saveId": 198,
+    "suit": "order",
+    "faces": {
+      "edifice": {
+        "name": "Sprawling Rampart",
+        "saveId": 198
+      },
+      "ruin": {
+        "name": "Bandit Rampart",
+        "saveId": 199
+      }
+    }
+  },
+  {
+    "id": "edifice:hall-of-debate",
+    "name": "Hall of Debate",
+    "set": "base",
+    "saveId": 200,
+    "suit": "hearth",
+    "faces": {
+      "edifice": {
+        "name": "Hall of Debate",
+        "saveId": 200
+      },
+      "ruin": {
+        "name": "Hall of Liberation",
+        "saveId": 201
+      }
+    }
+  },
+  {
+    "id": "edifice:forest-temple",
+    "name": "Forest Temple",
+    "set": "base",
+    "saveId": 202,
+    "aliases": [
+      "Abandoned Temple"
+    ],
+    "suit": "beast",
+    "faces": {
+      "edifice": {
+        "name": "Forest Temple",
+        "saveId": 202
+      },
+      "ruin": {
+        "name": "Ruined Temple",
+        "saveId": 203
+      }
+    }
+  },
+  {
+    "id": "edifice:festival-district",
+    "name": "Festival District",
+    "set": "base",
+    "saveId": 204,
+    "suit": "discord",
+    "faces": {
+      "edifice": {
+        "name": "Festival District",
+        "saveId": 204
+      },
+      "ruin": {
+        "name": "Squalid District",
+        "saveId": 205
+      }
+    }
+  },
+  {
+    "id": "edifice:great-spire",
+    "name": "Great Spire",
+    "set": "base",
+    "saveId": 206,
+    "suit": "arcane",
+    "faces": {
+      "edifice": {
+        "name": "Great Spire",
+        "saveId": 206
+      },
+      "ruin": {
+        "name": "Fallen Spire",
+        "saveId": 207
+      }
+    }
+  },
+  {
+    "id": "edifice:ancient-forge",
+    "name": "Ancient Forge",
+    "set": "base",
+    "saveId": 208,
+    "suit": "nomad",
+    "faces": {
+      "edifice": {
+        "name": "Ancient Forge",
+        "saveId": 208
+      },
+      "ruin": {
+        "name": "Broken Forge",
+        "saveId": 209
+      }
+    }
+  }
+]

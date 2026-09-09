@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "NODE_OPTIONS=--experimental-sqlite node dist/index.js",
     "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "build:cards": "tsx scripts/build-cards.ts"
   },
   "keywords": [],
   "author": "",

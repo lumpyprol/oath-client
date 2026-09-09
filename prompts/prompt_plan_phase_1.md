@@ -513,6 +513,15 @@ Commit: "Generate card data files; add drift test"
 
 **Done when.** Data files exist and are committed; drift test is green.
 
+**Status.** ✅ Completed 2026-09-08. `src/oath/cards/generate.ts` exports
+`generate()` (Lua → build → applyOverrides) plus `COLLECTIONS`, `DATA_DIR`,
+`serializeCollection`. `scripts/build-cards.ts` (npm run build:cards) writes
+the six `data/*.json` files, each sorted by saveId, 2-space indent, trailing
+newline, and prints a count summary. The six files are committed
+(198/23/20/5/6/2). `test/oath/cards/drift.test.ts` — 7 tests pass: each file
+deep-equals `generate()` (message: run npm run build:cards) and the assembled
+database is schema-valid.
+
 ---
 
 ## Unit 8 — Loader and lookup API

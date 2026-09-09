@@ -1,0 +1,1409 @@
+[
+  {
+    "id": "denizen:wrestlers",
+    "name": "Wrestlers",
+    "set": "base",
+    "saveId": 0,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:battle-honors",
+    "name": "Battle Honors",
+    "set": "base",
+    "saveId": 1,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:bear-traps",
+    "name": "Bear Traps",
+    "set": "base",
+    "saveId": 2,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:longbows",
+    "name": "Longbows",
+    "set": "base",
+    "saveId": 3,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:keep",
+    "name": "Keep",
+    "set": "base",
+    "saveId": 4,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:pressgangs",
+    "name": "Pressgangs",
+    "set": "base",
+    "saveId": 5,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:garrison",
+    "name": "Garrison",
+    "set": "base",
+    "saveId": 6,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:scouts",
+    "name": "Scouts",
+    "set": "base",
+    "saveId": 7,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:alchemist",
+    "name": "Alchemist",
+    "set": "base",
+    "saveId": 8,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:martial-culture",
+    "name": "Martial Culture",
+    "set": "base",
+    "saveId": 9,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:errand-boy",
+    "name": "Errand Boy",
+    "set": "base",
+    "saveId": 10,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:mercenaries",
+    "name": "Mercenaries",
+    "set": "base",
+    "saveId": 11,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:tinkers-fair",
+    "name": "Tinker's Fair",
+    "set": "base",
+    "saveId": 12,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:rain-boots",
+    "name": "Rain Boots",
+    "set": "base",
+    "saveId": 13,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:a-small-favor",
+    "name": "A Small Favor",
+    "set": "base",
+    "saveId": 14,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:second-wind",
+    "name": "Second Wind",
+    "set": "base",
+    "saveId": 15,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:gossip",
+    "name": "Gossip",
+    "set": "base",
+    "saveId": 16,
+    "aliases": [
+      "Sleight of Hand"
+    ],
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:key-to-the-city",
+    "name": "Key to the City",
+    "set": "base",
+    "saveId": 17,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:scryer",
+    "name": "Scryer",
+    "set": "base",
+    "saveId": 18,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:disgraced-captain",
+    "name": "Disgraced Captain",
+    "set": "base",
+    "saveId": 19,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:naysayers",
+    "name": "Naysayers",
+    "set": "base",
+    "saveId": 20,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:book-burning",
+    "name": "Book Burning",
+    "set": "base",
+    "saveId": 21,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:ancient-binding",
+    "name": "Ancient Binding",
+    "set": "base",
+    "saveId": 22,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:horse-archers",
+    "name": "Horse Archers",
+    "set": "base",
+    "saveId": 23,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:warning-signals",
+    "name": "Warning Signals",
+    "set": "base",
+    "saveId": 24,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:elders",
+    "name": "Elders",
+    "set": "base",
+    "saveId": 25,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:gathering",
+    "name": "The Gathering",
+    "set": "base",
+    "saveId": 26,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:faithful-friend",
+    "name": "Faithful Friend",
+    "set": "base",
+    "saveId": 27,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:tents",
+    "name": "Tents",
+    "set": "base",
+    "saveId": 28,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:great-herd",
+    "name": "Great Herd",
+    "set": "base",
+    "saveId": 29,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:fire-talkers",
+    "name": "Fire Talkers",
+    "set": "base",
+    "saveId": 30,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:magicians-code",
+    "name": "Magician's Code",
+    "set": "base",
+    "saveId": 31,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:spirit-snare",
+    "name": "Spirit Snare",
+    "set": "base",
+    "saveId": 32,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:wizard-school",
+    "name": "Wizard School",
+    "set": "base",
+    "saveId": 33,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:dazzle",
+    "name": "Dazzle",
+    "set": "base",
+    "saveId": 34,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:acting-troupe",
+    "name": "Acting Troupe",
+    "set": "base",
+    "saveId": 35,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:taming-charm",
+    "name": "Taming Charm",
+    "set": "base",
+    "saveId": 36,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:inquisitor",
+    "name": "Inquisitor",
+    "set": "base",
+    "saveId": 37,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:wolves",
+    "name": "Wolves",
+    "set": "base",
+    "saveId": 38,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:animal-playmates",
+    "name": "Animal Playmates",
+    "set": "base",
+    "saveId": 39,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:true-names",
+    "name": "True Names",
+    "set": "base",
+    "saveId": 40,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:old-oak",
+    "name": "The Old Oak",
+    "set": "base",
+    "saveId": 41,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:forest-paths",
+    "name": "Forest Paths",
+    "set": "base",
+    "saveId": 42,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:long-lost-heir",
+    "name": "Long-Lost Heir",
+    "set": "base",
+    "saveId": 43,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:rangers",
+    "name": "Rangers",
+    "set": "base",
+    "saveId": 44,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:roving-terror",
+    "name": "Roving Terror",
+    "set": "base",
+    "saveId": 45,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:wayside-inn",
+    "name": "Wayside Inn",
+    "set": "base",
+    "saveId": 46,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:extra-provisions",
+    "name": "Extra Provisions",
+    "set": "base",
+    "saveId": 47,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:memory-of-home",
+    "name": "Memory of Home",
+    "set": "base",
+    "saveId": 48,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:welcoming-party",
+    "name": "Welcoming Party",
+    "set": "base",
+    "saveId": 49,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:traveling-doctor",
+    "name": "Traveling Doctor",
+    "set": "base",
+    "saveId": 50,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:storyteller",
+    "name": "Storyteller",
+    "set": "base",
+    "saveId": 51,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:armed-mob",
+    "name": "Armed Mob",
+    "set": "base",
+    "saveId": 52,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:tavern-songs",
+    "name": "Tavern Songs",
+    "set": "base",
+    "saveId": 53,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:secret-signal",
+    "name": "Secret Signal",
+    "set": "base",
+    "saveId": 54,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:augury",
+    "name": "Augury",
+    "set": "base",
+    "saveId": 55,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:rusting-ray",
+    "name": "Rusting Ray",
+    "set": "base",
+    "saveId": 56,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:portal",
+    "name": "Portal",
+    "set": "base",
+    "saveId": 57,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:billowing-fog",
+    "name": "Billowing Fog",
+    "set": "base",
+    "saveId": 58,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:kindred-warriors",
+    "name": "Kindred Warriors",
+    "set": "base",
+    "saveId": 59,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:terror-spells",
+    "name": "Terror Spells",
+    "set": "base",
+    "saveId": 60,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:blood-pact",
+    "name": "Blood Pact",
+    "set": "base",
+    "saveId": 61,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:revelation",
+    "name": "Revelation",
+    "set": "base",
+    "saveId": 62,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:observatory",
+    "name": "Observatory",
+    "set": "base",
+    "saveId": 63,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:plague-engines",
+    "name": "Plague Engines",
+    "set": "base",
+    "saveId": 64,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:gleaming-armor",
+    "name": "Gleaming Armor",
+    "set": "base",
+    "saveId": 65,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:bewitch",
+    "name": "Bewitch",
+    "set": "base",
+    "saveId": 66,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:jinx",
+    "name": "Jinx",
+    "set": "base",
+    "saveId": 67,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:tutor",
+    "name": "Tutor",
+    "set": "base",
+    "saveId": 68,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:dream-thief",
+    "name": "Dream Thief",
+    "set": "base",
+    "saveId": 69,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:cracking-ground",
+    "name": "Cracking Ground",
+    "set": "base",
+    "saveId": 70,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:sealing-ward",
+    "name": "Sealing Ward",
+    "set": "base",
+    "saveId": 71,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:initiation-rite",
+    "name": "Initiation Rite",
+    "set": "base",
+    "saveId": 72,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:vow-of-silence",
+    "name": "Vow of Silence",
+    "set": "base",
+    "saveId": 73,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:forgotten-vault",
+    "name": "Forgotten Vault",
+    "set": "base",
+    "saveId": 74,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:map-library",
+    "name": "Map Library",
+    "set": "base",
+    "saveId": 75,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:witchs-bargain",
+    "name": "Witch's Bargain",
+    "set": "base",
+    "saveId": 76,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:master-of-disguise",
+    "name": "Master of Disguise",
+    "set": "base",
+    "saveId": 77,
+    "suit": "arcane"
+  },
+  {
+    "id": "denizen:charlatans",
+    "name": "Charlatans",
+    "set": "base",
+    "saveId": 78,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:assassin",
+    "name": "Assassin",
+    "set": "base",
+    "saveId": 79,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:downtrodden",
+    "name": "Downtrodden",
+    "set": "base",
+    "saveId": 80,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:blackmail",
+    "name": "Blackmail",
+    "set": "base",
+    "saveId": 81,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:cracked-sage",
+    "name": "Cracked Sage",
+    "set": "base",
+    "saveId": 82,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:dissent",
+    "name": "Dissent",
+    "set": "base",
+    "saveId": 83,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:false-prophet",
+    "name": "False Prophet",
+    "set": "base",
+    "saveId": 84,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:vow-of-renewal",
+    "name": "Vow of Renewal",
+    "set": "base",
+    "saveId": 85,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:zealots",
+    "name": "Zealots",
+    "set": "base",
+    "saveId": 86,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:royal-ambitions",
+    "name": "Royal Ambitions",
+    "set": "base",
+    "saveId": 87,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:salt-the-earth",
+    "name": "Salt the Earth",
+    "set": "base",
+    "saveId": 88,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:beast-tamer",
+    "name": "Beast Tamer",
+    "set": "base",
+    "saveId": 89,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:riots",
+    "name": "Riots",
+    "set": "base",
+    "saveId": 90,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:silver-tongue",
+    "name": "Silver Tongue",
+    "set": "base",
+    "saveId": 91,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:gambling-hall",
+    "name": "Gambling Hall",
+    "set": "base",
+    "saveId": 92,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:boiling-lake",
+    "name": "Boiling Lake",
+    "set": "base",
+    "saveId": 93,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:relic-thief",
+    "name": "Relic Thief",
+    "set": "base",
+    "saveId": 94,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:enchantress",
+    "name": "Enchantress",
+    "set": "base",
+    "saveId": 95,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:insomnia",
+    "name": "Insomnia",
+    "set": "base",
+    "saveId": 96,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:sneak-attack",
+    "name": "Sneak Attack",
+    "set": "base",
+    "saveId": 97,
+    "aliases": [
+      "Surprise Attack"
+    ],
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:sleight-of-hand",
+    "name": "Sleight of Hand",
+    "set": "base",
+    "saveId": 98,
+    "aliases": [
+      "Gossip"
+    ],
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:bandit-chief",
+    "name": "Bandit Chief",
+    "set": "base",
+    "saveId": 99,
+    "aliases": [
+      "Bandit King"
+    ],
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:chaos-cult",
+    "name": "Chaos Cult",
+    "set": "base",
+    "saveId": 100,
+    "aliases": [
+      "Cult of Chaos"
+    ],
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:slander",
+    "name": "Slander",
+    "set": "base",
+    "saveId": 101,
+    "suit": "discord"
+  },
+  {
+    "id": "denizen:code-of-honor",
+    "name": "Code of Honor",
+    "set": "base",
+    "saveId": 102,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:outriders",
+    "name": "Outriders",
+    "set": "base",
+    "saveId": 103,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:messenger",
+    "name": "Messenger",
+    "set": "base",
+    "saveId": 104,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:field-promotion",
+    "name": "Field Promotion",
+    "set": "base",
+    "saveId": 105,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:palanquin",
+    "name": "Palanquin",
+    "set": "base",
+    "saveId": 106,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:shield-wall",
+    "name": "Shield Wall",
+    "set": "base",
+    "saveId": 107,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:military-parade",
+    "name": "Military Parade",
+    "set": "base",
+    "saveId": 108,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:tome-guardians",
+    "name": "Tome Guardians",
+    "set": "base",
+    "saveId": 109,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:tyrant",
+    "name": "Tyrant",
+    "set": "base",
+    "saveId": 110,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:secret-police",
+    "name": "Secret Police",
+    "set": "base",
+    "saveId": 111,
+    "aliases": [
+      "Forced Labor"
+    ],
+    "suit": "order"
+  },
+  {
+    "id": "denizen:forced-labor",
+    "name": "Forced Labor",
+    "set": "base",
+    "saveId": 112,
+    "aliases": [
+      "Secret Police"
+    ],
+    "suit": "order"
+  },
+  {
+    "id": "denizen:specialist",
+    "name": "Specialist",
+    "set": "base",
+    "saveId": 113,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:captains",
+    "name": "Captains",
+    "set": "base",
+    "saveId": 114,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:siege-engines",
+    "name": "Siege Engines",
+    "set": "base",
+    "saveId": 115,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:royal-tax",
+    "name": "Royal Tax",
+    "set": "base",
+    "saveId": 116,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:toll-roads",
+    "name": "Toll Roads",
+    "set": "base",
+    "saveId": 117,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:curfew",
+    "name": "Curfew",
+    "set": "base",
+    "saveId": 118,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:knights-errant",
+    "name": "Knights Errant",
+    "set": "base",
+    "saveId": 119,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:vow-of-obedience",
+    "name": "Vow of Obedience",
+    "set": "base",
+    "saveId": 120,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:hunting-party",
+    "name": "Hunting Party",
+    "set": "base",
+    "saveId": 121,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:council-seat",
+    "name": "Council Seat",
+    "set": "base",
+    "saveId": 122,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:encirclement",
+    "name": "Encirclement",
+    "set": "base",
+    "saveId": 123,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:peace-envoy",
+    "name": "Peace Envoy",
+    "set": "base",
+    "saveId": 124,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:relic-hunter",
+    "name": "Relic Hunter",
+    "set": "base",
+    "saveId": 125,
+    "suit": "order"
+  },
+  {
+    "id": "denizen:homesteaders",
+    "name": "Homesteaders",
+    "set": "base",
+    "saveId": 126,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:crop-rotation",
+    "name": "Crop Rotation",
+    "set": "base",
+    "saveId": 127,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:a-round-of-ale",
+    "name": "A Round of Ale",
+    "set": "base",
+    "saveId": 128,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:land-warden",
+    "name": "Land Warden",
+    "set": "base",
+    "saveId": 129,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:charming-friend",
+    "name": "Charming Friend",
+    "set": "base",
+    "saveId": 130,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:village-constable",
+    "name": "Village Constable",
+    "set": "base",
+    "saveId": 131,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:family-heirloom",
+    "name": "Family Heirloom",
+    "set": "base",
+    "saveId": 132,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:news-from-afar",
+    "name": "News from Afar",
+    "set": "base",
+    "saveId": 133,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:levelers",
+    "name": "Levelers",
+    "set": "base",
+    "saveId": 134,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:fabled-feast",
+    "name": "Fabled Feast",
+    "set": "base",
+    "saveId": 135,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:great-levy",
+    "name": "The Great Levy",
+    "set": "base",
+    "saveId": 136,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:hearts-and-minds",
+    "name": "Hearts and Minds",
+    "set": "base",
+    "saveId": 137,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:relic-breaker",
+    "name": "Relic Breaker",
+    "set": "base",
+    "saveId": 138,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:book-binders",
+    "name": "Book Binders",
+    "set": "base",
+    "saveId": 139,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:ballot-box",
+    "name": "Ballot Box",
+    "set": "base",
+    "saveId": 140,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:saddle-makers",
+    "name": "Saddle Makers",
+    "set": "base",
+    "saveId": 141,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:squires",
+    "name": "Squires",
+    "set": "base",
+    "saveId": 142,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:rowdy-pub",
+    "name": "Rowdy Pub",
+    "set": "base",
+    "saveId": 143,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:vow-of-peace",
+    "name": "Vow of Peace",
+    "set": "base",
+    "saveId": 144,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:deed-writer",
+    "name": "Deed Writer",
+    "set": "base",
+    "saveId": 145,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:salad-days",
+    "name": "Salad Days",
+    "set": "base",
+    "saveId": 146,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:marriage",
+    "name": "Marriage",
+    "set": "base",
+    "saveId": 147,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:hospital",
+    "name": "Hospital",
+    "set": "base",
+    "saveId": 148,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:awaited-return",
+    "name": "Awaited Return",
+    "set": "base",
+    "saveId": 149,
+    "suit": "hearth"
+  },
+  {
+    "id": "denizen:convoys",
+    "name": "Convoys",
+    "set": "base",
+    "saveId": 150,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:vow-of-kinship",
+    "name": "Vow of Kinship",
+    "set": "base",
+    "saveId": 151,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:wild-mounts",
+    "name": "Wild Mounts",
+    "set": "base",
+    "saveId": 152,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:lancers",
+    "name": "Lancers",
+    "set": "base",
+    "saveId": 153,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:mountain-giant",
+    "name": "Mountain Giant",
+    "set": "base",
+    "saveId": 154,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:rival-khan",
+    "name": "Rival Khan",
+    "set": "base",
+    "saveId": 155,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:lost-tongue",
+    "name": "Lost Tongue",
+    "set": "base",
+    "saveId": 156,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:special-envoy",
+    "name": "Special Envoy",
+    "set": "base",
+    "saveId": 157,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:homesick",
+    "name": "Homesick",
+    "set": "base",
+    "saveId": 158,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:oracle",
+    "name": "Oracle",
+    "set": "base",
+    "saveId": 159,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:pilgrimage",
+    "name": "Pilgrimage",
+    "set": "base",
+    "saveId": 160,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:spell-breaker",
+    "name": "Spell Breaker",
+    "set": "base",
+    "saveId": 161,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:mounted-patrol",
+    "name": "Mounted Patrol",
+    "set": "base",
+    "saveId": 162,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:great-crusade",
+    "name": "Great Crusade",
+    "set": "base",
+    "saveId": 163,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:ancient-bloodline",
+    "name": "Ancient Bloodline",
+    "set": "base",
+    "saveId": 164,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:ancient-pact",
+    "name": "Ancient Pact",
+    "set": "base",
+    "saveId": 165,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:storm-caller",
+    "name": "Storm Caller",
+    "set": "base",
+    "saveId": 166,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:family-wagon",
+    "name": "Family Wagon",
+    "set": "base",
+    "saveId": 167,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:way-station",
+    "name": "Way Station",
+    "set": "base",
+    "saveId": 168,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:twin-brother",
+    "name": "Twin Brother",
+    "set": "base",
+    "saveId": 169,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:hospitality",
+    "name": "Hospitality",
+    "set": "base",
+    "saveId": 170,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:a-fast-steed",
+    "name": "A Fast Steed",
+    "set": "base",
+    "saveId": 171,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:relic-worship",
+    "name": "Relic Worship",
+    "set": "base",
+    "saveId": 172,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:sacred-ground",
+    "name": "Sacred Ground",
+    "set": "base",
+    "saveId": 173,
+    "suit": "nomad"
+  },
+  {
+    "id": "denizen:nature-worship",
+    "name": "Nature Worship",
+    "set": "base",
+    "saveId": 174,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:birdsong",
+    "name": "Birdsong",
+    "set": "base",
+    "saveId": 175,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:small-friends",
+    "name": "Small Friends",
+    "set": "base",
+    "saveId": 176,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:grasping-vines",
+    "name": "Grasping Vines",
+    "set": "base",
+    "saveId": 177,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:threatening-roar",
+    "name": "Threatening Roar",
+    "set": "base",
+    "saveId": 178,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:fae-merchant",
+    "name": "Fae Merchant",
+    "set": "base",
+    "saveId": 179,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:second-chance",
+    "name": "Second Chance",
+    "set": "base",
+    "saveId": 180,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:pied-piper",
+    "name": "Pied Piper",
+    "set": "base",
+    "saveId": 181,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:mushrooms",
+    "name": "Mushrooms",
+    "set": "base",
+    "saveId": 182,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:insect-swarm",
+    "name": "Insect Swarm",
+    "set": "base",
+    "saveId": 183,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:vow-of-union",
+    "name": "Vow of Union",
+    "set": "base",
+    "saveId": 184,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:giant-python",
+    "name": "Giant Python",
+    "set": "base",
+    "saveId": 185,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:war-tortoise",
+    "name": "War Tortoise",
+    "set": "base",
+    "saveId": 186,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:new-growth",
+    "name": "New Growth",
+    "set": "base",
+    "saveId": 187,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:wild-cry",
+    "name": "Wild Cry",
+    "set": "base",
+    "saveId": 188,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:animal-host",
+    "name": "Animal Host",
+    "set": "base",
+    "saveId": 189,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:memory-of-nature",
+    "name": "Memory of Nature",
+    "set": "base",
+    "saveId": 190,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:marsh-spirit",
+    "name": "Marsh Spirit",
+    "set": "base",
+    "saveId": 191,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:vow-of-poverty",
+    "name": "Vow of Poverty",
+    "set": "base",
+    "saveId": 192,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:forest-council",
+    "name": "Forest Council",
+    "set": "base",
+    "saveId": 193,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:walled-garden",
+    "name": "Walled Garden",
+    "set": "base",
+    "saveId": 194,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:vow-of-beast-kin",
+    "name": "Vow of Beast-kin",
+    "set": "base",
+    "saveId": 195,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:bracken",
+    "name": "Bracken",
+    "set": "base",
+    "saveId": 196,
+    "suit": "beast"
+  },
+  {
+    "id": "denizen:wild-allies",
+    "name": "Wild Allies",
+    "set": "base",
+    "saveId": 197,
+    "suit": "beast"
+  }
+]
