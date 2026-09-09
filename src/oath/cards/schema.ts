@@ -34,6 +34,8 @@ const baseCard = z.object({
   name: nonempty,
   set: SetSchema,
   saveId,
+  /** Prior printed names for this card, so old seeds still resolve. */
+  aliases: z.array(nonempty).optional(),
 });
 
 /** Per-kind refinement: the id's prefix must match the card's kind. */

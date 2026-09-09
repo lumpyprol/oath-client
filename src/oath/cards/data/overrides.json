@@ -1,0 +1,86 @@
+[
+  {
+    "numbering": "card",
+    "saveId": 16,
+    "name": "Gossip",
+    "aliases": ["Sleight of Hand"],
+    "reason": "Index-swap, not a rename: the 2022 parser table transposes saveIds 16 and 98. cards.lua (the 2020 TTS mod, whose numbering the seed format uses) puts Gossip at 16. Kept; the parser's name is recorded as an alias so its lookups still resolve."
+  },
+  {
+    "numbering": "card",
+    "saveId": 98,
+    "name": "Sleight of Hand",
+    "aliases": ["Gossip"],
+    "reason": "Index-swap partner of saveId 16. cards.lua puts Sleight of Hand at 98; kept, with the parser's transposed name as an alias."
+  },
+  {
+    "numbering": "card",
+    "saveId": 111,
+    "name": "Secret Police",
+    "aliases": ["Forced Labor"],
+    "reason": "Index-swap, not a rename: the 2022 parser table transposes saveIds 111 and 112. cards.lua puts Secret Police at 111; kept, with the parser's transposed name as an alias."
+  },
+  {
+    "numbering": "card",
+    "saveId": 112,
+    "name": "Forced Labor",
+    "aliases": ["Secret Police"],
+    "reason": "Index-swap partner of saveId 111. cards.lua puts Forced Labor at 112; kept, with the parser's transposed name as an alias."
+  },
+  {
+    "numbering": "card",
+    "saveId": 97,
+    "name": "Sneak Attack",
+    "aliases": ["Surprise Attack"],
+    "reason": "Printing rename. Owner has a 2nd-printing-or-later copy: the card reads 'Sneak Attack'. 'Surprise Attack' is the 1st-printing name carried by the 2020 TTS mod; kept as an alias for older seeds."
+  },
+  {
+    "numbering": "card",
+    "saveId": 99,
+    "name": "Bandit Chief",
+    "aliases": ["Bandit King"],
+    "reason": "Printing rename. 2nd-printing-or-later card reads 'Bandit Chief'; 'Bandit King' (1st printing / 2020 TTS mod) kept as an alias."
+  },
+  {
+    "numbering": "card",
+    "saveId": 100,
+    "name": "Chaos Cult",
+    "aliases": ["Cult of Chaos"],
+    "reason": "Printing rename. 2nd-printing-or-later card reads 'Chaos Cult'; 'Cult of Chaos' (1st printing / 2020 TTS mod) kept as an alias."
+  },
+  {
+    "numbering": "card",
+    "saveId": 203,
+    "name": "Ruined Temple",
+    "aliases": ["Abandoned Temple"],
+    "reason": "Printing rename of the ruin face of Forest Temple. 2nd-printing-or-later card reads 'Ruined Temple'; 'Abandoned Temple' (2020 TTS mod) kept as an alias."
+  },
+  {
+    "numbering": "card",
+    "saveId": 229,
+    "name": "Ring of Devotion",
+    "aliases": ["Banner of Devotion"],
+    "reason": "Printing rename of the relic. 2nd-printing-or-later card reads 'Ring of Devotion'; 'Banner of Devotion' (2020 TTS mod) kept as an alias. Distinct from the People's Favor banner."
+  },
+  {
+    "numbering": "card",
+    "saveId": 233,
+    "name": "Ivory Eye",
+    "aliases": ["Proof of Nobility"],
+    "reason": "Printing rename of the relic. 2nd-printing-or-later card reads 'Ivory Eye'; 'Proof of Nobility' (2020 TTS mod) kept as an alias."
+  },
+  {
+    "numbering": "site",
+    "saveId": 17,
+    "name": "Drowned City",
+    "aliases": ["The Drowned City"],
+    "reason": "Printing rename: the article was dropped. 2nd-printing-or-later card reads 'Drowned City'; 'The Drowned City' (2020 TTS mod) kept as an alias. Both slugify to drowned-city."
+  },
+  {
+    "numbering": "site",
+    "saveId": 20,
+    "name": "The Tribunal",
+    "aliases": ["Imperial Seat"],
+    "reason": "Printing rename. 2nd-printing-or-later site reads 'The Tribunal'; 'Imperial Seat' (2020 TTS mod) kept as an alias."
+  }
+]

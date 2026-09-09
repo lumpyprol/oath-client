@@ -457,6 +457,17 @@ printing; record aliases"
 
 **Done when.** Zero uncovered discrepancies; every override has a reason.
 
+**Status.** ✅ Completed 2026-09-08. 12 discrepancies found (2 swap pairs +
+8 renames). Owner has a 2nd-printing-or-later copy → newer names canonical,
+2020 TTS-mod names kept as aliases. Swaps (16/98, 111/112) keep the
+`cards.lua` assignment with the transposed name cross-aliased. After
+`applyOverrides` the 4 swap discrepancies remain but are all covered; renames
+resolve away entirely. `src/oath/cards/reconcile.ts` +
+`src/oath/cards/tsNames.ts` (reads the vendored `.ts` tables as text, so
+`vendor/` stays out of the build); `schema.ts` gains optional `aliases`;
+`src/oath/cards/data/overrides.json` has all 12 with reasons.
+`test/oath/cards/reconcile.test.ts` — 5 tests pass.
+
 **Your part.** For each saveId in the list, look at the physical card and put
 the printed name in `name`, the other witness's name in `aliases`. If a swap
 (16/98, 111/112) means the *Lua index* is wrong rather than the name, the
