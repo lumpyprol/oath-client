@@ -141,7 +141,7 @@ Architecture within the phase (not decision-log material):
 
 ---
 
-## Unit 1 — State shape and invariants
+## Unit 1 — State shape and invariants ✅ (completed 2026-09-09)
 
 **Purpose.** Define what an Oath game *is* in memory before any rule exists.
 Everything downstream builds states by hand in tests; this unit makes that
