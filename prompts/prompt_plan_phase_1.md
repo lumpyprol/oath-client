@@ -748,6 +748,22 @@ No code changes. Run npm test anyway.
 Commit: "Document card data module"
 ```
 
+**Status.** ✅ Completed 2026-09-08. README gains a "Card data" section
+(source/provenance, `npm run build:cards`, drift test, id scheme with three
+examples, aliases, text overlay + no-real-text rule, seed round-trip); Layout
+and Next updated (P1 ✅, P2 described). New `src/oath/cards/README.md` with the
+pipeline diagram and file map. No code changes; `npm test` — 104 pass.
+
+---
+
+## Phase 1 complete
+
+All 11 units done. 104 tests, `npm run build` clean. The card database lives
+at `src/oath/cards/` (198 denizens, 23 sites, 20 relics, 5 visions, 6
+edifice/ruin, 2 banners), generated and drift-guarded, with name
+reconciliation, an optional text overlay, and byte-exact chronicle seed
+interop at `src/oath/chronicle/`.
+
 ---
 
 ## Order and dependencies

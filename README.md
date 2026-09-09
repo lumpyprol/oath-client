@@ -1,8 +1,9 @@
-# oath-async — P0 skeleton
+# oath-async
 
 An async-first, append-only server for playing Oath with a private group.
-This is **P0 only**: the plumbing, proven end to end with a throwaway toy
-game. There are no Oath rules in here yet.
+**P0** (the plumbing, proven end to end with a throwaway toy game) and **P1**
+(the card database) are done. There are no Oath *rules* in here yet — that is
+P2.
 
 Private use, among people who own the game. Card text belongs to Buried
 Giant Studios — keep this repo private and don't publish assets.
@@ -11,7 +12,7 @@ Giant Studios — keep this repo private and don't publish assets.
 
 ```
 npm install
-npm test          # 10 tests: replay determinism, snapshots, concurrency, hidden info
+npm test          # replay determinism, snapshots, concurrency, hidden info, + all of P1
 npm run build
 npm run smoke     # 18 checks against a live server, including a hard restart
 ```
@@ -66,11 +67,15 @@ src/
     types.ts     GameDefinition contract, action shape, error types
     random.ts    one-shot crypto randomness. setup() and prepare() only.
     cradle.ts    toy game. DELETE once real rules land.
+  oath/
+    cards/       the P1 card database (see src/oath/cards/README.md)
+    chronicle/   seed parsing / serialization (parseSeed, serializeSeed)
   db.ts          schema (games, players, setups, actions, snapshots)
   actionlog.ts   append / fold / snapshot / rollback
   routes.ts      HTTP API
   index.ts       server
-test/replay.test.ts
+vendor/oathparser/   upstream card data, pinned + hash-checked
+test/
 scripts/smoke.mjs
 ```
 
@@ -103,6 +108,50 @@ friendly group, "wait, back up" is a rewind button rather than an argument
 about rules — which is why the engine doesn't need to adjudicate card
 powers to be trustworthy.
 
+## Card data
+
+Everything from P2 on depends on the card database in `src/oath/cards/`: every
+denizen, site, relic, vision, edifice/ruin, and banner in base Oath, with
+stable ids, suits, and the structural facts the engine and the chronicle need.
+It is engine-agnostic — if the server were deleted tomorrow this data would
+still be worth having. See `src/oath/cards/README.md` for the file map.
+
+**Source and provenance.** The structural facts come from
+`Vagabottos/OathParser` (the official TTS mod's card table), vendored verbatim
+into `vendor/oathparser/` and pinned to one commit. `vendor/oathparser/PROVENANCE.md`
+records the commit, dates, and a sha256 per file; a test recomputes and checks
+them, so upstream can't drift silently.
+
+**Regenerating.** `npm run build:cards` runs the pipeline — parse `cards.lua`,
+build the typed database, apply name overrides — and writes the six
+`src/oath/cards/data/*.json` files (sorted by `saveId`). The generated JSON is
+committed; the script is provenance, not a runtime step. `drift.test.ts`
+regenerates in memory and fails if any committed file differs, or if the
+assembled files don't pass the schema — the fix it names is `npm run build:cards`.
+
+**Ids** are namespaced slugs derived deterministically from the printed name:
+`denizen:sneak-attack`, `site:drowned-city`, `relic:brass-horse`. Readable in
+the action log, collision-proof across kinds. `saveId` is kept as an attribute
+for seed interop but is never an identifier in our own code.
+
+**Aliases.** The mod's table and the parser's name tables disagree on ~12
+cards — printing renames (this repo takes the 2nd-printing name as canonical)
+and two index-swap pairs. Each is resolved by hand in
+`src/oath/cards/data/overrides.json` with a stated reason; the other name is
+kept as an alias. `byName()` matches the printed name **or any alias**,
+case-insensitive, so a seed from either printing still resolves.
+
+**Text overlay.** Card text is optional and lives apart from the structural
+data, in `src/oath/cards/data/text.json` (`{ cardId: { text, powerKind?, notes? } }`),
+merged at load by `withText`. The engine never reads it; only the client does.
+No real `text.json` is committed yet, and **no test contains real card text** —
+fixtures use obviously fake strings like `"FAKE TEXT ONE"`.
+
+**Seed interop.** `src/oath/chronicle/seed.ts` (`parseSeed` / `serializeSeed`)
+maps the shared TTS/Vassal seed format to our ids and back. It resolves each
+card by its `saveId` byte, so the index swaps and edifice ruin faces line up;
+the two sample seeds round-trip byte for byte.
+
 ## Deploying
 
 ```
@@ -115,11 +164,18 @@ check assumes one process owns the file.
 
 ## Next
 
-- **P1** — card data. Denizens, sites, relics, visions as structured TS,
-  sourced from `Vagabottos/OathParser` rather than transcribed by hand.
-- **P2** — core loop as a real `GameDefinition`: turn structure, the six
-  actions, supply and banks, campaign resolution. Card powers stay
-  player-declared: the action records "used X, spent 2 favor, moved these
-  warbands" and applies the stated deltas without knowing what X does.
+- **P1** — card data. ✅ Done. The card database under `src/oath/cards/`,
+  sourced from `Vagabottos/OathParser` rather than transcribed by hand,
+  validated by zod, with name reconciliation, a text overlay, and seed
+  interop. See "Card data" above.
+- **P2** — core loop as a real `GameDefinition` built on the P1 data: turn
+  structure, the six actions (travel, muster, trade, recover, search,
+  campaign), the supply and the favor banks, campaign resolution, and the
+  chronicle roll at game end. Card powers stay player-declared — the action
+  records "used `denizen:sneak-attack`, spent 2 favor, moved these warbands"
+  and applies the stated deltas without the engine knowing what the card
+  does. The card database gives P2 the ids, suits, capacities, and
+  edifice/banner faces it needs; enforcement of powers is explicitly out of
+  scope.
 - **P3** — interrupts. Batched defender prompts, standing pre-commitments.
   The hardest design work in the project.
