@@ -156,8 +156,11 @@ the two sample seeds round-trip byte for byte.
 site to an asset filename — one key per denizen/site/relic/vision, two per
 edifice/ruin (`…#ruin`), one per banner face (`…#1`). Regenerate with
 `npm run build:art`; the drift test guards it. The image files themselves stay
-out of git (token-gated) and live in `ART_DIR` (default `./assets/art`, which
-is gitignored). `missingArt` catches a face with no manifest entry;
+out of git (token-gated) and live in `ART_DIR` — `./assets/art` locally
+(gitignored), a path on the Fly volume beside `games.db` in production. Sources:
+per-card faces from cards.buriedgiant.com, frames/backs/symbol font from the
+official Oath Development Kit, map/boards from the Vassal module (see the
+addendum for links). `missingArt` catches a face with no manifest entry;
 `missingAssets` catches a manifest entry with no file. The against-real-assets
 test is skipped unless `ART_DIR` exists, so a fresh checkout stays green.
 

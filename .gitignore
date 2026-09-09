@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.db
 assets/
+.DS_Store
+.claude/settings.local.json

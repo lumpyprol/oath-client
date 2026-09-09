@@ -40,8 +40,30 @@ D29 (tablet/laptop as the primary surface) has no Phase 1 impact.
 
 ## Open questions this unit needs answered
 
-- **Q8** — where do art assets live? Leaning Fly volume beside the db.
-- **Q9** — art source: own scans vs mod atlases; source resolution.
+- **Q8 — where do art assets live? RESOLVED 2026-09-08: Fly volume beside the
+  db.** The image files sit under `ART_DIR` on the same mounted volume as
+  `games.db` (default `./assets/art` locally, gitignored; a path on the
+  volume in the deployed image). Only `data/art.json` is committed. This
+  keeps deploys free of large binaries and the asset set editable without a
+  redeploy.
+
+- **Q9 — art source. RESOLVED 2026-09-08: composite from multiple sources.**
+  - **Card faces** (denizens, relics, visions, edifice/ruin, banners): the
+    per-card illustrations from <https://cards.buriedgiant.com/search?q=game:%22oath%22>.
+  - **Card frames / suit borders / backs / the Oath symbol font**: the
+    official *Oath Development Kit* (`~/Downloads/Oath Development Kit`,
+    Jul 2021) — it has `denizen <suit>.png`, `ediface <suit>.png`,
+    `ediface ruined.png`, box templates, and `Oath Symbols (Public).otf`.
+    Templates only; no per-card art.
+  - **Map and player boards**: start from the Vassal module —
+    <https://vassalengine.org/library/projects/Oath_Chronicles_of_Empire_and_Exile>
+    — or the higher-res scans in
+    <https://boardgamegeek.com/thread/2632208/oath-vassal-module>. Not
+    finalized; not needed until P4.
+
+  Filling `ART_DIR` and normalizing every image to the manifest's filenames
+  and a target resolution is deferred to the P4 client work; the manifest
+  and presence checks are done now.
 
 The unit is written so the manifest and tests can be completed before either
 is answered; only the skipped integration test waits on the assets.
@@ -122,8 +144,8 @@ orphan keys), `requiredArtKeys`, `fileForKey`, `generateArtManifest`,
 banner faces). Drift check added to `drift.test.ts`; `assets/` gitignored.
 `test/oath/cards/art.test.ts` — 8 tests pass, 1 skipped (the real-asset
 integration, `skipIf(!existsSync(ART_DIR))`). README + `src/oath/cards/README.md`
-gained the art paragraph. Still open: Q8 (asset location) and Q9 (art
-source) — neither blocks; the skipped test waits on the files.
+gained the art paragraph. Q8 and Q9 resolved 2026-09-08 (see above); actually
+placing the files in `ART_DIR` is P4 work.
 
 ---
 
