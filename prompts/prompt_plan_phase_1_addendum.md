@@ -32,8 +32,11 @@ D29 (tablet/laptop as the primary surface) has no Phase 1 impact.
 
 ## Exit criterion added to Phase 1
 
-- [ ] art manifest covers every card face and site; asset presence test
+- [x] art manifest covers every card face and site; asset presence test
       passes against the local asset directory
+      *(manifest + checks done 2026-09-08; the against-real-assets test is
+      `skipIf(!ART_DIR)` and stays skipped until the assets are placed —
+      Q8/Q9 below)*
 
 ## Open questions this unit needs answered
 
@@ -109,6 +112,18 @@ Commit: "Add art manifest and asset presence checks"
 
 **Done when.** Manifest covers every face; presence test passes locally with
 your assets and is skipped in CI.
+
+**Status.** ✅ Completed 2026-09-08. `src/oath/cards/art.ts` exports
+`ArtEntrySchema`, `ArtManifestSchema`, `loadArtManifest` (throws listing
+orphan keys), `requiredArtKeys`, `fileForKey`, `generateArtManifest`,
+`missingArt`, `missingAssets`; `ART_DIR` from env (default `./assets/art`).
+`scripts/build-art-manifest.ts` (`npm run build:art`) writes
+`src/oath/cards/data/art.json` — 261 keys (198 + 23 + 20 + 5 + 6×2 + 3
+banner faces). Drift check added to `drift.test.ts`; `assets/` gitignored.
+`test/oath/cards/art.test.ts` — 8 tests pass, 1 skipped (the real-asset
+integration, `skipIf(!existsSync(ART_DIR))`). README + `src/oath/cards/README.md`
+gained the art paragraph. Still open: Q8 (asset location) and Q9 (art
+source) — neither blocks; the skipped test waits on the files.
 
 ---
 

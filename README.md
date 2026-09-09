@@ -152,6 +152,15 @@ maps the shared TTS/Vassal seed format to our ids and back. It resolves each
 card by its `saveId` byte, so the index swaps and edifice ruin faces line up;
 the two sample seeds round-trip byte for byte.
 
+**Art manifest.** `src/oath/cards/data/art.json` maps every card face and every
+site to an asset filename — one key per denizen/site/relic/vision, two per
+edifice/ruin (`…#ruin`), one per banner face (`…#1`). Regenerate with
+`npm run build:art`; the drift test guards it. The image files themselves stay
+out of git (token-gated) and live in `ART_DIR` (default `./assets/art`, which
+is gitignored). `missingArt` catches a face with no manifest entry;
+`missingAssets` catches a manifest entry with no file. The against-real-assets
+test is skipped unless `ART_DIR` exists, so a fresh checkout stays green.
+
 ## Deploying
 
 ```

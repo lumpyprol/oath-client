@@ -8,7 +8,8 @@
     "start": "NODE_OPTIONS=--experimental-sqlite node dist/index.js",
     "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
     "smoke": "node scripts/smoke.mjs",
-    "build:cards": "tsx scripts/build-cards.ts"
+    "build:cards": "tsx scripts/build-cards.ts",
+    "build:art": "tsx scripts/build-art-manifest.ts"
   },
   "keywords": [],
   "author": "",

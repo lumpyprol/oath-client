@@ -8,6 +8,11 @@ import {
   serializeCollection,
 } from '../../../src/oath/cards/generate.js';
 import { CardDatabaseSchema } from '../../../src/oath/cards/schema.js';
+import {
+  ArtManifestSchema,
+  generateArtManifest,
+  loadArtManifest,
+} from '../../../src/oath/cards/art.js';
 
 const db = generate();
 
@@ -22,6 +27,19 @@ describe('committed card data does not drift from the generator', () => {
       );
     });
   }
+});
+
+describe('committed art manifest does not drift from the generator', () => {
+  it('art.json matches generateArtManifest()', () => {
+    expect(
+      loadArtManifest(),
+      'art.json is stale — run: npm run build:art',
+    ).toEqual(generateArtManifest(db));
+  });
+
+  it('art.json is schema-valid', () => {
+    expect(ArtManifestSchema.safeParse(loadArtManifest()).success).toBe(true);
+  });
 });
 
 describe('committed card data', () => {

@@ -28,6 +28,10 @@ vendor/oathparser/cards.lua
    cards, byId, findById, byName, bySaveId, denizensBySuit, edificeBySuit
 ```
 
+`art.ts` sits beside the loader: `generateArtManifest(generate())` →
+`data/art.json` (via `scripts/build-art-manifest.ts`, `npm run build:art`),
+drift-guarded like the data files.
+
 ## Files
 
 | File | What |
@@ -41,8 +45,10 @@ vendor/oathparser/cards.lua
 | `generate.ts` | `generate()` + `COLLECTIONS`, `DATA_DIR`, `serializeCollection` |
 | `index.ts` | the runtime loader and lookup API; validates and deep-freezes at module load |
 | `text.ts` | `loadTextOverlay(path?)`, `withText(db, overlay)` — the optional client-only text overlay |
+| `art.ts` | `loadArtManifest`, `requiredArtKeys`, `generateArtManifest`, `missingArt`, `missingAssets` — the art manifest and asset presence checks |
 | `data/*.json` | generated, committed card data — regenerate with `npm run build:cards` |
 | `data/overrides.json` | hand-resolved name reconciliation, one reason per entry |
+| `data/art.json` | generated art manifest (`npm run build:art`); asset files live in `ART_DIR`, not git |
 | `data/text.json` | optional; not committed yet; tests use `test/fixtures/text.fake.json` |
 
 ## Tests
