@@ -104,6 +104,66 @@ sketches where the two disagree.
   invariant; powers may override at play-time (Law §9.2) — if one ever does,
   relax the invariant then, not before.
 
+## What unit 3 established (as built, 2026-09-09)
+
+The plan's `ZoneRef` list ("a seat's hand/advisers/favor/secrets/warband
+supply; a site's slots/relics/warbands; a suit's favor bank; the secret
+supply; the world deck; a discard pile; the dispossessed; the relic deck;
+a banner") undercounted what the six actions actually touch. The built
+vocabulary (`src/oath/game/effects.ts`) has 22 zone kinds, each traced to a
+specific action or to `power.use` itself — none spec­ulative:
+
+- **Warbands split into three pools, not one "warband supply".** Muster
+  (Law §5.2.2) gains warbands from the personal bank onto *your board*, not
+  onto the site; moving board warbands onto a *ruled site* is a separate
+  Minor Action. So `seatWarbandBank`, `seatWarbandBoard`, and
+  `siteWarbands` are three distinct zones, matching unit 1's state split.
+- **Muster and Trade place tokens directly on cards** (Law §5.2.1, §5.3.2:
+  "place one favor/secret on a denizen... at your site"), so
+  `siteCardFavor`/`siteCardSecrets` (and `adviserFavor`/`adviserSecrets`,
+  for power.use paying a cost on an adviser, Law §7.1.2) are core, not
+  edge cases.
+- **`siteFavor`/`siteSecrets`** (tokens on the site itself) exist for
+  Travel's reveal prompt (Law §5.6.2) — needed by one of the six actions.
+- **`seatRelics` and `seatVision`** exist because Recover (Law §5.4.3) and
+  Search's Vision play (Law §5.1.4.3) target them directly.
+- **Banners address only their token stake**, one currency each
+  (`bannerFavor` for the People's Favor, `bannerSecrets` for the Darkest
+  Secret — Law §2.5) — no generic `{kind:'banner', id}` pairing was needed
+  since there's exactly one banner per currency. **Banner HOLDER transfer
+  is NOT in this vocabulary** — it's a structural reassignment
+  (`BannerState.holder`), not a currency move; Recover (unit 11) and
+  Campaign seizure (unit 13) mutate it directly, the same way turn.ts's
+  Rest sweep (unit 5) will move `secrets.flipped -> ready` directly.
+- **The Imperial Reliquary is NOT a zone.** Setup deals into it directly
+  (bypassing effects); nothing in `reduce` moves a card there until
+  Citizenship (unit 16) hands out a promised relic — add it then.
+- **`draw`'s `from` is restricted to `worldDeck`/`discard`/`relicDeck`**
+  (the ordered/hidden sources with a "top"); its `to` is unrestricted
+  within `CardZone` since both Search (-> `seatHand`) and Travel's reveal
+  (relicDeck -> `siteRelics`) are legitimate destinations.
+- **Two real gaps deferred, not silently built around:**
+  - Relic power-cost tokens (Law §7.1.2: relics have costs too) have no
+    zone here because `player.relics` is still a bare `string[]` from
+    unit 1. Extending it to carry favor/secrets is unit 11's or unit 14's
+    call — it reshapes an existing field, which is a stop-and-reassess
+    case per the plan's risk list, not an additive one.
+  - `seatSecrets` addresses only the READY pool. Paying a power cost
+    "outside your turn" flips a secret facedown in place instead of
+    moving it (Law §7.1.2) — relevant once `power.use` is usable during
+    another seat's turn (the naive campaign response window, unit 12+).
+    Needs either a pool parameter on `seatSecrets` or a new flip target;
+    unit 14/15's call.
+  - Flipping a site facedown/faceup (Travel's arrival reveal, Law §5.6.2)
+    isn't a `flip` target yet — only adviser and edifice are. Add it in
+    unit 9.
+- **Runtime exhaustiveness matters.** A zone object with an unrecognized
+  `kind` must throw the same `IllegalAction` as any other infeasibility,
+  not silently no-op — `EffectSchema` blocks this from the HTTP path, but
+  `applyEffects` is also callable directly by trusted code, so every
+  zone-dispatch switch has an explicit runtime default case
+  (`badZone` in effects.ts), not just an exhaustive-union compile check.
+
 ## Decisions made (recorded in HLD §7 as D30–D35)
 
 1. **D30 — setup is seed-shaped.** `setup()` takes a `SetupSpec` — the same
@@ -295,7 +355,7 @@ Commit: "Add map regions and travel cost table"
 
 ---
 
-## Unit 3 — Effect vocabulary
+## Unit 3 — Effect vocabulary ✅ (completed 2026-09-09)
 
 **Purpose.** The shared currency of declared and enforced powers (HLD D28),
 and the vocabulary `power.use` speaks. Designed once here; grows only on
