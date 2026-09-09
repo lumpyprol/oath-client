@@ -572,6 +572,14 @@ Commit: "Add card loader and lookup API"
 
 **Done when.** All lookups tested; module is frozen.
 
+**Status.** ✅ Completed 2026-09-08. `src/oath/cards/index.ts` imports the six
+JSON files, validates through `CardDatabaseSchema` at load (throws on
+failure), deep-freezes, and exports `cards`, `byId`, `findById`, `byName`
+(exact name wins over alias; ambiguity throws), `bySaveId` (ruin saveId →
+edifice entity), `denizensBySuit`, `edificeBySuit`. Indexes built once.
+`test/oath/cards/index.test.ts` — 13 tests pass. tsc copies the data JSON
+into `dist/`, so the runtime path works too.
+
 ---
 
 ## Unit 9 — Text overlay
