@@ -1,0 +1,10 @@
+{
+  "denizen:wrestlers": {
+    "text": "FAKE TEXT ONE — not real card text",
+    "powerKind": "battle"
+  },
+  "relic:brass-horse": {
+    "text": "FAKE TEXT TWO — not real card text",
+    "notes": "FAKE NOTE"
+  }
+}

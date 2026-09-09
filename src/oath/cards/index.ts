@@ -12,6 +12,7 @@ import {
   type EdificeRuin,
   type Suit,
 } from './schema.js';
+import { loadTextOverlay, withText } from './text.js';
 
 function deepFreeze<T>(value: T): T {
   if (value && typeof value === 'object') {
@@ -34,8 +35,13 @@ if (!parsed.success) {
   throw new Error(`oath/cards: committed data is invalid:\n${parsed.error.message}`);
 }
 
-/** The whole card database, validated once and deep-frozen. */
-export const cards: CardDatabase = deepFreeze(parsed.data);
+/**
+ * The whole card database: validated, then the optional text overlay is
+ * merged in (client-facing only), then deep-frozen.
+ */
+export const cards: CardDatabase = deepFreeze(
+  withText(parsed.data, loadTextOverlay()),
+);
 
 const everyCard: readonly Card[] = [
   ...cards.denizens,

@@ -636,6 +636,16 @@ Commit: "Add optional card text overlay"
 **Done when.** Overlay tests pass with fake data; real `text.json` still empty
 or absent.
 
+**Status.** ✅ Completed 2026-09-08. `schema.ts` gains optional `text` /
+`powerKind` / `notes` on the base card + `PowerKindSchema`.
+`src/oath/cards/text.ts`: `loadTextOverlay(path?)` (returns {} if missing,
+shape-validated), `withText(db, overlay)` (attaches fields, throws naming
+unknown ids, does not mutate input). `index.ts` applies `withText` after
+schema validation and before freezing. No real `text.json`;
+`test/fixtures/text.fake.json` has two fake entries. `text.test.ts` —
+8 tests pass. Default stands: a real `text.json` will be committed, not
+gitignored.
+
 ---
 
 ## Unit 10 — Chronicle seed mapping

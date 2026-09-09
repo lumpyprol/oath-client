@@ -29,6 +29,20 @@ export const ID_RE = /^(denizen|site|relic|vision|edifice|banner):[a-z0-9-]+$/;
 const saveId = z.number().int().min(0).max(254);
 const nonempty = z.string().min(1);
 
+/**
+ * UI hint for how a card's power is used. Player-declared, never enforced by
+ * the engine. Only ever set via the text overlay (see text.ts).
+ */
+export const PowerKindSchema = z.enum([
+  'action',
+  'persistent',
+  'battle',
+  'whenPlayed',
+  'locked',
+  'none',
+]);
+export type PowerKind = z.infer<typeof PowerKindSchema>;
+
 const baseCard = z.object({
   id: z.string().regex(ID_RE, 'id must be "<kind>:<slug>" with a lowercase slug'),
   name: nonempty,
@@ -36,6 +50,10 @@ const baseCard = z.object({
   saveId,
   /** Prior printed names for this card, so old seeds still resolve. */
   aliases: z.array(nonempty).optional(),
+  /** Card text, attached at load from the overlay. The engine never reads it. */
+  text: nonempty.optional(),
+  powerKind: PowerKindSchema.optional(),
+  notes: nonempty.optional(),
 });
 
 /** Per-kind refinement: the id's prefix must match the card's kind. */
