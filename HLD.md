@@ -7,7 +7,7 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | --- | --- |
 | Started | 2026-09-07 |
 | Last updated | 2026-09-08 |
-| Current phase | P1 (in progress, nearly complete) |
+| Current phase | P2 (planned, not started) |
 | Owner | Ben |
 
 ---
@@ -253,7 +253,7 @@ Dockerfile, `fly.toml`.
 
 ---
 
-### P1 — Card data — `in progress`
+### P1 — Card data — `done`
 
 **Goal.** Every card in base Oath as validated JSON with stable ids, sourced
 from the official mod's data via `Vagabottos/OathParser`, reconciled against
@@ -262,9 +262,16 @@ physical cards, and proven seed-compatible.
 **Prompt plan.** `prompt_plan_phase_1.md` — 11 TDD units, plus
 `prompt_plan_phase_1_addendum.md` adding unit 12 (art manifest) on 09-08.
 
-**Progress note (09-08).** Nearly complete per Ben. Verify each exit
-criterion below against `npm test` and tick it; the art criterion is new
-and will be the last one open.
+**Delivered (09-08).** All 12 units. The card database lives at
+`src/oath/cards/` (198 denizens, 23 sites, 20 relics, 5 visions, 6
+edifice/ruin, 2 banners), generated from the vendored mod data and
+drift-guarded, with hand-reconciled names (12 overrides, old names kept as
+aliases), a frozen loader, an optional text overlay, an art manifest (261
+keys), and byte-exact chronicle seed interop at `src/oath/chronicle/`.
+112 tests pass; 1 intentionally skipped (`skipIf` on the art-asset
+presence check — filling `ART_DIR` is P4 work, so the manifest criterion
+below is ticked with that caveat). Deferred to P4: placing and
+normalising the actual image files.
 
 **Scope.**
 - Vendor OathParser at a pinned commit with provenance and hash test
@@ -282,27 +289,32 @@ and will be the last one open.
 
 **Decisions made.** D15–D21, D27.
 
-**Decisions open.**
-- Which printing Ben owns (drives canonical names in unit 6)
-- Whether the client needs `powerKind` before P4
-- Whether `text.json` is committed (default: yes, repo is private)
+**Decisions resolved during the phase.**
+- Ben owns a 2nd-printing-or-later copy; newer names are canonical, 2020
+  TTS-mod names are aliases (unit 6; resolves Q1)
+- `powerKind` on the text overlay: fill if convenient, decide for real in
+  P4 (Q3 moved to P4)
+- `text.json` is committed when it exists (Q4, default stood)
 
 **Exit criteria.**
-- [ ] 198 denizens, 23 sites, 20 relics, 5 visions, 6 edifices, 2 banners
-- [ ] zero unresolved name discrepancies; every override has a reason
-- [ ] drift test green; data regenerable with one command
-- [ ] both sample seeds round-trip byte-for-byte through our ids
-- [ ] no real card text in any test
-- [ ] art manifest covers every card face and site; asset presence test passes
-      against the local asset directory
+- [x] 198 denizens, 23 sites, 20 relics, 5 visions, 6 edifices, 2 banners
+- [x] zero unresolved name discrepancies; every override has a reason
+- [x] drift test green; data regenerable with one command
+- [x] both sample seeds round-trip byte-for-byte through our ids
+- [x] no real card text in any test
+- [x] art manifest covers every card face and site; asset presence test is
+      `skipIf(!ART_DIR)` and stays skipped until assets are placed (P4)
 
 ---
 
-### P2 — Core loop — `not started`
+### P2 — Core loop — `planned`
 
 **Goal.** A real `GameDefinition` for Oath. A full game is playable start to
 finish with the six actions enforced and card powers player-declared. This is
 the feasibility milestone: if the state machine is painful here, stop.
+
+**Prompt plan.** `prompt_plan_phase_2.md` — 20 TDD units. Campaign design
+(units 12–13) is the explicit feasibility gate.
 
 **Scope.**
 - State shape (see §5) and `setup()` per the rulebook's setup procedure,
@@ -329,13 +341,24 @@ the feasibility milestone: if the state machine is painful here, stop.
 - `pending()` for turn and for every blocking decision
 - Delete `cradle`
 
-**Decisions to make in P2.**
-- How much of the Oathkeeper/Vision endgame is enforced vs declared
-- The initial effect vocabulary, and the rule for adding to it
-- Whether an enforced card *replaces* the declaration or *validates* it
-  (leaning: enforced cards produce the effects; the client stops asking)
-- Rulebook edition to follow, and how to record rulings that come up
-- Whether relic/banner powers use the same `power.use` shape (leaning yes)
+**Decisions made at planning (09-08, see D30–D35).**
+- Setup is seed-shaped; the first game is a built-in constant spec; the
+  engine contract gains `setup(seats, options?)` (D30, D31)
+- State is plain TS types + `checkInvariants`; no runtime schema on the
+  fold path (D32)
+- Effect vocabulary starts minimal, grows only when an action or power
+  needs it; additions are additive (D33)
+- Enforced cards *replace* the declaration (produce the effects; the
+  client stops asking); relic/banner powers use the same `power.use`
+  shape (D34)
+- The structural endgame — oathkeeper, succession, visions, citizenship
+  transitions, game end — is enforced, not declared (D35)
+- Rulings are recorded in `RULINGS.md` with date and rulebook ref
+
+**Decisions still open.**
+- Rulebook edition to follow (Q5, Ben; needed before unit 5)
+- The campaign action sequence — designed in unit 12, the hardest call
+  in the phase
 
 **Exit criteria.**
 - [ ] a 3-player game plays to completion through the API with powers declared
@@ -524,6 +547,12 @@ with `reversed by`.
 | D27 | 09-08 | Card art and board art are in scope; assets private, token-gated, outside git | Ben's call: the real table matters to the group; private use among owners keeps exposure bounded | active |
 | D28 | 09-08 | Powers declared by default but enforceable per card via a registry; declared and enforced powers share one `effects` representation | Keeps v1 small without foreclosing enforcement; adding a card never changes the log or reducer shape | active |
 | D29 | 09-08 | Tablet and laptop are the primary client surfaces; phone supports the inbox and simple decisions only | That's how the group will actually play; a full Oath table doesn't fit a phone and designing for it would compromise the real target | active |
+| D30 | 09-08 | Oath setup is seed-shaped: `setup()` consumes a `SetupSpec` matching the parsed-seed shape; the standard first game is a built-in constant spec | One setup path serves first games, imported seeds, and P5's chronicle output; P5 becomes a spec producer | active |
+| D31 | 09-08 | `GameDefinition.setup` accepts optional creation options, opaque to the store, threaded from the create body | The mechanism by which a seed string (or a pinned test setup) reaches a game's setup without the engine knowing what it means | active |
+| D32 | 09-08 | Game state is plain TS types plus a `checkInvariants` checker run in every test; no runtime schema on the fold path | Snapshots are disposable so runtime validation buys little; conservation-law checks catch real reducer bugs where it matters | active |
+| D33 | 09-08 | Effect vocabulary starts minimal (zone-addressed movers for favor/secrets/warbands/cards + a small closed set) and grows only when an action or power needs it; additions are additive | Guards against pre-building effects for card text; `power.use` shape never changes | active |
+| D34 | 09-08 | Enforced powers replace the declaration — the registered impl produces the effects, the client stops asking; relic and banner powers use the same `power.use` shape | One code path, one log shape; validation-mode would need both paths forever | active |
+| D35 | 09-08 | The structural endgame (oathkeeper, succession, vision victory, citizenship transitions, game end) is enforced by the engine, not declared | These are the game's skeleton, not card text; declaring them would make every ending disputable | active |
 
 ---
 
@@ -533,9 +562,9 @@ with `reversed by`.
 
 | Phase | Status | Started | Done | Prompt plan | Notes |
 | --- | --- | --- | --- | --- | --- |
-| P0 Skeleton | done | 09-07 | 09-07 | — | Fly deploy still pending |
-| P1 Card data | in progress | 09-08 | | `prompt_plan_phase_1.md` + addendum | nearly complete; unit 12 (art manifest) in addendum |
-| P2 Core loop | not started | | | | feasibility gate |
+| P0 Skeleton | done | 09-07 | 09-07 | — | Fly deploy still pending — do before P2 unit 5 |
+| P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
+| P2 Core loop | planned | | | `prompt_plan_phase_2.md` | feasibility gate; Q5 needed before unit 5 |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
@@ -557,16 +586,16 @@ with `reversed by`.
 
 | # | Question | Blocks | Owner |
 | --- | --- | --- | --- |
-| Q1 | Which Oath printing does Ben own? | P1 unit 6 | Ben |
-| Q2 | Fly.io vs VPS? | P0 exit (deploy) | Ben |
-| Q3 | Does the client need `powerKind`? | P4 | Ben, decide by end of P1 |
-| Q4 | Commit `text.json`? | P1 unit 9 | Ben (default yes) |
-| Q5 | Rulebook edition and where rulings are recorded | P2 | Ben |
-| Q6 | Validate `power.declare` deltas for feasibility? | P2 | leaning yes |
+| Q1 | ~~Which Oath printing does Ben own?~~ **Resolved 09-08:** 2nd printing or later; newer names canonical, old names aliased | — | — |
+| Q2 | Fly.io vs VPS? | P0 exit (deploy) — do before P2 unit 5 | Ben |
+| Q3 | Does the client need `powerKind`? | P4 | Ben, decide in P4 |
+| Q4 | ~~Commit `text.json`?~~ **Resolved 09-08:** yes, when it exists (default stood) | — | — |
+| Q5 | Rulebook edition (rulings go in `RULINGS.md` per the P2 plan) | P2 unit 5 | Ben |
+| Q6 | ~~Validate declared-power effects for feasibility?~~ **Resolved 09-08:** yes — `applyEffects` checks feasibility, never card text (P2 units 3, 14) | — | — |
 | Q7 | Client framework and transport | P4 | defer to P4 |
-| Q8 | Where do art assets live? Fly volume, object storage, or git LFS | P1 unit 12, P4 | Ben — leaning Fly volume alongside the db |
-| Q9 | Art source: own scans vs mod atlases; source resolution | P1 unit 12 | Ben |
-| Q10 | Initial effect vocabulary | P2 | design at P2 start |
+| Q8 | ~~Where do art assets live?~~ **Resolved 09-08:** Fly volume beside the db; only the manifest is committed (see P1 addendum) | — | — |
+| Q9 | ~~Art source?~~ **Resolved 09-08:** composite — Buried Giant card search for faces, Dev Kit for frames, Vassal module for boards (see P1 addendum); filling `ART_DIR` is P4 work | — | — |
+| Q10 | ~~Initial effect vocabulary~~ **Resolved 09-08 in principle (D33):** minimal zone-addressed movers, growth only on need; concrete set designed in P2 unit 3 | — | — |
 | Q11 | Is any phone support required for v1, or is inbox-on-phone a P6 nicety? | P4 | Ben — HLD assumes inbox-on-phone is in P4 |
 
 ---

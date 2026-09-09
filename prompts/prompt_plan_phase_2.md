@@ -1,0 +1,1116 @@
+# Prompt plan — Phase 2: core loop
+
+Phase 2 builds the real `GameDefinition` for Oath: state, setup, the turn
+structure, the six actions, campaign resolution, declared powers with the
+effects vocabulary, citizenship, victory, projection, and pending decisions.
+At the end a 3-player game is playable start to finish through the API with
+card powers player-declared.
+
+**This phase is the feasibility gate** (HLD §9). If the state machine turns
+out painful, stop and rescope rather than push through.
+
+Each unit below is a prompt to hand to Claude Code, in order. Every unit is
+TDD: write the failing tests, watch them fail for the right reason, make them
+pass, run the whole suite, commit. Each stands alone — a later unit never
+reopens an earlier one (additive registrations in a dispatch table or check
+pipeline don't count as reopening), and the repo is green and committed after
+each.
+
+---
+
+## What was verified on 2026-09-08
+
+- P1 is complete: 112 tests pass, 1 intentionally skipped (art assets on
+  disk, deferred to P4). `npm run build` clean.
+- The engine contract (`src/engine/types.ts`): `setup(seats)`, `init(setup)`,
+  optional `prepare(state, proposed)` (impure, runs once at append, returns
+  the payload to persist), `reduce(state, action)` (pure; receives a private
+  deep clone, mutate-and-return is fine), `project(state, seat|null)`,
+  `pending(state)`, `isComplete(state)`. `IllegalAction` → 400,
+  `StaleSeq` → 409. Seq 0 is always `game.created`.
+- The cards API (`src/oath/cards/index.ts`): `byId`, `byName` (aliases,
+  case-insensitive), `bySaveId`, `denizensBySuit`, `edificeBySuit`, frozen
+  `cards` database. Counts: 198 denizens, 23 sites, 20 relics, 5 visions,
+  6 edifice/ruin, 2 banners.
+- Seed interop (`src/oath/chronicle/seed.ts`): `parseSeed` / `serializeSeed`
+  round-trip the two sample seeds byte-for-byte. `ParsedSeed` carries oath,
+  suit order, winner, citizenship, sites with their cards, world deck,
+  dispossessed, relics.
+- `cradle` (the P0 toy game) is referenced by `src/routes.ts` (DEFS),
+  `replay.test.ts`, and `scripts/smoke.mjs`. Unit 20 deletes it.
+- Registration point: `DEFS` in `src/routes.ts`; game `kind` comes from the
+  create body.
+
+## Rules authority
+
+The rulebook is the authority for every game rule; this plan is the authority
+for architecture only. **Where this plan states a game rule (a cost, a dice
+face, a timing), treat it as a claim to verify against the rulebook before
+encoding it in a test.** Constants in code carry a comment citing the
+rulebook section. Anything ambiguous, and any table ruling the group makes,
+goes in `RULINGS.md` at the repo root (created in unit 1), with the date and
+the rulebook edition it interprets. Q5 (which edition) must be answered
+before unit 5; units 1–4 don't depend on it.
+
+## Decisions made (recorded in HLD §7 as D30–D35)
+
+1. **D30 — setup is seed-shaped.** `setup()` takes a `SetupSpec` — the same
+   shape `parseSeed` produces — and the standard first game is a built-in
+   constant spec matching the rulebook's first-chronicle layout. One setup
+   path serves the first game, imported seeds (unit 18), and P5's chronicle
+   output. P5 becomes a producer of `SetupSpec`, nothing more.
+2. **D31 — the engine contract gains creation options.**
+   `setup(seats, options?)`, opaque to the store, passed through from the
+   create body. This is how a seed string reaches Oath's setup. Small,
+   backward-compatible change to `engine/types.ts` (unit 4).
+3. **D32 — state is plain TypeScript types plus an invariant checker.** No
+   zod on the fold path; `checkInvariants(state)` (conservation laws,
+   uniqueness, capacity) runs in every test after every reduce. Snapshots
+   are disposable, so runtime validation buys little; the checker is the
+   safety net where it matters.
+4. **D33 — the effect vocabulary starts minimal and grows only on need.**
+   Zone-addressed movers for the four currencies (favor, secrets, warbands,
+   cards) plus a small fixed set. Adding an effect is additive: a new tag, an
+   `applyEffect` case, tests. The `power.use` action shape never changes.
+5. **D34 — enforced powers replace the declaration**, they don't validate
+   it: a registered card implementation produces the effects and the client
+   stops asking. Relic and banner powers use the same `power.use` shape.
+6. **D35 — the structural endgame is enforced.** Oathkeeper tracking,
+   succession checks, vision victory, citizenship transitions, and game end
+   are engine rules, not declarations. Card-text exceptions to them ride on
+   `power.use` like everything else.
+
+Architecture within the phase (not decision-log material):
+
+- **Dispatch-table reducer.** `reduce` looks up handlers in a
+  `Record<actionType, handler>`; end-of-turn/start-of-turn checks are an
+  ordered pipeline array. Later units register handlers and checks
+  additively; no unit edits another unit's handler.
+- **Pending-decision ids are pure and stable.** State carries `actionCount`
+  (incremented by every reduce); a decision's id is
+  `` `${kind}:${seat}:${actionCount when it arose}` ``. Same decision, same
+  id across polls; distinct decisions never collide. P3 builds on this.
+- **Module layout.** `src/oath/game/`: `state.ts`, `map.ts`, `effects.ts`,
+  `setup.ts`, `turn.ts`, `actions/<name>.ts`, `project.ts`, `index.ts`
+  (assembles the `GameDefinition`). `src/oath/powers/registry.ts`. Tests in
+  `test/oath/game/`.
+
+## Decisions needed from you
+
+- **Q5 — rulebook edition.** Name the edition/printing you'll rule from
+  (suggest: the rulebook that shipped with your copy, plus the latest
+  official rules reference if you have it). It goes at the top of
+  `RULINGS.md` in unit 1. Needed before unit 5; the plan assumes your
+  answer matches your 2nd-printing-or-later cards from P1.
+- **Q2 — deploy.** The P0 exit criterion "deployed to Fly and a turn taken
+  from a tablet" is still open and the HLD says do it before P2. It doesn't
+  block units 1–4 technically, but don't let it slip past unit 5.
+
+## Decisions deferred into specific units
+
+- Exact effect tags and zone addressing — unit 3, within D33's frame.
+- The campaign action sequence (declare / respond / roll / resolve split)
+  — unit 12; this is P2's hardest design call and P3's foundation.
+- Whether the whole-campaign flow supports multiple targets in one
+  declaration — unit 12, per the rulebook.
+- What the defender can do in the naive P2 response window — unit 12.
+- How `prepare()` substitutes registry-produced effects — unit 15.
+
+---
+
+## Conventions for every prompt
+
+- Repo state assumed: P1 complete as committed. Node 22, TypeScript, ESM
+  (`.js` import suffixes), vitest, zod available. `npm test` green before
+  and after.
+- Red, green, refactor. Test file first; watch it fail for the right reason.
+- Tests in `test/oath/game/` (unit 19's fixture in `test/fixtures/`).
+- **No real card text in any test or in code.** Card *identities* (ids,
+  names, suits) are fine — that's P1 data. Text is not.
+- Every game rule encoded in a test cites its rulebook section in a comment.
+- Reducer tests for every action cover at minimum: legal, illegal-actor
+  (not your turn / not your decision), illegal-state (can't afford it /
+  target absent). This is an HLD exit criterion.
+- Every test that produces a state runs `checkInvariants` on it.
+- Test helpers live in `test/oath/game/helpers.ts`: a `baseState()` builder
+  producing a minimal valid mid-game state, extended additively by later
+  units (new optional builder params, never changed defaults).
+- States are plain JSON-serializable data: no `Map`, `Set`, `undefined` in
+  arrays, or class instances. `null` for empty slots.
+- Finish with `npm test`, then commit with the message given.
+
+---
+
+## Unit 1 — State shape and invariants
+
+**Purpose.** Define what an Oath game *is* in memory before any rule exists.
+Everything downstream builds states by hand in tests; this unit makes that
+possible and safe.
+
+**Depends on.** Nothing.
+
+```
+We're starting Phase 2 (core loop) of oath-async. First unit: the state
+shape and its invariant checker.
+
+Create RULINGS.md at the repo root: a heading, the rulebook edition (leave
+a TODO for me to fill — Q5), and an empty table (date, question, ruling,
+rulebook ref).
+
+Create `src/oath/game/state.ts` exporting plain TypeScript types (no zod)
+for the full game state. Derive the component list from the rulebook's
+component inventory and HLD §5's sketch. It must include at least:
+
+  - seats: number; seat 0 is the Chancellor (document this convention)
+  - citizenship: per seat, 'chancellor' | 'exile' | 'citizen'
+  - oath: which of the four oaths this game is under; oathkeeper: seat
+  - sitesInPlay: ordered array of { id, region, cards: (cardId|null)[]
+    (denizen slots, length = the site's capacity), relics: cardId[],
+    warbands: per-seat counts, ruined?: ... } — check the rulebook for
+    what a site tracks and add what's missing
+  - per seat: hand (cardId[]), advisers ({ id, facedown }[]), favor,
+    secrets (with flipped/exhausted state if the rulebook has it), warband
+    supply, supply (the action currency), vision held if any
+  - favor banks per suit; secret supply; relic deck order; world deck
+    order; dispossessed; discard piles (check the rulebook for how many
+    and where)
+  - turn: { activeSeat, ...phase bookkeeping }
+  - campaign: null | <sub-state placeholder type, filled in unit 12>
+  - actionCount: number (incremented by every reduce; pending-decision ids
+    derive from it)
+  - complete: boolean; winner: seat | null
+
+Also export `checkInvariants(state): void` (throws with a specific
+message) enforcing at least:
+  - every card id appears in exactly one zone (slots, hands, advisers,
+    decks, discards, dispossessed, relic locations), and exists in the
+    P1 database
+  - site denizen slots don't exceed the site card's capacity
+  - warband conservation per seat: supply + on-map (+ committed, once
+    campaigns exist) equals that seat's rulebook total
+  - favor conservation: banks + players (+ banners) equals the rulebook
+    total for the player count
+  - seats/citizenship consistent (exactly one chancellor, seat 0)
+
+Rulebook totals go in a CONSTANTS block with section citations.
+
+Create `test/oath/game/helpers.ts` with `baseState(overrides?)`: a minimal
+valid 3-player mid-game state built from real card ids (pick them via the
+cards API, don't hardcode strings that could drift).
+
+TDD, `test/oath/game/state.test.ts`:
+  - baseState() passes checkInvariants
+  - each invariant has a test that breaks it and asserts the error names
+    the problem (duplicate card id, over-capacity site, warband count off
+    by one, favor total off, two chancellors)
+
+Commit: "Add Oath game state shape and invariant checker"
+```
+
+**Done when.** `baseState()` validates; every invariant has a failing-case
+test; `RULINGS.md` exists.
+
+---
+
+## Unit 2 — Map geometry
+
+**Purpose.** Regions and travel costs as a small pure module, so Travel and
+Campaign never embed geometry.
+
+**Depends on.** Nothing (uses only card data).
+
+```
+Unit 2 of Phase 2: map geometry.
+
+Create `src/oath/game/map.ts` exporting:
+  - Region: 'cradle' | 'provinces' | 'hinterland'
+  - REGION_SITE_COUNTS: sites per region on the board (rulebook: the map
+    has fixed slots per region — cite the section)
+  - travelCost(from: Region, to: Region): number — the rulebook's travel
+    cost table, cited
+  - any other pure geometry the rulebook defines that actions will need
+    (e.g. which region is "adjacent" to which for card purposes) — add
+    only what the rulebook states, nothing speculative
+
+TDD, `test/oath/game/map.test.ts`, table-driven:
+  - every (from, to) pair has the rulebook's cost, all 9 asserted
+  - REGION_SITE_COUNTS sums to the board's site count
+  - costs are symmetric or asymmetric exactly as the rulebook says —
+    encode whichever it is explicitly
+
+Commit: "Add map regions and travel cost table"
+```
+
+**Done when.** The full cost table is asserted against the rulebook.
+
+---
+
+## Unit 3 — Effect vocabulary
+
+**Purpose.** The shared currency of declared and enforced powers (HLD D28),
+and the vocabulary `power.use` speaks. Designed once here; grows only on
+need.
+
+**Depends on.** Unit 1.
+
+```
+Unit 3 of Phase 2: the effect vocabulary and applier.
+
+Create `src/oath/game/effects.ts`. Design a tagged union `Effect` around
+zone-addressed movers for the four currencies:
+
+  - a ZoneRef type addressing: a seat's hand / advisers / favor / secrets
+    / warband supply; a site's slots / relics / warbands; a suit's favor
+    bank; the secret supply; the world deck (top); a discard pile; the
+    dispossessed; the relic deck (top); a banner
+  - movers: { kind: 'favor'|'secret'|'warbands', from: ZoneRef,
+    to: ZoneRef, amount } and { kind: 'card', id, from: ZoneRef,
+    to: ZoneRef } — with per-kind restrictions on which zones are legal
+    endpoints (favor can't enter a hand, cards can't enter a favor bank…)
+  - a small closed set of non-mover effects only if a mover genuinely
+    can't express them: 'flip' (adviser facedown/up, edifice↔ruin),
+    'draw' (top-of-deck to hand, since the drawer can't name a hidden id)
+  - keep the initial set MINIMAL. If you're unsure a tag is needed for
+    the six actions or an obvious denizen power, leave it out. The growth
+    rule (HLD D33): a new effect lands only when an action or power needs
+    it, as a new tag + applyEffect case + tests — never by widening an
+    existing tag.
+
+Export:
+  applyEffects(state: OathState, actor: seat, effects: Effect[]): OathState
+    — applies in order; throws IllegalAction naming the failing effect's
+    index and reason on ANY infeasibility (zone lacks the amount, card not
+    in the from-zone, illegal endpoint kind, over-capacity destination).
+    Feasibility only: it never asks whether a card's text permits this.
+    Pure; clone-and-mutate is fine.
+
+Zod schemas for Effect (EffectSchema) alongside the types — power.use
+payloads arrive over HTTP and must be shape-validated in prepare later.
+
+TDD, `test/oath/game/effects.test.ts`, on hand-built states:
+  - each mover kind: a legal move lands (both zones change, invariants
+    hold)
+  - each infeasibility listed above throws, message includes the index
+  - effects apply in order: a sequence where step 2 is only feasible
+    because of step 1 succeeds; the reverse order throws
+  - applyEffects does not mutate its input state
+  - EffectSchema rejects a malformed payload
+
+Commit: "Add effect vocabulary and applier"
+```
+
+**Done when.** All movers and failure modes tested; vocabulary documented in
+the file header with the growth rule.
+
+---
+
+## Unit 4 — Setup and init
+
+**Purpose.** A game can begin. All setup randomness happens here, once, and
+is persisted (HLD D5/D13).
+
+**Depends on.** Units 1, 2. Touches `src/engine/types.ts` (D31).
+
+```
+Unit 4 of Phase 2: setup.
+
+Engine change first (D31): in `src/engine/types.ts`, widen the contract to
+`setup(seats: number, options?: unknown)`. Thread `options` from the
+create-game route body (optional, kind-specific, opaque) through to
+setup(). cradle ignores it. Adjust routes/actionlog minimally; P0 tests
+must stay green untouched apart from type-level fallout.
+
+Create `src/oath/game/setup.ts`:
+
+  - SetupSpec: the seed-shaped description of an opening position — reuse
+    or mirror ParsedSeed from src/oath/chronicle/seed.ts (sites + their
+    cards, world deck contents, dispossessed, relic locations, oath,
+    citizenship, suit order). Define it here; unit 18 converts a real
+    seed string into it.
+  - FIRST_GAME: SetupSpec — the rulebook's prescribed first-chronicle
+    layout (sites and starting denizens are FIXED for the first game;
+    transcribe them from the rulebook's setup diagram, citing it). Every
+    id must resolve via byId; get ids from byName so aliases protect you.
+  - OathSetup: what gets persisted — the spec plus every random outcome:
+    world deck order (shuffled per rulebook), relic deck order, initial
+    deals (starting hands if the rulebook deals any, relics placed at
+    sites per their relicCount), starting warbands/favor/secrets per the
+    rulebook's player-count table.
+  - oathSetup(seats, options?): OathSetup — impure (real shuffles via
+    engine/random), called once at creation. options may carry a seed
+    string LATER (unit 18); for now only FIRST_GAME.
+  - init(setup: OathSetup): OathState — pure assembly, no randomness.
+
+TDD, `test/oath/game/setup.test.ts`:
+  - init(fixed OathSetup) is deterministic: two calls deep-equal
+  - init output passes checkInvariants for 2..6 seats
+  - the un-dealt world deck + hands + sites + dispossessed partition the
+    denizen set (nothing lost, nothing duplicated)
+  - two oathSetup() runs differ in world deck order (shuffle happened)
+  - FIRST_GAME resolves: every card id exists; site count and regions
+    match REGION_SITE_COUNTS
+  - per-seat starting resources match the rulebook table (cited)
+
+Commit: "Add Oath setup and initial state; engine accepts creation options"
+```
+
+**Done when.** A valid opening state exists for 2–6 seats; randomness lives
+only in `oathSetup`.
+
+---
+
+## Unit 5 — Turn skeleton and definition assembly
+
+**Purpose.** The game becomes a registered, runnable `GameDefinition` with
+the smallest real loop: turns advance, supply refreshes, pending and
+projection work. Everything after this unit plugs into it.
+
+**Depends on.** Units 1, 4. **Needs Q5 answered.**
+
+```
+Unit 5 of Phase 2: the turn skeleton and GameDefinition.
+
+Create `src/oath/game/turn.ts` and `src/oath/game/index.ts` exporting
+`oath: GameDefinition<OathState, OathSetup>` with kind 'oath', and
+register it in DEFS in src/routes.ts.
+
+Architecture (this is the phase's chassis — get it right here):
+  - reduce dispatches on action.type through a Record<string, Handler>;
+    unknown type → IllegalAction. Handlers are registered by each action
+    module; this unit registers 'game.created' and 'turn.rest'.
+  - an ordered array of turn-boundary checks (start-of-turn and
+    end-of-turn pipelines). Units 16–17 append checks; nothing edits
+    existing ones. Each check is (state) => state and may set pending
+    flags or complete the game.
+  - every handler increments actionCount exactly once, in one shared
+    wrapper — not per-handler.
+
+Behaviour in this unit (rulebook-cited):
+  - turn order: who acts first and how the turn passes (rulebook)
+  - 'turn.rest': ends the acting player's turn, refreshes their supply
+    per the rulebook's rest rule, advances activeSeat, runs the
+    end-of-turn then start-of-turn pipelines
+  - pending(): while the game runs, exactly one decision — the active
+    seat's turn — kind 'turn', id per the actionCount convention,
+    resolves listing the action types that exist so far
+  - project(state, seat): REDACTING FROM DAY ONE — own hand visible,
+    other hands as counts; facedown advisers as counts/backs for others,
+    identities for the owner; world deck, relic deck, dispossessed as
+    counts only; everything public passes through. Spectator (null) sees
+    what a player-agnostic observer may see per the rulebook.
+  - isComplete reads state.complete (false until unit 17 sets it)
+
+TDD, `test/oath/game/turn.test.ts` (+ extend helpers if needed):
+  - rest: legal for the active seat; illegal-actor for another seat;
+    supply refreshed per rulebook; activeSeat advances in rulebook order
+    and wraps
+  - pending returns exactly one decision for the active seat with a
+    stable id that CHANGES after the turn passes
+  - project: own hand ids visible; other seat's hand is a count with no
+    ids anywhere in the JSON (assert by stringify + absence of the ids);
+    deck orders absent
+  - through the HTTP layer (in-process, like P0's tests): create a kind
+    'oath' game, GET the view for two different seats, POST a rest with
+    prevSeq, get 409 on a stale replay of it
+
+Commit: "Add Oath turn skeleton; register the definition"
+```
+
+**Done when.** An `oath` game can be created over HTTP and turns pass by
+resting; projection redacts; 409s work.
+
+---
+
+## Unit 6 — Playing cards from hand
+
+**Purpose.** Cards leave hands and enter the world — the prerequisite for
+Muster, Trade, and every power.
+
+**Depends on.** Units 3, 5.
+
+```
+Unit 6 of Phase 2: playing cards.
+
+Create `src/oath/game/actions/play.ts` registering 'card.play':
+payload { cardId, as: 'adviser' | 'site', siteId?, facedown? }.
+
+Encode the rulebook's card-playing rules, cited per rule:
+  - when a card may be played and what it costs, if anything
+  - adviser placement: facedown/faceup rules, any per-seat limit
+  - site placement: which site is legal (your site?), slot capacity,
+    and what happens on a full site (whatever the rulebook says —
+    replacement/discard/refusal — encode exactly that)
+  - where a displaced or discarded card goes (which discard pile)
+  - visions: the rulebook's special handling (who may hold/play them,
+    what playing one means). If vision victory mechanics belong to unit
+    17, here only enforce placement legality and leave a TODO citing
+    unit 17.
+
+Implement the state change through applyEffects with card movers where
+the vocabulary fits; add an effect tag only if genuinely needed (D33).
+
+TDD, `test/oath/game/play.test.ts`:
+  - legal adviser play and legal site play from baseState variants
+  - illegal-actor; illegal-state: card not in hand, wrong site, capacity
+    exceeded (or the rulebook's full-site behaviour asserted)
+  - discard destination is the rulebook's pile
+  - invariants hold after every case
+
+Commit: "Add playing cards from hand"
+```
+
+**Done when.** Both placements work with the rulebook's constraints; the
+full-site rule is encoded and cited.
+
+---
+
+## Unit 7 — Muster
+
+**Purpose.** First of the six actions: warbands onto the map.
+
+**Depends on.** Unit 5 (and 6 for realistic states).
+
+```
+Unit 7 of Phase 2: Muster.
+
+Create `src/oath/game/actions/muster.ts` registering 'muster'. Encode the
+rulebook's Muster action precisely and cite it: its supply cost, what you
+choose (which card/site), how many warbands arrive and from where
+(the seat's supply), and every precondition the rulebook states.
+
+TDD, `test/oath/game/muster.test.ts`:
+  - legal muster moves the right number of warbands supply→site and
+    spends the right supply
+  - illegal-actor; illegal-state: insufficient supply, invalid choice,
+    empty warband supply (whatever the rulebook says happens then —
+    encode it)
+  - invariants (warband conservation) after each case
+
+Commit: "Add Muster action"
+```
+
+**Done when.** Muster matches the rulebook with citations.
+
+---
+
+## Unit 8 — Trade
+
+**Purpose.** The favor/secret economy comes alive: banks, suit counting.
+
+**Depends on.** Units 5, 6.
+
+```
+Unit 8 of Phase 2: Trade.
+
+Create `src/oath/game/actions/trade.ts` registering 'trade'. Encode the
+rulebook's Trade action, cited: supply cost, choosing a card to trade
+with, what determines how much favor (or secrets) you gain — the
+rulebook's counting rule over suits among your advisers/sites — which
+bank it comes from, and what happens when a bank runs dry.
+
+Put the suit-counting rule in a pure exported helper — Search or powers
+may need it later.
+
+TDD, `test/oath/game/trade.test.ts`:
+  - a favor trade and a secret trade with hand-built adviser/site
+    configurations whose expected yield is computed in the test from the
+    rulebook rule (cited)
+  - the empty-bank edge per the rulebook
+  - illegal-actor; illegal-state: insufficient supply, invalid card
+  - favor conservation invariant throughout
+
+Commit: "Add Trade action"
+```
+
+**Done when.** Yields match hand-computed rulebook examples.
+
+---
+
+## Unit 9 — Travel
+
+**Purpose.** Movement, using unit 2's geometry, plus whatever the rulebook
+says happens on arrival.
+
+**Depends on.** Units 2, 5.
+
+```
+Unit 9 of Phase 2: Travel.
+
+Create `src/oath/game/actions/travel.ts` registering 'travel'. Encode,
+cited: supply cost from travelCost(from, to) plus any modifiers the
+rulebook states; where your pawn may go; what happens when arriving at
+a site (the rulebook's arrival/reveal procedure, if any — if a site can
+be facedown/undiscovered in the base game, implement the reveal here;
+if that's chronicle-only, note it for unit 18).
+
+TDD, `test/oath/game/travel.test.ts`:
+  - travel within and across each region pair charges the table cost
+  - illegal-actor; illegal-state: insufficient supply, no-op travel if
+    the rulebook forbids it
+  - the arrival procedure's observable effects, if any
+  - invariants throughout
+
+Commit: "Add Travel action"
+```
+
+**Done when.** All region-pair costs exercised through the action.
+
+---
+
+## Unit 10 — Search
+
+**Purpose.** The world deck moves. Hidden information is handled for real:
+draws, choices, discards — none of it may leak through the log or views.
+
+**Depends on.** Units 5, 6.
+
+```
+Unit 10 of Phase 2: Search.
+
+Create `src/oath/game/actions/search.ts` registering the search flow.
+Encode the rulebook's Search, cited: supply cost, choosing what to search
+(world deck vs which discard pile, per the rulebook's location rules),
+how many cards you draw, what you may keep vs must discard and where
+discards go (order/facing per rulebook), and the rulebook's vision rule
+during Search if there is one.
+
+Design constraint (HLD D5/D13): draws are pop() from the stored order.
+The action payload names the CHOICE (deck vs pile), never the drawn ids —
+the reducer learns them from state. If the keep/discard decision is a
+separate choice the player makes after seeing the draw, model it as the
+rulebook implies: either one action whose payload indexes into the drawn
+set, or a two-step action with a pending decision in between — pick the
+smallest shape that keeps drawn-card identities OUT of the payload of the
+first step and OUT of other seats' projections. Document the choice in
+the file header.
+
+TDD, `test/oath/game/search.test.ts`:
+  - a search draws the rulebook count from the chosen source in stored
+    order; kept card reaches the hand; discards land per rulebook
+  - the action log for a search (through the HTTP layer) never contains
+    a drawn card id that ended up hidden — assert on the raw log
+  - another seat's projection during/after the search shows counts only
+  - illegal-actor; illegal-state: insufficient supply, empty source per
+    rulebook
+  - invariants throughout
+
+Commit: "Add Search action"
+```
+
+**Done when.** Search works and the log/projection leak test passes.
+
+---
+
+## Unit 11 — Recover
+
+**Purpose.** Relics and banners change hands outside campaigns.
+
+**Depends on.** Unit 5.
+
+```
+Unit 11 of Phase 2: Recover.
+
+Create `src/oath/game/actions/recover.ts` registering 'recover'. Encode,
+cited: supply cost; recovering a relic at your site (its cost per the
+rulebook and where the payment goes); recovering a banner (the rulebook's
+bid/threshold rule — pay more than what's on it, per its exact wording —
+and what happens to the previous holder's stake); anything special the
+two banners' own rules add STRUCTURALLY (their ongoing powers are
+declared via power.use later, not implemented here — but if the rulebook
+ties recovery conditions to a banner's identity, encode that).
+
+TDD, `test/oath/game/recover.test.ts`:
+  - relic recovery: payment flows to the rulebook destination, relic
+    reaches the seat
+  - banner recovery: the threshold rule with boundary cases (equal is
+    illegal if the rulebook says "more"), stake handling
+  - illegal-actor; illegal-state: wrong site, can't pay
+  - invariants (favor/secret conservation) throughout
+
+Commit: "Add Recover action"
+```
+
+**Done when.** Both recovery types match cited rules with boundary tests.
+
+---
+
+## Unit 12 — Campaign I: declare, respond, roll
+
+**Purpose.** The campaign's action sequence — the hardest design in P2 and
+the foundation P3 builds interrupts on. Dice roll in `prepare()` and land in
+the payload (HLD D14).
+
+**Depends on.** Units 2, 5. **Design-heavy; read the campaign chapter fully
+before writing anything.**
+
+```
+Unit 12 of Phase 2: campaign declaration through dice.
+
+Read the rulebook's campaign chapter end to end first. Then design the
+action sequence and record it in `src/oath/game/actions/campaign.ts`'s
+header as the authoritative description. Constraints:
+
+  - Multi-step: at minimum 'campaign.declare' (attacker: targets and
+    committed warbands, legality checked — supply cost, targetable
+    things per the rulebook incl. citizenship restrictions read from
+    state), then a defender response window surfaced via pending() (the
+    naive P2 window: the defender may power.use battle-relevant cards,
+    then submits 'campaign.respond' to close the window; P3 will batch
+    this), then 'campaign.roll'.
+  - Dice: 'campaign.roll' computes dice counts (attack dice from the
+    rulebook's formula over committed forces and modifiers; defense dice
+    likewise) in prepare(), rolls there via engine/random, and persists
+    the FACES (not sums) in the payload. reduce only reads faces. Cite
+    the dice faces and counts.
+  - Whether one declaration can name multiple targets, and how rolls
+    relate to targets, is whatever the rulebook says — encode exactly
+    that and note it in the header.
+  - The in-progress campaign lives in state.campaign (fill unit 1's
+    placeholder type); while it is non-null, pending() surfaces whose
+    move it is instead of the normal turn decision, and other actions
+    by either party are illegal-state.
+
+TDD, `test/oath/game/campaign1.test.ts`:
+  - a legal declare stores the campaign sub-state and pending() moves to
+    the defender with a stable id
+  - illegal declares: bad target, over-commit, citizenship restriction,
+    insufficient supply
+  - respond closes the window; pending() moves to the attacker's roll
+  - roll: payload contains faces; reduce is a pure function of them —
+    fold the same log twice (wipe snapshots via the actionlog API) and
+    deep-equal the states (HLD exit criterion)
+  - dice counts match the rulebook formula for two hand-built forces
+  - invariants throughout (committed warbands counted)
+
+Commit: "Add campaign declaration, response window, and dice"
+```
+
+**Done when.** The sequence is documented and tested through the roll, and
+replay reuses persisted dice.
+
+---
+
+## Unit 13 — Campaign II: resolution
+
+**Purpose.** Campaigns finish: winner, casualties, sacrifice, seizure.
+
+**Depends on.** Unit 12.
+
+```
+Unit 13 of Phase 2: campaign resolution.
+
+Extend the campaign module (additively — new action types, no edits to
+unit 12's handlers) with resolution per the rulebook, cited:
+
+  - computing the outcome from the persisted faces: the rulebook's
+    attack/defense arithmetic, exactly
+  - the attacker's sacrifice option (if losing, per the rulebook's rule)
+    — a choice, so it's an action ('campaign.sacrifice' or a payload
+    field on a resolution action; pick the shape that keeps every choice
+    in the log)
+  - casualties on both sides per the rulebook (skull faces etc.), where
+    dead warbands go
+  - per-target seizure on a win: site control effects, relics/banners
+    taken (if the rulebook gives the loser or winner choices about which,
+    surface them as pending decisions naively — one at a time is fine in
+    P2), oath-relevant transfers (oathkeeper status is unit 17's check;
+    here just move the objects)
+  - campaign sub-state cleared; turn continues per the rulebook
+
+TDD, `test/oath/game/campaign2.test.ts`:
+  - a scripted win and a scripted loss from fixed faces, outcomes
+    hand-computed from the rulebook (cited)
+  - sacrifice branch: taking it flips the outcome per the rules
+  - casualties match the faces; conservation invariant catches any drift
+  - seizure choices appear as pending decisions and resolve
+  - full campaign end to end through the HTTP layer: declare → respond →
+    roll → resolve, then a snapshot wipe + refold reproduces the final
+    state byte-identically
+
+Commit: "Add campaign resolution"
+```
+
+**Done when.** Scripted campaigns resolve to hand-computed outcomes and
+survive replay.
+
+---
+
+## Unit 14 — Declared powers: `power.use`
+
+**Purpose.** The v1 answer to 200 cards (HLD D9/D28): name the card, declare
+the effects, engine checks feasibility only.
+
+**Depends on.** Units 3, 5 (6 for realistic states).
+
+```
+Unit 14 of Phase 2: the power.use action.
+
+Create `src/oath/game/actions/power.ts` registering 'power.use':
+payload { cardId, effects: Effect[], note?: string }, validated by
+EffectSchema in prepare (reject malformed shapes before they're logged).
+
+Legality (structural only — HLD §4):
+  - the named card must be visible in play in a zone the actor could
+    plausibly use it from (their adviser, a site card where the rulebook
+    would let them, a relic/banner they hold — D34: relics and banners
+    use this same action); encode the zone check, cite what the rulebook
+    says about who may use a card's power
+  - effects apply via applyEffects — every infeasibility rejects the
+    whole action, nothing partial
+  - timing: usable on your turn; during a campaign response window,
+    usable by the window's owner (unit 12 opened this door). Nothing
+    finer — v1 leaves text-level timing to the players.
+  - the engine never checks effects against card text. Say so in the
+    file header.
+
+TDD, `test/oath/game/power.test.ts`:
+  - a declared power spending favor and moving warbands applies and logs
+    with the card id and effects visible in the log (the log is safe to
+    share — this action is exactly what players did)
+  - infeasible effects reject: favor you lack, warbands not present,
+    card not where claimed (HLD exit criterion — cite it)
+  - malformed payload rejected in prepare, nothing persisted
+  - a power.use during another seat's campaign window by the window
+    owner succeeds; by anyone else is illegal-actor
+  - invariants throughout
+
+Commit: "Add declared power.use action"
+```
+
+**Done when.** Declared powers work; every infeasibility class tested.
+
+---
+
+## Unit 15 — Powers registry and the enforcement seam
+
+**Purpose.** Prove D28: enforcement can arrive card by card with no change to
+the log, the reducer, or the action shape. The registry ships empty.
+
+**Depends on.** Unit 14.
+
+```
+Unit 15 of Phase 2: the enforcement registry.
+
+Create `src/oath/powers/registry.ts`:
+  - PowerImpl = (state: OathState, seat: number, choices: unknown)
+      => Effect[]
+  - an EMPTY Record<cardId, PowerImpl> plus register/lookup helpers
+    (register throws on duplicate id; a test-only reset helper is fine)
+
+Wire the seam into power.use's prepare (D34 — enforced replaces
+declared): if the payload's cardId has a registered impl, prepare IGNORES
+any client-declared effects, calls the impl with payload.choices, and
+persists { cardId, effects: <produced>, choices } — the SAME payload
+shape a declaration produces, so the log and reducer are unchanged. If no
+impl, prepare passes the declared effects through as before.
+
+The registry stays empty in src/. One card is implemented INSIDE A TEST
+to exercise the seam (HLD exit criterion): pick a mechanically simple
+real card by id, register an impl in the test (using the reset helper),
+and implement its effect production from state — using only its identity
+and structure, no card text in the code or test.
+
+TDD, `test/oath/game/registry.test.ts`:
+  - with the impl registered: power.use with { cardId, choices } logs a
+    payload deep-equal in SHAPE to a declared use of the same card —
+    assert the same keys and effect tags; assert declared-vs-enforced is
+    indistinguishable to reduce by folding both logs
+  - client-declared effects for a registered card are ignored/replaced
+  - with the registry empty (reset): the same payload is rejected unless
+    it declares effects — the default path still works
+  - registry in src/ is empty: assert its size is 0 (guard against
+    enforcement creep — HLD §9)
+
+Commit: "Add powers registry; prove the enforcement seam"
+```
+
+**Done when.** The same action shape flows both paths; the shipped registry
+is provably empty.
+
+---
+
+## Unit 16 — Citizenship
+
+**Purpose.** The Chancellor/Exile/Citizen structure moves: joining the
+Empire and its consequences. The static restrictions were already read from
+state by earlier units; this unit adds the transitions.
+
+**Depends on.** Unit 5 (12–13 for campaign-adjacent rules).
+
+```
+Unit 16 of Phase 2: citizenship transitions.
+
+Create `src/oath/game/actions/citizenship.ts`. Encode the rulebook's
+citizenship chapter, cited:
+  - how an Exile becomes a Citizen (the rulebook's procedure: when it may
+    happen, what is given up or exchanged — warbands, vision, whatever
+    the rules say), as an action (plus a Chancellor consent step as a
+    pending decision if the rulebook requires consent)
+  - how citizenship is lost, if the base rules allow it, likewise
+  - the mechanical consequences the rulebook states (warband color/supply
+    handling, what happens to the seat's held objects)
+  - start/end-of-turn pipeline checks IF the rulebook ties any
+    citizenship consequence to turn boundaries — appended to the
+    pipeline, never editing existing checks
+
+TDD, `test/oath/game/citizenship.test.ts`:
+  - a legal join: state reflects every rulebook consequence; invariants
+    (warband conservation across the exchange) hold
+  - consent flow if applicable: pending decision for the Chancellor with
+    a stable id; refusal path
+  - illegal-actor and illegal-state paths per the rulebook's
+    preconditions
+  - after joining, a previously-legal exile-only act (e.g. holding a
+    vision, campaigning against the Empire) is now illegal — pick
+    whichever the rulebook states and cite it
+
+Commit: "Add citizenship transitions"
+```
+
+**Done when.** Joining works with cited consequences; restrictions flip.
+
+---
+
+## Unit 17 — Victory and game end
+
+**Purpose.** Games end (D35: structurally enforced). Oathkeeper, succession,
+visions, and the end-of-game clock.
+
+**Depends on.** Units 5, 16.
+
+```
+Unit 17 of Phase 2: victory.
+
+Create `src/oath/game/victory.ts`, appending checks to the turn-boundary
+pipelines (never editing existing ones). Encode, cited:
+
+  - oathkeeper tracking: the check that moves oathkeeper status when the
+    oath's condition holds for someone else (the rulebook's exact timing
+    and tiebreak)
+  - the winner check: when the rulebook says the game ends with the
+    oathkeeper winning (the timing chapter — encode its exact trigger)
+  - vision victory: the check for an Exile holding a satisfied Vision at
+    the rulebook's stated moment
+  - the end-of-game clock: the rulebook's mechanism for the final rounds
+    (IF it involves a die roll, that die is randomness — it must roll in
+    prepare() of the action whose resolution needs it and persist in the
+    payload, like campaign dice; DO NOT roll in a reducer or pipeline.
+    Design the check to read the persisted roll.)
+  - on completion: state.complete, state.winner set; every action
+    thereafter is illegal-state; pending() returns []
+
+TDD, `test/oath/game/victory.test.ts`:
+  - hand-built states on either side of the oath condition: oathkeeper
+    moves exactly when the rulebook says
+  - a succession/win scenario reaches complete with the right winner
+  - a vision win scenario likewise; the same state WITHOUT citizenship
+    eligibility does not win (ties to unit 16)
+  - the clock: fold a log where the persisted roll ends the game and one
+    where it doesn't; wipe snapshots and refold — identical outcomes
+  - after complete: any action 400s; pending is empty; isComplete true
+    end to end through the HTTP layer
+
+Commit: "Add oathkeeper, vision victory, and game end"
+```
+
+**Done when.** All three roads to game end are enforced, cited, and
+replay-safe.
+
+---
+
+## Unit 18 — Chronicle-seeded setup
+
+**Purpose.** A game can start from a real TTS/Vassal seed string (D30 pays
+off; P5 will produce these).
+
+**Depends on.** Units 4, 5 (P1's `parseSeed`).
+
+```
+Unit 18 of Phase 2: create a game from a seed.
+
+Extend `src/oath/game/setup.ts` additively:
+  - specFromSeed(parsed: ParsedSeed): SetupSpec — map the parsed seed
+    (sites, cards, world deck, dispossessed, relics, oath, citizenship,
+    suit order) onto the spec. Where a seed encodes something the state
+    tracks (ruined sites, facedown cards, prior citizenship), carry it;
+    where the rulebook's setup procedure transforms seed contents
+    (shuffles, deals, per-count adjustments for the new player count —
+    whatever the rulebook's "setting up from a chronicle" section says),
+    apply it in oathSetup as usual, cited.
+  - oathSetup(seats, options): if options is { seed: string }, parseSeed
+    → specFromSeed; invalid seed or card-count mismatch for the seat
+    count throws a message the route surfaces as 400. Otherwise
+    FIRST_GAME as before.
+
+TDD, `test/oath/game/seeded-setup.test.ts`:
+  - both P1 sample seeds (reuse the strings from
+    test/oath/chronicle/seed.test.ts by import or copy-with-comment)
+    produce OathSetups whose init passes checkInvariants
+  - seed-carried facts survive to state: spot-check oath type,
+    citizenship, a ruined/edifice site, a specific site's cards
+  - a corrupted seed string → 400 through the HTTP create route, no game
+    row created
+  - randomized-per-rulebook parts differ between two setups from the
+    same seed; seed-fixed parts don't
+
+Commit: "Create games from chronicle seeds"
+```
+
+**Done when.** Both sample seeds boot playable, invariant-clean games.
+
+---
+
+## Unit 19 — Acceptance: a full 3-player game
+
+**Purpose.** The phase's headline exit criterion: a 3-player game plays to
+completion through the API with powers declared — and its log becomes the
+fixture for the audit in unit 20.
+
+**Depends on.** Everything above.
+
+```
+Unit 19 of Phase 2: the full-game acceptance test.
+
+Write `test/oath/game/fullgame.test.ts`: a scripted 3-player game driven
+entirely through the HTTP layer (in-process), from create to complete.
+
+Scripting approach: the world deck order is whatever setup() rolled, so
+the script cannot be a fixed action list. Write a small scripted driver:
+a sequence of intents ("seat 1 trades with its hearth adviser", "seat 2
+campaigns seat 0's site") that reads each seat's PROJECTED view (never
+raw state) to fill in payload details. If an intent is illegal in the
+rolled world, the driver fails loudly — adjust the script, don't touch
+the engine. Alternatively: make setup() accept a test-only fixed
+OathSetup via options and pin the whole game — pick whichever gives a
+more readable test and note the choice.
+
+The script must exercise: every one of the six actions at least once,
+card.play both ways, at least two power.use declarations, one full
+campaign with a defender response, one citizenship transition if the
+script can reach it (skip with a comment if not), rests, and an ending
+via one of unit 17's roads.
+
+Assertions along the way:
+  - after every action: checkInvariants on the folded state
+  - mid-game: wipe snapshots, refold, deep-equal (restart survival)
+  - at the end: isComplete, winner set, pending empty
+  - write the final action log to test/fixtures/fullgame.log.json (only
+    if it changed — a drift-style comparison keeps it stable) for unit 20
+
+Commit: "Play a full 3-player game through the API"
+```
+
+**Done when.** The game completes; the fixture log is committed.
+
+---
+
+## Unit 20 — Hidden-information audit, cradle removal, docs
+
+**Purpose.** Close the phase: prove projection leaks nothing over a real
+game, delete the toy, document.
+
+**Depends on.** Unit 19.
+
+```
+Unit 20 of Phase 2: audit and close.
+
+1. Hidden-info audit, `test/oath/game/audit.test.ts` (HLD exit
+   criterion): fold test/fixtures/fullgame.log.json prefix by prefix.
+   At EVERY prefix, for every seat plus spectator:
+     - compute the hidden set from the full state: other seats' hand
+       ids, facedown adviser ids of other seats, undrawn world deck ids,
+       relic-deck ids, dispossessed ids — minus any id the rulebook
+       makes public knowledge in that position
+     - JSON.stringify(project(state, seat)) must contain NONE of them
+     - the projection also must not encode order info for hidden zones
+       (counts are numbers, never arrays of anything id-like)
+   Also stringify the raw action log once and assert no hidden-at-end id
+   appears in any payload (the log is safe to share — HLD §4).
+
+2. Delete cradle (HLD exit criterion):
+   - remove src/engine/cradle.ts and its DEFS entry
+   - replay.test.ts: port to a ~20-line inline toy definition declared in
+     the test file itself — the actionlog tests must not depend on oath's
+     complexity
+   - scripts/smoke.mjs: rewrite the game-flow steps against kind 'oath'
+     (create, view two seats, one legal action from the projected view, a
+     409 check, restart survival) — keep the check count meaningful
+
+3. Docs: root README gains a "Game engine" section (module layout, the
+   action list, effects and the enforcement seam, how a game is created
+   from a seed, the audit); update "Next" for P3. Short
+   src/oath/game/README.md with the file map and the campaign sequence
+   diagram from unit 12's header.
+
+4. HLD: tick every P2 exit criterion this closes, set P2 done in the
+   phase board, add the shipped-paragraph, note anything deferred to
+   P3/P4 in the phase notes.
+
+Run npm test AND the smoke script.
+
+Commit: "Audit projections over a full game; remove cradle; document P2"
+```
+
+**Done when.** Audit green over every prefix × seat; cradle gone; smoke
+passes against oath; HLD updated.
+
+---
+
+## Order and dependencies
+
+```
+1 state ──┬──> 3 effects ──┬────────────────────────> 14 power.use ──> 15 registry
+          │                │
+2 map ────┼──> 4 setup ──> 5 turn ──> 6 play ──> 7 muster
+          │                │          │          8 trade
+          │                │          └────────> 10 search
+          │                ├──> 9 travel
+          │                ├──> 11 recover
+          │                ├──> 12 campaign I ──> 13 campaign II
+          │                └──> 16 citizenship ──> 17 victory
+          └──> 4 ────────────────────────────────> 18 seeded setup
+
+7,8,9,10,11,13,14,15,16,17,18 ──> 19 full game ──> 20 audit + close
+```
+
+Units 1–3 are independent of the rulebook edition (Q5); answer Q5 before
+unit 5. Units 6–11 and 14 are parallelizable in principle but do them in
+order — each extends `helpers.ts` additively and later ones lean on earlier
+states being buildable. 12–13 are the design risk; if they fight back,
+that's the feasibility gate talking — stop and reassess rather than hack.
+
+## Mapping to HLD P2 exit criteria
+
+| Exit criterion | Unit(s) |
+| --- | --- |
+| 3-player game to completion via API, powers declared | 19 |
+| Every action: legal / illegal-actor / illegal-state tests | 6–13, 16 (convention enforced throughout) |
+| `power.use` rejects infeasible effects | 3, 14 |
+| One enforced card via registry, same log shape | 15 |
+| Campaign dice from `prepare()` survive snapshot wipe + replay | 12, 13 |
+| Hidden-information fuzz over a played game | 10 (spot), 20 (full) |
+| `cradle` deleted | 20 |
+
+## Risks
+
+- **Rules fidelity.** I don't have the rulebook; every rule statement above
+  is a claim to verify. The conventions (citations on constants, RULINGS.md,
+  tests hand-computed from the book) are the mitigation. Budget real time
+  with the physical rulebook in units 12–13 and 17.
+- **Campaign design (units 12–13) is the feasibility gate.** If the action
+  sequence can't be made clean, the HLD says stop and rescope — that's a
+  feature of the plan, not a failure.
+- **Effect vocabulary creep.** The temptation is to pre-build effects for
+  card text. D33's growth rule and unit 15's empty-registry assertion are
+  the guardrails.
+- **State sprawl.** Unit 1 will miss fields; later units may add optional
+  fields to state (additive) — that's expected and fine. Changing the
+  meaning of an existing field is not; if that seems needed, stop and
+  reassess the unit.
+- **Scripting the acceptance game (19) against rolled randomness.** The
+  driver-reads-projection approach or the pinned-setup escape hatch — one of
+  them will work; don't let this unit balloon.
+- **Pending-decision id churn.** The actionCount convention is simple but
+  P3 depends on it; if a unit finds a decision whose id can't be derived
+  that way, flag it in the unit's commit message rather than inventing a
+  second convention silently.
