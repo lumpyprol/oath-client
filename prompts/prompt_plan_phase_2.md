@@ -513,15 +513,19 @@ only in `oathSetup`.
   keeping 1 as a facedown adviser) is NOT first-game-specific — it is
   something `oathSetup` must do for EVERY new game, seeded or not. Unit
   18 should reuse this unit's dealing logic rather than re-deriving it.
-- **Open, unconfirmed rules fact: exact starting Supply.** The Supply
-  track's warband-count brackets are legible from the board diagram, but
-  no source found so far prints a numeral per space; `CHANCELLOR_STARTING_SUPPLY
-  = 7` / `EXILE_STARTING_SUPPLY = 5` in `setup.ts` are inferred from
-  counting track spaces, not confirmed. Recorded in RULINGS.md. **Unit 5
-  needs the FULL bracket→value table (for `turn.rest`'s refresh formula)
-  and should resolve this properly** — ideally by asking Ben to read the
-  numbers off his physical board, since no rules-reference text extracted
-  so far shows them printed.
+- **Resolved: starting Supply is 7 for both the Chancellor and the
+  Exile**, not 7/5 as first guessed. Neither board prints a numeral
+  directly, but both Supply tracks have the same length (8 spaces: a
+  distinct unlabeled "leftmost" space, then warband-count brackets for
+  the Rest refresh per Law §4.3.3, then blanks) — counting from the
+  depleted end at 0, leftmost is 7 on both. Corroborated by the
+  citizenship rules (§6.6.2, §6.7, §6.8), which all say "refresh Supply
+  to its leftmost space" as an effect distinct from a normal Rest — a
+  real, named position, not setup-only decoration. `CHANCELLOR_STARTING_SUPPLY`
+  / `EXILE_STARTING_SUPPLY` in `setup.ts` are both 7; see RULINGS.md.
+  **Still open for unit 5:** the full bracket->value table for every
+  OTHER position on the track (`turn.rest`'s refresh formula needs the
+  complete mapping, not just the endpoints).
 
 ---
 

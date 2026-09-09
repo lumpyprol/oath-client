@@ -17,9 +17,10 @@
  * converting a real chronicle export into this same shape.
  *
  * Citations are "Law §x.y" (Buried Giant rules reference, Oath printing
- * p1; see RULINGS.md). The exact starting Supply value is UNCONFIRMED
- * (see RULINGS.md) — verify against a physical copy before treating
- * `STARTING_SUPPLY` as final; unit 5 needs the full refresh table anyway.
+ * p1; see RULINGS.md). Starting Supply (both seats: 7) is derived from the
+ * Supply track's space count, not a printed numeral — see the constant's
+ * own comment and RULINGS.md; unit 5 needs the full bracket->value table
+ * for `turn.rest`'s refresh formula, which this file does not attempt.
  */
 
 import { byId, byName, cards } from '../cards/index.js';
@@ -50,12 +51,21 @@ const FAVOR_BANK_SMALL = 3;
 const FAVOR_BANK_LARGE = 4;
 
 /**
- * UNCONFIRMED (RULINGS.md): starting Supply, inferred by counting Supply-
- * track spaces from the printed board diagram, not from a printed numeral.
- * Verify against a physical copy before unit 5 relies on this.
+ * Starting Supply (Law §1.10: "place their Supply marker on the leftmost
+ * space of their Supply track"). Neither board prints a numeral on this
+ * space directly, but both the Chancellor's and Exile's Supply tracks have
+ * 8 total spaces (a distinct "leftmost" space, then warband-count brackets
+ * for the Rest refresh per §4.3.3, then blanks) — the same length on both
+ * boards. Counting from the depleted (rightmost) end at 0, the leftmost
+ * space is 7 for both. This is corroborated two ways: the bracket-based
+ * Rest refresh (§4.3.3) can never reach this space on its own (no warband
+ * count labels it), yet several citizenship rules (§6.6.2, §6.7, §6.8) say
+ * "refresh Supply to its leftmost space" as a DISTINCT effect from a normal
+ * Rest — confirming it is a real, named position, not setup-only
+ * decoration. See RULINGS.md.
  */
 const CHANCELLOR_STARTING_SUPPLY = 7;
-const EXILE_STARTING_SUPPLY = 5;
+const EXILE_STARTING_SUPPLY = 7;
 
 // ---- SetupSpec ------------------------------------------------------------
 
