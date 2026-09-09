@@ -703,6 +703,22 @@ Commit: "Map chronicle seeds to card ids; round-trip sample seeds"
 
 **Done when.** Both sample seeds round-trip byte-for-byte through our ids.
 
+**Status.** ✅ Completed 2026-09-08. Parser vendored into
+`src/oath/chronicle/vendor/` (5 files + PROVENANCE.md); strict-mode fixes are
+mechanical and per-file documented (widened `parseColorByte` return, typed
+`colorMask` table, `Oath[...]` key cast, split barrel import, dropped a debug
+`console.log`; `OathGame.winner` made optional). `src/oath/chronicle/seed.ts`
+exports `parseSeed` / `serializeSeed` + `SeedCard` / `SeedSite` / `ParsedSeed`.
+Card bytes resolve our-side via `bySaveId('card', byte)` (so swaps and
+edifice-ruin faces map correctly and the round-trip is byte-exact despite our
+renamed names); sites resolve via a site-collection name/alias index.
+Deviations from the prompt's types: empty ("NONE") slots are `null`
+(`SeedSite.id` and each of the 3 `SeedSite.cards` entries) since a real seed
+can have a gap mid-site. `test/oath/chronicle/seed.test.ts` — 10 tests pass:
+both samples parse, every id resolves, `serializeSeed(parseSeed(s)) === s`,
+suit order round-trips through the enum, corrupted card/site bytes throw with
+the position.
+
 ---
 
 ## Unit 11 — Document the module
