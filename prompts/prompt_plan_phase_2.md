@@ -49,8 +49,60 @@ face, a timing), treat it as a claim to verify against the rulebook before
 encoding it in a test.** Constants in code carry a comment citing the
 rulebook section. Anything ambiguous, and any table ruling the group makes,
 goes in `RULINGS.md` at the repo root (created in unit 1), with the date and
-the rulebook edition it interprets. Q5 (which edition) must be answered
-before unit 5; units 1–4 don't depend on it.
+the rulebook edition it interprets.
+
+**Q5 answered (2026-09-09):** the edition is the Buried Giant rules library,
+Oath printing p1 —
+<https://rules.buriedgiant.com/?product=oath&locale=en-US&printing=p1> —
+whose section numbering is identical to the *Law of Oath* (Oct 20, 2020).
+Citations are written `Law §x.y`; setup steps are `Law §1.n`. The site is an
+SPA whose full rules text is embedded in its JS bundle; the extraction recipe
+is recorded in the session memory (`oath-rules-reference`), and a Law of Oath
+PDF mirror cross-checks it. One caveat lives in `RULINGS.md`: P1's card data
+was reconciled against a 2nd-printing card set while this reference is
+printing p1.
+
+## What unit 1 established (as built, 2026-09-09)
+
+Later units should treat these as ground truth; they amend this plan's
+sketches where the two disagree.
+
+- **Secrets are not conserved.** Law §9.3: Oath is component-limited
+  *except secrets and dice*. `checkInvariants` conserves favor (36 total,
+  Law §1.4) and warbands (24 purple pooled across Chancellor + Citizens per
+  the Kill glossary; 14 per exile color — Law §1.8/1.9/1.15). Don't write
+  tests asserting a secret total (HLD D36).
+- **Tokens sit on cards and sites.** Muster/Trade place favor/secrets *on*
+  denizen cards (returned at Rest, Law §4.3, or on discard); reveal prompts
+  put tokens on sites (Law §2.8.2). Every in-play card entry and every site
+  carries favor/secret counts — units 7–8 pay onto cards, not into banks.
+- **There is no persistent hand.** `players[i].hand` exists but is transient:
+  cards drawn mid-Search awaiting keep/discard (Law §5.1). Unit 6 ("playing
+  cards from hand") really means playing within Search and the facedown-
+  adviser minor action — design it against the Law, not the plan's framing.
+- **Discards are per region and cross-region.** One pile per region (Law
+  §2.1.2); the Discard glossary sends cards to the *next* region's pile
+  (Cradle pawn → Provinces pile, etc.), returns favor on them to matching
+  banks, and flips secrets on them facedown to the acting player's board.
+- **Secrets flip.** Spent secrets sit flipped on the board until Rest
+  (Law §4.3): `secrets: { ready, flipped }`.
+- **Warbands split bank/board.** Personal-bank reserve vs the force that
+  travels with the pawn (Law §2.2.1/2.2.3); Supply refresh reads the bank
+  (unit 5). Site warbands are per-seat; Imperial seats' entries are purple.
+- **Extra zones exist:** the Imperial Reliquary (4 facedown relics, Law
+  §2.3), banner placards with holder/stake/Mob-side (Law §2.5), facedown
+  relics at sites, facedown sites. The Grand Scepter is **not** in the P1
+  card database — state tracks only its holder (`grandScepter: seat`).
+- **`Region` lives in `state.ts`.** Unit 2's `map.ts` should import/re-export
+  it rather than define a competing type.
+- **Projection warning for unit 5:** Law §9.4 makes the *number of cards in
+  the world deck* private, along with discard-pile fronts and facedown card
+  fronts. The plan's "world deck as counts only" over-reveals — project the
+  deck as present/absent, not as a count. Public: discard-pile counts and
+  backs, all token counts on boards.
+- Adviser limit is 3, Visions included (Law §2.2.2), enforced as an
+  invariant; powers may override at play-time (Law §9.2) — if one ever does,
+  relax the invariant then, not before.
 
 ## Decisions made (recorded in HLD §7 as D30–D35)
 
@@ -97,11 +149,9 @@ Architecture within the phase (not decision-log material):
 
 ## Decisions needed from you
 
-- **Q5 — rulebook edition.** Name the edition/printing you'll rule from
-  (suggest: the rulebook that shipped with your copy, plus the latest
-  official rules reference if you have it). It goes at the top of
-  `RULINGS.md` in unit 1. Needed before unit 5; the plan assumes your
-  answer matches your 2nd-printing-or-later cards from P1.
+- ~~**Q5 — rulebook edition.**~~ **Resolved 2026-09-09** — the Buried Giant
+  rules reference, printing p1 (see "Rules authority" above and
+  `RULINGS.md`).
 - **Q2 — deploy.** The P0 exit criterion "deployed to Fly and a turn taken
   from a tablet" is still open and the HLD says do it before P2. It doesn't
   block units 1–4 technically, but don't let it slip past unit 5.
@@ -1073,8 +1123,8 @@ passes against oath; HLD updated.
 7,8,9,10,11,13,14,15,16,17,18 ──> 19 full game ──> 20 audit + close
 ```
 
-Units 1–3 are independent of the rulebook edition (Q5); answer Q5 before
-unit 5. Units 6–11 and 14 are parallelizable in principle but do them in
+Q5 (rulebook edition) is resolved — see "Rules authority". Units 6–11 and
+14 are parallelizable in principle but do them in
 order — each extends `helpers.ts` additively and later ones lean on earlier
 states being buildable. 12–13 are the design risk; if they fight back,
 that's the feasibility gate talking — stop and reassess rather than hack.

@@ -6,8 +6,8 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | Field | Value |
 | --- | --- |
 | Started | 2026-09-07 |
-| Last updated | 2026-09-08 |
-| Current phase | P2 (planned, not started) |
+| Last updated | 2026-09-09 |
+| Current phase | P2 (in progress, unit 1 done) |
 | Owner | Ben |
 
 ---
@@ -215,13 +215,39 @@ Namespaced slugs: `denizen:wrestlers`, `site:mine`, `relic:brass-horse`,
 Readable in the log; collision-proof across kinds. `saveId` is an attribute
 kept for seed interop, never used as an identifier internally.
 
-### Game state (P2, sketch — subject to P2 design)
+### Game state (P2 — as built in unit 1, `src/oath/game/state.ts`)
 
-Sites in play order with denizen slots and relics; per-seat hands, advisers,
-warbands (in supply and on the map), favor, secrets, supply, banners, relics,
-vision; the Chancellor/Exile/Citizen structure; oath type and oathkeeper;
-world deck and dispossessed as ordered id lists; the current turn phase and
-whatever `pending()` needs.
+The pre-P2 sketch survived, with rulebook-derived additions found while
+transcribing the Law of Oath (citations in the file; see `RULINGS.md` for
+the edition):
+
+- Sites in play order with denizen/edifice slots (fixed length = the site
+  card's capacity), facedown flag, relics, per-seat warbands, and favor/
+  secret tokens sitting *on the site* (reveal prompts, Law §2.8.2).
+- Tokens also sit *on cards in play* — Muster/Trade place favor/secrets on
+  denizens; Rest and discard return them — so every in-play card entry
+  carries favor/secret counts.
+- Per seat: a **transient** hand (Oath has no persistent hand — it exists
+  only mid-Search), advisers (limit 3, facedown allowed, Visions included),
+  revealed vision, favor, secrets split ready/flipped (spent secrets flip
+  facedown until Rest), warbands split bank/board (personal-bank reserve vs
+  the force that travels with the pawn), supply, relics.
+- The Chancellor/Exile/Citizen structure (seat 0 is the Chancellor by
+  convention); oath type, oathkeeper seat, and the title's Usurper side.
+- Banner placards as first-class state: holder, favor/secret stake, and the
+  People's Favor Mob side.
+- The Imperial Reliquary (4 facedown relics) and the Grand Scepter holder —
+  the Scepter is not in the P1 card database, so only its holder is tracked.
+- World deck, relic deck, dispossessed as ordered id lists; **one discard
+  pile per region** (Law §2.1.2), not a single pile.
+- Round and Visions Drawn track counters; turn bookkeeping; `actionCount`
+  for pending-decision ids; campaign placeholder (unit 12).
+
+Conservation laws enforced by `checkInvariants`: favor totals 36 across all
+zones (Law §1.4 — burns return tokens to the shared bank); warbands total 24
+purple pooled across Chancellor + Citizens and 14 per exile color (Law §1.8,
+§1.9, §1.15). **Secrets are deliberately not conserved:** Law §9.3 exempts
+secrets (and dice) from component limits (see D36).
 
 ---
 
@@ -307,7 +333,7 @@ normalising the actual image files.
 
 ---
 
-### P2 — Core loop — `planned`
+### P2 — Core loop — `in progress`
 
 **Goal.** A real `GameDefinition` for Oath. A full game is playable start to
 finish with the six actions enforced and card powers player-declared. This is
@@ -355,8 +381,17 @@ the feasibility milestone: if the state machine is painful here, stop.
   transitions, game end — is enforced, not declared (D35)
 - Rulings are recorded in `RULINGS.md` with date and rulebook ref
 
+**Decisions made in flight (09-09, unit 1).**
+- Rulebook edition (Q5): the Buried Giant rules library, Oath printing p1
+  (Ben's call) — numbering identical to the Law of Oath, Oct 20 2020.
+  Citations are `Law §x.y`; details in `RULINGS.md`
+- Secrets have no conservation invariant — Law §9.3 exempts them from
+  component limits (D36); favor and warbands are the conserved currencies
+- State grew rulebook-derived fields beyond the §5 sketch (tokens on cards
+  and sites, ready/flipped secrets, bank/board warbands, per-region
+  discards, Reliquary, Grand Scepter holder, banner stakes) — see §5
+
 **Decisions still open.**
-- Rulebook edition to follow (Q5, Ben; needed before unit 5)
 - The campaign action sequence — designed in unit 12, the hardest call
   in the phase
 
@@ -553,6 +588,7 @@ with `reversed by`.
 | D33 | 09-08 | Effect vocabulary starts minimal (zone-addressed movers for favor/secrets/warbands/cards + a small closed set) and grows only when an action or power needs it; additions are additive | Guards against pre-building effects for card text; `power.use` shape never changes | active |
 | D34 | 09-08 | Enforced powers replace the declaration — the registered impl produces the effects, the client stops asking; relic and banner powers use the same `power.use` shape | One code path, one log shape; validation-mode would need both paths forever | active |
 | D35 | 09-08 | The structural endgame (oathkeeper, succession, vision victory, citizenship transitions, game end) is enforced by the engine, not declared | These are the game's skeleton, not card text; declaring them would make every ending disputable | active |
+| D36 | 09-09 | Conservation invariants cover favor (36 total) and warbands (24 purple pooled across Imperial seats, 14 per exile color) only; secrets are unconstrained | Law §9.3: Oath is component-limited *except secrets and dice* — the planned secret-supply invariant was wrong against the rulebook; purple pooling follows the Kill glossary (purple warbands return to the Chancellor) | active |
 
 ---
 
@@ -564,7 +600,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-07 | — | Fly deploy still pending — do before P2 unit 5 |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | planned | | | `prompt_plan_phase_2.md` | feasibility gate; Q5 needed before unit 5 |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; unit 1 done; Q2 (deploy) still pending before unit 5 |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
@@ -590,7 +626,7 @@ with `reversed by`.
 | Q2 | Fly.io vs VPS? | P0 exit (deploy) — do before P2 unit 5 | Ben |
 | Q3 | Does the client need `powerKind`? | P4 | Ben, decide in P4 |
 | Q4 | ~~Commit `text.json`?~~ **Resolved 09-08:** yes, when it exists (default stood) | — | — |
-| Q5 | Rulebook edition (rulings go in `RULINGS.md` per the P2 plan) | P2 unit 5 | Ben |
+| Q5 | ~~Rulebook edition~~ **Resolved 09-09:** the Buried Giant rules library, Oath printing p1 (Ben's pick), numbering-identical to the Law of Oath Oct 20 2020; cited as `Law §x.y`; edition + p1-vs-2nd-printing caveat recorded in `RULINGS.md` | — | — |
 | Q6 | ~~Validate declared-power effects for feasibility?~~ **Resolved 09-08:** yes — `applyEffects` checks feasibility, never card text (P2 units 3, 14) | — | — |
 | Q7 | Client framework and transport | P4 | defer to P4 |
 | Q8 | ~~Where do art assets live?~~ **Resolved 09-08:** Fly volume beside the db; only the manifest is committed (see P1 addendum) | — | — |
