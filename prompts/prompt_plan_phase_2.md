@@ -522,10 +522,11 @@ only in `oathSetup`.
   citizenship rules (§6.6.2, §6.7, §6.8), which all say "refresh Supply
   to its leftmost space" as an effect distinct from a normal Rest — a
   real, named position, not setup-only decoration. `CHANCELLOR_STARTING_SUPPLY`
-  / `EXILE_STARTING_SUPPLY` in `setup.ts` are both 7; see RULINGS.md.
-  **Still open for unit 5:** the full bracket->value table for every
-  OTHER position on the track (`turn.rest`'s refresh formula needs the
-  complete mapping, not just the endpoints).
+  / `EXILE_STARTING_SUPPLY` in `setup.ts` are both 7. The full Rest-refresh
+  table (Law §4.3.3) is now resolved too, ready for unit 5: Chancellor
+  18+/17–11/10–4/3–0 → supply 6/5/4/3; Exile 9+/8–4/3–0 → supply 6/5/4;
+  a Citizen doesn't use their own warband count at all — they copy
+  whatever Supply value the Chancellor currently holds. See RULINGS.md.
 
 ---
 
