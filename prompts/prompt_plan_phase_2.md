@@ -262,7 +262,7 @@ test; `RULINGS.md` exists.
 
 ---
 
-## Unit 2 — Map geometry
+## Unit 2 — Map geometry ✅ (completed 2026-09-09)
 
 **Purpose.** Regions and travel costs as a small pure module, so Travel and
 Campaign never embed geometry.
