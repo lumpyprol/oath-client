@@ -58,7 +58,9 @@ function endTurn(s: CradleState): void {
 export const cradle: GameDefinition<CradleState, CradleSetup> = {
   kind: 'cradle',
 
-  setup(seats) {
+  setup(seats, _options) {
+    // cradle ignores creation options entirely (HLD D31) — it has no
+    // seed-shaped concept of an opening position.
     return {
       seats,
       deck: shuffle(Array.from({ length: 24 }, (_, i) => `card-${String(i + 1).padStart(2, '0')}`)),

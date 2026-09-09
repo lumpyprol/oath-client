@@ -414,7 +414,7 @@ the file header with the growth rule.
 
 ---
 
-## Unit 4 — Setup and init
+## Unit 4 — Setup and init ✅ (completed 2026-09-09)
 
 **Purpose.** A game can begin. All setup randomness happens here, once, and
 is persisted (HLD D5/D13).
@@ -466,6 +466,62 @@ Commit: "Add Oath setup and initial state; engine accepts creation options"
 
 **Done when.** A valid opening state exists for 2–6 seats; randomness lives
 only in `oathSetup`.
+
+## What unit 4 established (as built, 2026-09-09)
+
+- **`SetupSpec` fixes board structure only — never the world/relic deck
+  order.** Sites, their starting denizens, pre-placed relics, oath,
+  citizenship, and starting pawn sites are the spec's job; the world pool
+  and relic pool are fields on the spec (`worldPool`/`relicPool` — "every
+  card not otherwise placed"), but their SHUFFLE happens in `oathSetup`,
+  every call, using real randomness. This is why `FIRST_GAME` can be a
+  plain static constant (matching D30) while still yielding a different
+  deal each time it's used — and it's why the "two `oathSetup()` calls
+  differ" test is meaningful at all despite `FIRST_GAME` being fixed.
+  Unit 18's `specFromSeed` should follow the same split: whatever a real
+  seed's export already fixed goes in the spec; the deal is still fresh.
+- **The Archive is out of scope for P2 — confirmed, not assumed.** Oath
+  does not put all 198 denizens into a single game (Law §8.4/§8.8: most
+  of them sit in per-suit "Archive" stacks, entering play only via
+  chronicle-transition rules). A single non-chronicle game's active pool
+  (world deck + sites + discards + hands) is a SUBSET of the full card
+  set, confirmed against the box's own first-game packet (41 world-deck
+  cards, not 198). `checkInvariants` (unit 1) already tolerates this — it
+  never required full 198-card coverage, so no state.ts change was
+  needed. `oathSetup` puts every non-fixed denizen/vision into `worldPool`
+  (not a smaller curated subset) since P2 has no Archive zone to hold the
+  rest and unit 19 needs a deck deep enough to finish a game.
+- **FIRST_GAME's site layout required going beyond the rulebook's own
+  prose.** The Playbook's "Setup for the First Game" names only 6 of 8
+  opening sites; the publisher's own "Oath Deck Order" packet PDF
+  resolved the other 2 (Provinces' 2nd site is Buried Giant, Hinterland's
+  2nd is Great Slum) — recorded in RULINGS.md with the source.
+- **FIRST_GAME is fixed at exactly 4 seats** (the box's Chancellor + 3
+  Exiles) — the rulebook has no other-seat-count first-game layout.
+  `oathSetup` throws `IllegalAction` for any other seat count until unit
+  18 adds seed-driven setups. `init`, however, is fully general (tested
+  for 2–6 seats via hand-built `OathSetup` fixtures) — only the *spec*
+  is 4p-specific, not the assembly code.
+- **Per-player starting pawn site, for seat counts other than 4, is an
+  engineering choice, not a rulebook fact** — the rulebook only
+  demonstrates 4 players. Not exercised by `FIRST_GAME` itself; unit 18's
+  seed-driven setups won't have this problem (a real seed fixes pawn
+  positions... except it doesn't, per the next point).
+- **Real chronicle seeds don't carry player hands/advisers/pawn positions
+  at all** (checked the vendored `OathGame` interface — no such fields).
+  So the "steps 19–23" deal (region discards, each seat drawing 3 and
+  keeping 1 as a facedown adviser) is NOT first-game-specific — it is
+  something `oathSetup` must do for EVERY new game, seeded or not. Unit
+  18 should reuse this unit's dealing logic rather than re-deriving it.
+- **Open, unconfirmed rules fact: exact starting Supply.** The Supply
+  track's warband-count brackets are legible from the board diagram, but
+  no source found so far prints a numeral per space; `CHANCELLOR_STARTING_SUPPLY
+  = 7` / `EXILE_STARTING_SUPPLY = 5` in `setup.ts` are inferred from
+  counting track spaces, not confirmed. Recorded in RULINGS.md. **Unit 5
+  needs the FULL bracket→value table (for `turn.rest`'s refresh formula)
+  and should resolve this properly** — ideally by asking Ben to read the
+  numbers off his physical board, since no rules-reference text extracted
+  so far shows them printed.
 
 ---
 

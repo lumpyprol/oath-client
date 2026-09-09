@@ -74,13 +74,17 @@ export function playerByToken(token: string) {
  * write a seq-0 `game.created` marker so the action log has a defined start.
  * The marker carries no hidden information.
  */
-export function createGame<S, Setup>(def: GameDefinition<S, Setup>, names: string[]) {
+export function createGame<S, Setup>(
+  def: GameDefinition<S, Setup>,
+  names: string[],
+  options?: unknown,
+) {
   const gameId = randomUUID();
   const now = new Date().toISOString();
 
   return transaction(() => {
     q.insertGame.run(gameId, def.kind, names.length, now);
-    q.insertSetup.run(gameId, JSON.stringify(def.setup(names.length)));
+    q.insertSetup.run(gameId, JSON.stringify(def.setup(names.length, options)));
 
     const tokens = names.map((name, seat) => {
       const token = randomUUID().replace(/-/g, '');

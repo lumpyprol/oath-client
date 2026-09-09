@@ -7,7 +7,7 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | --- | --- |
 | Started | 2026-09-07 |
 | Last updated | 2026-09-09 |
-| Current phase | P2 (in progress, unit 1 done) |
+| Current phase | P2 (in progress, units 1–4 done) |
 | Owner | Ben |
 
 ---
@@ -589,6 +589,7 @@ with `reversed by`.
 | D34 | 09-08 | Enforced powers replace the declaration — the registered impl produces the effects, the client stops asking; relic and banner powers use the same `power.use` shape | One code path, one log shape; validation-mode would need both paths forever | active |
 | D35 | 09-08 | The structural endgame (oathkeeper, succession, vision victory, citizenship transitions, game end) is enforced by the engine, not declared | These are the game's skeleton, not card text; declaring them would make every ending disputable | active |
 | D36 | 09-09 | Conservation invariants cover favor (36 total) and warbands (24 purple pooled across Imperial seats, 14 per exile color) only; secrets are unconstrained | Law §9.3: Oath is component-limited *except secrets and dice* — the planned secret-supply invariant was wrong against the rulebook; purple pooling follows the Kill glossary (purple warbands return to the Chancellor) | active |
+| D37 | 09-09 | `SetupSpec` fixes board structure (sites, starting denizens, relic placements, oath, citizenship, starting pawns) only; the world deck and relic deck pools are shuffled fresh by `oathSetup` on every call, never fixed by the spec, even for `FIRST_GAME` | Real chronicle seeds don't carry player hands/advisers either (checked the vendored `OathGame` interface) — the "draw 3, keep 1" deal is a universal setup step, not first-game-specific; keeping it out of `SetupSpec` is what lets `FIRST_GAME` be a plain constant (D30) while still producing a different game each time | active |
 
 ---
 
@@ -600,7 +601,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-07 | — | Fly deploy still pending — do before P2 unit 5 |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; unit 1 done; Q2 (deploy) still pending before unit 5 |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–4 done (map geometry, effect vocabulary, setup/init, D31 engine change); Q2 (deploy) and the Supply-track numeric ruling still pending before unit 5 |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |

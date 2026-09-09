@@ -39,13 +39,15 @@ function seatOf(req: express.Request, gameId: string): number | null {
 const CreateBody = z.object({
   kind: z.string().default('cradle'),
   players: z.array(z.string().min(1)).min(2).max(6),
+  /** Kind-specific, opaque to the store (HLD D31) — e.g. Oath's chronicle seed. */
+  options: z.unknown().optional(),
 });
 
 router.post('/games', (req, res) => {
   const body = CreateBody.parse(req.body);
   const def = DEFS[body.kind];
   if (!def) return res.status(400).json({ error: `unknown kind ${body.kind}` });
-  const { gameId, players } = createGame(def, body.players);
+  const { gameId, players } = createGame(def, body.players, body.options);
   // Tokens are returned exactly once, at creation. Hand them out privately.
   res.status(201).json({ gameId, kind: body.kind, players });
 });

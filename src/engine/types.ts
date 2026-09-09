@@ -61,8 +61,14 @@ export interface GameDefinition<S, Setup = unknown> {
    * Decide everything random about the opening position: deck order, any
    * randomized assignments. Called once, at creation. May use real
    * randomness; the result is persisted verbatim.
+   *
+   * `options` is opaque to the store: whatever the create-game route body
+   * carried through, kind-specific, undefined if the caller supplied none.
+   * This is the mechanism by which a chronicle seed string (or a pinned
+   * test setup) reaches a game's setup without the engine or the HTTP
+   * layer needing to know what it means (HLD D31).
    */
-  setup(seats: number): Setup;
+  setup(seats: number, options?: unknown): Setup;
 
   /** Build the opening state from that setup. Must be pure. */
   init(setup: Setup): S;
