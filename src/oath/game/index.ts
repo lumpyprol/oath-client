@@ -17,6 +17,7 @@ import { MUSTER_HANDLERS } from './actions/muster.js';
 import { TRADE_HANDLERS } from './actions/trade.js';
 import { TRAVEL_HANDLERS } from './actions/travel.js';
 import { SEARCH_HANDLERS } from './actions/search.js';
+import { RECOVER_HANDLERS } from './actions/recover.js';
 import { project } from './project.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -28,6 +29,7 @@ const HANDLERS: Record<string, Handler> = {
   ...TRADE_HANDLERS,
   ...TRAVEL_HANDLERS,
   ...SEARCH_HANDLERS,
+  ...RECOVER_HANDLERS,
 };
 
 /** Action types a client may actually submit — 'game.created' is a marker, never one of them. */

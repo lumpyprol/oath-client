@@ -990,7 +990,7 @@ Commit: "Add Search action"
 
 ---
 
-## Unit 11 — Recover
+## Unit 11 — Recover ✅ (completed 2026-09-10)
 
 **Purpose.** Relics and banners change hands outside campaigns.
 
@@ -1020,6 +1020,36 @@ Commit: "Add Recover action"
 ```
 
 **Done when.** Both recovery types match cited rules with boundary tests.
+
+## What unit 11 established (as built, 2026-09-10)
+
+- **Recover** (`actions/recover.ts`): 1 Supply + a target cost. `target:
+  'relic'` (a facedown relic at your site → your board) or `target:
+  'banner'` (People's Favor / Darkest Secret).
+- **The relic recover cost is DECLARED, not read from data** — P1's card
+  data has no per-site recover cost (§2.8.4 bottom-right corner; the
+  vendored Lua doesn't carry it). The payload's `cost` names one of
+  §5.4.2's four options (`placeFavor`+suit / `burnFavor` / `burnSecret`
+  1|2); the engine knows where each payment lands (a suit bank / the
+  shared bank) and checks feasibility, but not that the declared cost
+  matches the physical card — v1-style. **Transcribing the per-site
+  recover costs into the card data is a P1 follow-up**, same category as
+  the reveal prompts (structural site data missing from the Lua, not
+  card text). Worth doing before unit 19's full game.
+- **Banner cost**: payload `pay`, must be strictly `> banner.tokens`
+  (§5.4.2 "greater than", so equal is illegal). §5.4.4 stake handling is
+  implemented — People's Favor: old stake → favor banks (one per bank;
+  the "starting with any suit" choice is elided to suit order), new
+  stake = paid favor, Mob side cleared; Darkest Secret: recoverer takes
+  1 of the old stake, the previous holder takes the rest (recoverer
+  takes all from an unclaimed banner or from themselves), new stake =
+  paid secrets.
+- **§5.4.1 Darkest Secret suit restriction** is enforced structurally
+  (`darkestSecretRecoverable`): from another holder only if some
+  non-ruined card at their site has a suit no faceup adviser of theirs
+  shares.
+- **Banner ongoing powers** (defense dice, Wake, etc.) are card text —
+  **v2**. Oathkeeper changes from taking the People's Favor are unit 17.
 
 ---
 
