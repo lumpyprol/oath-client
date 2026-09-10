@@ -56,13 +56,26 @@ export type Handler = (state: OathState, action: GameAction) => OathState;
 
 /**
  * Shared guard for any Act-Phase action: the game must be running and the
- * actor must be the seat whose turn it is (Law §4.2).
+ * actor must be the seat whose turn it is (Law §4.2). While the active
+ * seat has cards in hand — a Search awaiting its play step (§5.1.4) — the
+ * only legal action is `card.play`, so everything else passes
+ * `midSearchOk: false` (the default) and is rejected. `card.play` itself
+ * passes `midSearchOk: true`.
  */
-export function requireActiveSeat(state: OathState, action: GameAction): number {
+export function requireActiveSeat(
+  state: OathState,
+  action: GameAction,
+  opts: { midSearchOk?: boolean } = {},
+): number {
   if (state.complete) throw new IllegalAction(`${action.type}: the game is already complete`);
   if (action.actor === null) throw new IllegalAction(`${action.type} requires a seated actor`);
   if (action.actor !== state.turn.activeSeat) {
     throw new IllegalAction(`${action.type}: it is not seat ${action.actor}'s turn`);
+  }
+  if (!opts.midSearchOk && state.players[action.actor].hand.length > 0) {
+    throw new IllegalAction(
+      `${action.type}: finish your Search first — play or discard your drawn card(s) (Law §5.1.4)`,
+    );
   }
   return action.actor;
 }

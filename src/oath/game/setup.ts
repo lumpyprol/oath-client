@@ -273,6 +273,7 @@ export function init(setup: OathSetup): OathState {
       citizenship,
       pawnSite: spec.startingPawnSite[seat], // Law §1.23
       hand: [],
+      handDrawnAt: 0,
       advisers: [{ id: setup.startingAdviser[seat], facedown: true, favor: 0, secrets: 0 }],
       vision: null,
       favor: isChancellor ? 2 : 1, // Law §1.11 / §1.15

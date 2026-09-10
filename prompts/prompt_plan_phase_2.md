@@ -710,36 +710,35 @@ full-site rule is encoded and cited.
   `checkInvariants` requires it to name a real site. Every "your site" /
   "your region" rule from here on resolves through this field.
 - **`card.play` is the placement step of Search (§5.1.4), not a
-  standalone turn move.** It operates on the transient `hand`, which
-  nothing populates yet (Search's draw step is unit 10). Unit 6 tests it
-  against hand-built states. It does NOT advance the turn (Search is one
-  Act-Phase action; you keep playing after). **pending() and turn.rest
-  are untouched** — enforcing "a non-empty hand is a blocking decision
-  you must resolve" is unit 10's job (Search owns its flow); unit 6 just
-  registers the handler so `pending().resolves` picks it up.
-- **Payload extended past the plan's `as: 'adviser' | 'site'`** to
-  `'site' | 'adviser' | 'vision' | 'discard'` — the rulebook demands it:
-  §5.1.4.3 puts a revealed Vision on the Revealed Vision space (neither a
-  site nor an adviser), and §5.1.4 lets you discard the kept card
-  outright. `card.play` also auto-discards every OTHER card left in hand
-  (Search §5.1.3+5.1.4 combined into one action — the "one action
-  indexing the drawn set" model unit 10's prompt lists first).
-- **Over the 3-adviser limit → `discardAdviserId` in the payload**, not a
-  mid-action pending decision. Keeps the whole choice in one log entry.
-  A guard rejects discarding a token-bearing adviser ("not yet
-  supported") — unreachable now (nothing puts tokens on advisers yet),
-  resolved properly in unit 14 alongside the flipped-secret gap.
+  standalone turn move.** It operates on the transient `hand`. It does
+  NOT advance the turn (Search is one Act-Phase action; you keep playing
+  after). Unit 6 tested it against hand-built states; unit 10 wired the
+  real Search flow (pending 'play' decision, other actions blocked while
+  the hand is non-empty).
+- **Payload names cards by INDEX, not id** (hardened in unit 10 — unit 6
+  first shipped `{ cardId }`). A drawn card played to a hidden
+  destination (facedown adviser, discard) must not leak its identity
+  into the shared log; the reducer resolves the index against the
+  private hand. Payload: `{ handIndex, as: 'site'|'adviser'|'vision'|
+  'discard', siteId?, facedown?, discardAdviserIndex? }`. `card.play`
+  auto-discards every OTHER card left in hand (Search §5.1.3+5.1.4 in
+  one action).
+- **Payload extended past the plan's `as: 'adviser' | 'site'`** to add
+  `'vision'` (the Revealed Vision space, §5.1.4.3) and `'discard'`
+  (§5.1.4 "or you may discard it").
+- **Over the 3-adviser limit → `discardAdviserIndex` in the payload**,
+  not a mid-action pending decision. A guard rejects discarding a
+  token-bearing adviser ("not yet supported") — unreachable now, v2.
 - **No new effect tag** (D33 held). Everything composes from unit 3's
   `card`/`favor`/`flip` movers — including the "clear the slot first"
   ordering for replacing a Revealed Vision (old vision → discard, then
   new vision → the now-empty slot).
 - **Deferred, flagged in `actions/play.ts`'s header:**
   - The People's Favor holder's §5.1.4.1 exception (play to any site in
-    your region, discarding a card there first) — needs a "which card"
-    choice; TODO.
+    your region, discarding a card there first) — card text, **v2**.
   - The Conspiracy's faceup play (§5.1.4.4: burn a secret, seize a
-    relic/banner) — that's `power.use` territory (D34), unit 14. Unit 6
-    allows the Conspiracy only as a facedown adviser.
+    relic/banner) — card text, **v2**. Unit 6 allows the Conspiracy only
+    as a facedown adviser.
   - Vision victory (§3.2) — unit 17's pipeline. Unit 6 only places the
     card.
 
@@ -917,7 +916,7 @@ Commit: "Add Travel action"
 
 ---
 
-## Unit 10 — Search
+## Unit 10 — Search ✅ (completed 2026-09-10)
 
 **Purpose.** The world deck moves. Hidden information is handled for real:
 draws, choices, discards — none of it may leak through the log or views.
@@ -958,6 +957,36 @@ Commit: "Add Search action"
 ```
 
 **Done when.** Search works and the log/projection leak test passes.
+
+## What unit 10 established (as built, 2026-09-10)
+
+- **Search is two steps.** `search` (`actions/search.ts`, payload
+  `{ from: 'deck' | 'discard' }`) draws cards into `hand` and leaves a
+  pending `'play'` decision; the player resolves it with `card.play`
+  (unit 6). Splitting it is what keeps drawn identities out of the
+  `search` payload and out of other seats' projections (HLD D5/D13).
+- **`card.play` moved from `{ cardId }` to `{ handIndex }`** — a
+  unit-6-file change forced by this unit's leak requirement (playing a
+  drawn card facedown must not name it in the log). `discardAdviserId`
+  → `discardAdviserIndex` likewise. Flagged in unit 6's notes and the
+  `play.ts` header.
+- **`requireActiveSeat` gained a `midSearchOk` opt-out.** While the
+  active seat's `hand` is non-empty, every action *except* `card.play`
+  throws — Search's step 4 (§5.1.4) is mandatory and immediate, and you
+  "finish one action before starting the next" (§4.2). `pending()` swaps
+  the `'turn'` decision for a `'play'` one, id
+  `` `play:${seat}:${handDrawnAt}` `` (stable across polls, distinct per
+  Search).
+- **`PlayerState.handDrawnAt` added** (additive) — the `actionCount` at
+  the draw, for that pending id. Meaningless while `hand` is empty.
+- **Costs (Law §5.1.1):** 2 Supply from a discard pile; from the world
+  deck, per the Visions Drawn track — **0 Visions → 2, 1–2 → 3, 3–5 →
+  4** (read off the board image; in `worldDeckCost`).
+- **Vision-stop (§5.1.2).** Drawing from the world deck stops the moment
+  a Vision comes up (you keep it — may end with fewer than 3), and the
+  Visions Drawn marker advances one (§2.7.1). Discard piles have no such
+  rule. An empty source is illegal (nothing to search); a short source
+  draws what it has (§9.3).
 
 ---
 

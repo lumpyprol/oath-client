@@ -126,6 +126,12 @@ export interface PlayerState {
    * Empty outside a Search — Oath has no persistent hand.
    */
   hand: string[];
+  /**
+   * `actionCount` when `hand` was last drawn (unit 10). Meaningless while
+   * `hand` is empty; while non-empty it stamps the pending 'play'
+   * decision's id, per the shared decision-id convention.
+   */
+  handDrawnAt: number;
   advisers: Adviser[];
   /** Faceup Vision on the Exile board's Revealed Vision space (Law §2.2.1). */
   vision: string | null;
@@ -255,6 +261,11 @@ export function checkInvariants(state: OathState): void {
         `actionCount (${state.actionCount})`,
     );
   }
+  players.forEach((p, i) => {
+    if (p.handDrawnAt < 0 || p.handDrawnAt > state.actionCount) {
+      fail(`players[${i}].handDrawnAt (${p.handDrawnAt}) must be between 0 and actionCount`);
+    }
+  });
 
   // -- citizenship (Law §1.7–1.8; seat-0 convention) -----------------------
   const chancellors = players

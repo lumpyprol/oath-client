@@ -67,6 +67,7 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
     citizenship: 'exile',
     pawnSite: sites[0].id, // a faceup Cradle site; override per-seat below
     hand: [],
+    handDrawnAt: 0,
     advisers: [],
     vision: null,
     favor: 1,

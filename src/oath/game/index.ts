@@ -16,6 +16,7 @@ import { PLAY_HANDLERS } from './actions/play.js';
 import { MUSTER_HANDLERS } from './actions/muster.js';
 import { TRADE_HANDLERS } from './actions/trade.js';
 import { TRAVEL_HANDLERS } from './actions/travel.js';
+import { SEARCH_HANDLERS } from './actions/search.js';
 import { project } from './project.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -26,10 +27,13 @@ const HANDLERS: Record<string, Handler> = {
   ...MUSTER_HANDLERS,
   ...TRADE_HANDLERS,
   ...TRAVEL_HANDLERS,
+  ...SEARCH_HANDLERS,
 };
 
 /** Action types a client may actually submit — 'game.created' is a marker, never one of them. */
 const RESOLVABLE_TYPES = Object.keys(HANDLERS).filter((t) => t !== 'game.created');
+/** Mid-Search, the ONLY legal action is resolving the drawn cards (Law §5.1.4). */
+const PLAY_TYPES = ['card.play'];
 
 export const oath: GameDefinition<OathState, OathSetup> = {
   kind: 'oath',
@@ -59,12 +63,28 @@ export const oath: GameDefinition<OathState, OathSetup> = {
 
   pending(state) {
     if (state.complete) return [];
+    const seat = state.turn.activeSeat;
+    const player = state.players[seat];
+    if (player.hand.length > 0) {
+      // A Search is mid-flight — the drawn cards must be resolved before
+      // anything else (Law §5.1.4). Id stamped with the actionCount at
+      // the draw, so it's stable across polls and distinct per Search.
+      return [
+        {
+          id: `play:${seat}:${player.handDrawnAt}`,
+          seat,
+          kind: 'play',
+          prompt: `Play or discard your drawn card(s) (${player.hand.length} in hand).`,
+          resolves: PLAY_TYPES,
+        },
+      ];
+    }
     return [
       {
         id: turnPendingId(state),
-        seat: state.turn.activeSeat,
+        seat,
         kind: 'turn',
-        prompt: `It is seat ${state.turn.activeSeat}'s turn (round ${state.turn.round}).`,
+        prompt: `It is seat ${seat}'s turn (round ${state.turn.round}).`,
         resolves: RESOLVABLE_TYPES,
       },
     ];

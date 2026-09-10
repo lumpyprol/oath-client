@@ -1,29 +1,33 @@
 /**
  * `card.play` (unit 6): the card-placement step of a Search (Law §5.1.4).
  * After a Search draws cards into `players[seat].hand` (the draw step is
- * unit 10), the player plays one and discards the rest. This module owns
- * only the placement — Search's draw half plugs into it later.
+ * `search`, unit 10), the player plays one and discards the rest.
  *
- * Payload: `{ cardId, as: 'site'|'adviser'|'vision'|'discard', siteId?,
- * facedown?, discardAdviserId? }`.
+ * Payload: `{ handIndex, as: 'site'|'adviser'|'vision'|'discard', siteId?,
+ * facedown?, discardAdviserIndex? }`.
+ *
+ * Cards are named by INDEX, never id (unit 10): a drawn card played to a
+ * hidden destination (facedown adviser, discard) must not leak its
+ * identity into the shared action log. The reducer resolves the index
+ * against the private hand; the id only ever reaches STATE, where
+ * projection redacts it if it stayed hidden.
  *
  *   'site'    — Law §5.1.4.1: to a denizen slot at YOUR site (capacity
  *               permitting, §2.8.1), then gain one favor from the bank
  *               matching the card's suit (§9.3: as many as the bank has).
  *               The People's Favor holder's "play to any site in your
  *               region, discarding a card there first" exception
- *               (§5.1.4.1) is NOT implemented — it needs a "which card to
- *               discard" choice; TODO when that matters.
+ *               (§5.1.4.1) is card text — v2 (HLD §6, "Engine-enforced
+ *               card powers").
  *   'adviser' — Law §5.1.4.2: faceup, or facedown if asked. Over the
- *               3-adviser limit (§2.2.2), the payload must name a
- *               `discardAdviserId` to bin first. Visions may be played
+ *               3-adviser limit (§2.2.2), the payload must give a
+ *               `discardAdviserIndex` to bin first. Visions may be played
  *               ONLY as FACEDOWN advisers (§5.1.4.3).
  *   'vision'  — Law §5.1.4.3: to the Revealed Vision space. Exiles only,
  *               non-Conspiracy; a prior Revealed Vision is discarded. The
- *               Conspiracy's faceup play (§5.1.4.4) is DEFERRED — it burns
- *               a secret to seize a relic/banner, which rides on
- *               `power.use` (unit 14). Vision VICTORY is unit 17's; this
- *               module only places the card.
+ *               Conspiracy's faceup play (§5.1.4.4) is card text — v2.
+ *               Vision VICTORY is unit 17's; this module only places the
+ *               card.
  *   'discard' — Law §5.1.4: "or you may discard it" — bin the whole hand.
  *
  * Discards go to the pile of the region "downstream" of the pawn's region
@@ -45,11 +49,11 @@ import { requireActiveSeat, type Handler } from '../turn.js';
 const CONSPIRACY_ID = 'vision:conspiracy';
 
 const PlayPayloadSchema = z.object({
-  cardId: z.string(),
+  handIndex: z.number().int().min(0),
   as: z.enum(['site', 'adviser', 'vision', 'discard']),
   siteId: z.string().optional(),
   facedown: z.boolean().optional(),
-  discardAdviserId: z.string().optional(),
+  discardAdviserIndex: z.number().int().min(0).optional(),
 });
 type PlayPayload = z.infer<typeof PlayPayloadSchema>;
 
@@ -60,20 +64,22 @@ function regionOfSite(state: OathState, siteId: string): Region {
 }
 
 function play(state: OathState, action: GameAction): OathState {
-  const seat = requireActiveSeat(state, action);
+  const seat = requireActiveSeat(state, action, { midSearchOk: true });
   const parsed = PlayPayloadSchema.safeParse(action.payload);
   if (!parsed.success) throw new IllegalAction(`card.play: malformed payload`);
   const payload: PlayPayload = parsed.data;
-  const { cardId } = payload;
 
   const player = state.players[seat];
-  if (!player.hand.includes(cardId)) {
-    throw new IllegalAction(`card.play: ${cardId} is not in seat ${seat}'s hand`);
+  const cardId = player.hand[payload.handIndex];
+  if (cardId === undefined) {
+    throw new IllegalAction(
+      `card.play: no card at hand index ${payload.handIndex} (hand has ${player.hand.length})`,
+    );
   }
 
   const isVision = cardId.startsWith('vision:');
   const discardTo = discardRegion(regionOfSite(state, player.pawnSite));
-  const restOfHand = player.hand.filter((id) => id !== cardId);
+  const restOfHand = player.hand.filter((_, i) => i !== payload.handIndex);
   const binRest: Effect[] = restOfHand.map((id) => ({
     kind: 'card',
     id,
@@ -133,23 +139,25 @@ function play(state: OathState, action: GameAction): OathState {
       }
       effects = [];
       if (player.advisers.length >= ADVISER_LIMIT) {
-        const dropId = payload.discardAdviserId;
-        if (!dropId) {
+        const dropIndex = payload.discardAdviserIndex;
+        if (dropIndex === undefined) {
           throw new IllegalAction(
-            `card.play: at the ${ADVISER_LIMIT}-adviser limit — name a discardAdviserId (Law §5.1.4.2)`,
+            `card.play: at the ${ADVISER_LIMIT}-adviser limit — give a discardAdviserIndex (Law §5.1.4.2)`,
           );
         }
-        const dropped = player.advisers.find((a) => a.id === dropId);
-        if (!dropped) throw new IllegalAction(`card.play: ${dropId} is not an adviser of seat ${seat}`);
+        const dropped = player.advisers[dropIndex];
+        if (!dropped) {
+          throw new IllegalAction(`card.play: no adviser at index ${dropIndex} for seat ${seat}`);
+        }
         if (dropped.favor > 0 || dropped.secrets > 0) {
           throw new IllegalAction(
             'card.play: discarding an adviser carrying favor/secrets is not yet supported ' +
-              '(Glossary "Discard" + the unit 3 flipped-secret gap) — see unit 14',
+              '(Glossary "Discard" + the unit 3 flipped-secret gap) — see v2',
           );
         }
         effects.push({
           kind: 'card',
-          id: dropId,
+          id: dropped.id,
           from: { kind: 'seatAdvisers', seat },
           to: { kind: 'discard', region: discardTo },
         });
