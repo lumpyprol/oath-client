@@ -24,7 +24,7 @@ const site = (over: Record<string, unknown> = {}) => ({
   set: 'base',
   saveId: 1,
   capacity: 2,
-  relicCount: 1,
+  reveal: { favor: 0, secrets: 0, relics: 1 },
   ...over,
 });
 

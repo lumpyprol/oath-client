@@ -10,10 +10,10 @@ file map.
 ## Pipeline
 
 ```
-vendor/oathparser/cards.lua
-        │  lua.ts        parseCardsLua      line parser → RawRecord[]
-        ▼
-   build.ts             buildDatabase       RawRecord[] → typed CardDatabase (schema-validated)
+vendor/oathparser/cards.lua        data/site-reveals.json
+        │  lua.ts        parseCardsLua      │  hand-transcribed site reveal
+        ▼                                   ▼  prompts (Law §2.8.2); cards.lua has none
+   build.ts             buildDatabase       RawRecord[] + reveals → typed CardDatabase (schema-validated)
         │
         │  reconcile.ts  applyOverrides      apply data/overrides.json (canonical names + aliases)
         ▼
@@ -39,7 +39,7 @@ drift-guarded like the data files.
 | `schema.ts` | zod schemas + inferred types; `SUITS`, `SUIT_INDEX`, `SetSchema`, `PowerKindSchema`; the `Card` union and `CardDatabase` with its cross-collection refinements |
 | `ids.ts` | `slugify(name)` and `cardId(kind, name)` — deterministic id derivation |
 | `lua.ts` | `parseCardsLua(source)` — a line parser for the mod's `cards.lua`, no Lua interpreter |
-| `build.ts` | `buildDatabase(records)` — raw records → validated `CardDatabase`; the mod's banner tag is quarantined here in `MOD_BANNER_CARDTYPE` |
+| `build.ts` | `buildDatabase(records, siteReveals)` — raw records → validated `CardDatabase`; the mod's banner tag is quarantined here in `MOD_BANNER_CARDTYPE` |
 | `reconcile.ts` | `findDiscrepancies`, `applyOverrides`, `isCovered` — name reconciliation between the two upstream witnesses |
 | `tsNames.ts` | reads the vendored parser's name tables as **text**, so `vendor/` never enters the TS build |
 | `generate.ts` | `generate()` + `COLLECTIONS`, `DATA_DIR`, `serializeCollection` |
@@ -48,6 +48,7 @@ drift-guarded like the data files.
 | `art.ts` | `loadArtManifest`, `requiredArtKeys`, `generateArtManifest`, `missingArt`, `missingAssets` — the art manifest and asset presence checks |
 | `data/*.json` | generated, committed card data — regenerate with `npm run build:cards` |
 | `data/overrides.json` | hand-resolved name reconciliation, one reason per entry |
+| `data/site-reveals.json` | hand-transcribed site reveal prompts (Law §2.8.2), keyed by saveId — `cards.lua` has no favor/secret data and its `relicCount` is wrong for 2 sites |
 | `data/art.json` | generated art manifest (`npm run build:art`); asset files live in `ART_DIR`, not git |
 | `data/text.json` | optional; not committed yet; tests use `test/fixtures/text.fake.json` |
 

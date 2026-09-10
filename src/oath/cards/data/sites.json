@@ -5,7 +5,11 @@
     "set": "base",
     "saveId": 0,
     "capacity": 1,
-    "relicCount": 1
+    "reveal": {
+      "favor": 3,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:salt-flats",
@@ -13,7 +17,11 @@
     "set": "base",
     "saveId": 1,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 2,
+      "secrets": 1,
+      "relics": 0
+    }
   },
   {
     "id": "site:fertile-valley",
@@ -21,7 +29,11 @@
     "set": "base",
     "saveId": 2,
     "capacity": 3,
-    "relicCount": 0
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 0
+    }
   },
   {
     "id": "site:barren-coast",
@@ -29,7 +41,11 @@
     "set": "base",
     "saveId": 3,
     "capacity": 1,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:plains",
@@ -37,7 +53,11 @@
     "set": "base",
     "saveId": 4,
     "capacity": 3,
-    "relicCount": 0
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 0
+    }
   },
   {
     "id": "site:river",
@@ -45,7 +65,11 @@
     "set": "base",
     "saveId": 5,
     "capacity": 2,
-    "relicCount": 0
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 0
+    }
   },
   {
     "id": "site:steppe",
@@ -53,7 +77,11 @@
     "set": "base",
     "saveId": 6,
     "capacity": 1,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:mountain",
@@ -61,7 +89,11 @@
     "set": "base",
     "saveId": 7,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:lush-coast",
@@ -69,7 +101,11 @@
     "set": "base",
     "saveId": 8,
     "capacity": 3,
-    "relicCount": 0
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 0
+    }
   },
   {
     "id": "site:marshes",
@@ -77,7 +113,11 @@
     "set": "base",
     "saveId": 9,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:wastes",
@@ -85,7 +125,11 @@
     "set": "base",
     "saveId": 10,
     "capacity": 1,
-    "relicCount": 2
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:rocky-coast",
@@ -93,7 +137,11 @@
     "set": "base",
     "saveId": 11,
     "capacity": 2,
-    "relicCount": 0
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 0
+    }
   },
   {
     "id": "site:narrow-pass",
@@ -101,7 +149,11 @@
     "set": "base",
     "saveId": 12,
     "capacity": 1,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:charming-valley",
@@ -109,7 +161,11 @@
     "set": "base",
     "saveId": 13,
     "capacity": 3,
-    "relicCount": 0
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 0
+    }
   },
   {
     "id": "site:deep-woods",
@@ -117,7 +173,11 @@
     "set": "base",
     "saveId": 14,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:standing-stones",
@@ -125,7 +185,11 @@
     "set": "base",
     "saveId": 15,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:ancient-city",
@@ -133,7 +197,11 @@
     "set": "base",
     "saveId": 16,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:drowned-city",
@@ -144,7 +212,11 @@
       "The Drowned City"
     ],
     "capacity": 0,
-    "relicCount": 2
+    "reveal": {
+      "favor": 0,
+      "secrets": 3,
+      "relics": 2
+    }
   },
   {
     "id": "site:great-slum",
@@ -152,7 +224,11 @@
     "set": "base",
     "saveId": 18,
     "capacity": 3,
-    "relicCount": 0
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 0
+    }
   },
   {
     "id": "site:buried-giant",
@@ -160,7 +236,11 @@
     "set": "base",
     "saveId": 19,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:tribunal",
@@ -171,7 +251,11 @@
       "Imperial Seat"
     ],
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:shrouded-wood",
@@ -179,7 +263,11 @@
     "set": "base",
     "saveId": 21,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   },
   {
     "id": "site:hidden-place",
@@ -187,6 +275,10 @@
     "set": "base",
     "saveId": 22,
     "capacity": 2,
-    "relicCount": 1
+    "reveal": {
+      "favor": 0,
+      "secrets": 0,
+      "relics": 1
+    }
   }
 ]

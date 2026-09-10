@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCardsLua } from '../../../src/oath/cards/lua.js';
 import { buildDatabase } from '../../../src/oath/cards/build.js';
+import { loadSiteReveals } from '../../../src/oath/cards/generate.js';
 import {
   findDiscrepancies,
   applyOverrides,
@@ -18,6 +19,7 @@ const repo = join(here, '../../../');
 
 const realDb = buildDatabase(
   parseCardsLua(readFileSync(join(repo, 'vendor/oathparser/cards.lua'), 'utf8')),
+  loadSiteReveals(),
 );
 const tsCardNames = loadTsCardNames();
 const tsSiteNames = loadTsSiteNames();

@@ -895,18 +895,25 @@ Commit: "Add Travel action"
 - **`FlipTarget` gained `{ kind: 'site', siteId }`** — the effects.ts
   header had anticipated this ("add a `site` flip target in unit 9").
   Toggles `site.facedown`.
+- **Reveal prompt closed (2026-09-10, follow-up).** P1's site schema now
+  carries `reveal: { favor, secrets, relics }` (Law §2.8.2), replacing
+  the old top-level `relicCount`. The vendored `cards.lua` has no
+  favor/secret reveal data, so it's hand-transcribed from the printed
+  cards in a new committed `src/oath/cards/data/site-reveals.json`
+  (keyed by saveId, with provenance), merged in `build.ts`. Only 3
+  sites have favor/secret prompts: **Mine** (3 favor), **Salt Flats**
+  (2 favor + 1 secret), **Drowned City** (3 secrets). Travel's reveal
+  now places all of it — favor §9.3-clamped to the shared bank,
+  secrets unlimited (§9.3). **Two `relics` counts differ from
+  `cards.lua`'s `relicCount` and NEED VERIFICATION against a physical
+  copy** (flagged in site-reveals.json): Salt Flats (card shows no "R",
+  Lua said 1) and Wastes (card shows one "R", Lua said 2 — Playbook
+  walkthrough p.25 agrees with 1).
 - **Deferred, all cited in `actions/travel.ts`'s header** — every one is
   card text, so it's `power.use` territory in v1 per D28/D34:
   - Site-power cost modifiers: Coast (§11.3), Charming Valley (§11.6),
     Shrouded Wood (§11.7), "spend no Supply" powers (§7.6.2).
   - Narrow Pass's forced-destination rule (§11.8).
-  - Favor/secret reveal-prompt placement (§2.8.2): P1 site data has the
-    relic "R" count but NOT the favor/secret icon counts — the same gap
-    unit 4 flagged. Only the relic draw happens on reveal. **This one is
-    NOT card text** — it's a P1 data gap; fixing it needs either a P1
-    site-data regeneration to add favor/secret reveal-prompt counts, or
-    a `SetupSpec` field. Worth doing before unit 19's full game so
-    revealed sites carry their tokens.
 
 ---
 

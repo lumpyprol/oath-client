@@ -68,8 +68,20 @@ export const DenizenSchema = baseCard
 
 export const SiteSchema = baseCard
   .extend({
+    /** Max denizen + edifice cards the site holds (Law §2.8.1). */
     capacity: z.number().int().min(0),
-    relicCount: z.number().int().min(0),
+    /**
+     * The reveal prompt in the site's top-left corner (Law §2.8.2):
+     * tokens placed from the shared bank / relics drawn from the relic
+     * deck when the site is flipped faceup. `relics` is the "R"-icon
+     * count (Law §5.6.2, §8.6.2). Hand-transcribed from the printed
+     * cards — see data/site-reveals.json.
+     */
+    reveal: z.object({
+      favor: z.number().int().min(0),
+      secrets: z.number().int().min(0),
+      relics: z.number().int().min(0),
+    }),
   })
   .refine(idPrefix('site').check, idPrefix('site').opts);
 

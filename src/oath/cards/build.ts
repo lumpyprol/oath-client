@@ -21,8 +21,15 @@ import {
  */
 export const MOD_BANNER_CARDTYPE = 'SuperRelic';
 
-/** Turn the mod's raw records into a validated, typed CardDatabase. */
-export function buildDatabase(records: RawRecord[]): CardDatabase {
+/**
+ * Turn the mod's raw records into a validated, typed CardDatabase.
+ * `siteReveals` supplies each site's reveal-prompt data (Law §2.8.2) —
+ * hand-transcribed, keyed by saveId — since `cards.lua` has none.
+ */
+export function buildDatabase(
+  records: RawRecord[],
+  siteReveals: Record<number, SiteReveal>,
+): CardDatabase {
   const db: CardDatabase = {
     denizens: [],
     sites: [],
@@ -37,7 +44,7 @@ export function buildDatabase(records: RawRecord[]): CardDatabase {
 
     switch (cardtype) {
       case 'Site': {
-        const site = buildSite(record);
+        const site = buildSite(record, siteReveals);
         if (site) db.sites.push(site);
         break;
       }
@@ -93,15 +100,26 @@ function suitOf(record: RawRecord): Suit {
   return parsed.data;
 }
 
-function buildSite(record: RawRecord): Site | null {
+export interface SiteReveal {
+  favor: number;
+  secrets: number;
+  relics: number;
+}
+
+function buildSite(record: RawRecord, reveals: Record<number, SiteReveal>): Site | null {
   if (record.name === 'UNUSED') return null;
+  const saveId = num(record, 'saveid');
+  const reveal = reveals[saveId];
+  if (!reveal) {
+    throw new Error(`buildSite: no reveal-prompt data for site saveId ${saveId} (${record.name})`);
+  }
   return {
     id: cardId('site', record.name),
     name: record.name,
     set: 'base',
-    saveId: num(record, 'saveid'),
+    saveId,
     capacity: num(record, 'capacity'),
-    relicCount: num(record, 'relicCount'),
+    reveal: { favor: reveal.favor, secrets: reveal.secrets, relics: reveal.relics },
   };
 }
 

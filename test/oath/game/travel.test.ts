@@ -52,30 +52,67 @@ describe('travel — cost by region pair (Law §5.6.1)', () => {
   });
 });
 
-describe('travel — arrival reveal (Law §5.6.2)', () => {
-  it('flips a facedown destination faceup and draws its "R"-count relics from the deck', () => {
+describe('travel — arrival reveal (Law §5.6.2 / §2.8.2)', () => {
+  it('flips a facedown destination faceup and draws its reveal.relics from the deck', () => {
     const s = baseState();
     s.players[1].supply = 4;
-    const dest = s.sites[6]; // Steppe in baseState's slice — relicCount 1
+    const dest = s.sites[6]; // Steppe — reveal.relics 1
     dest.facedown = true;
     dest.cards = dest.cards.map(() => null); // a facedown site starts empty
-    const relicCount = (byId(dest.id) as { relicCount: number }).relicCount;
-    expect(relicCount).toBeGreaterThan(0);
-    const deckTop = s.relicDeck.slice(0, relicCount);
+    const n = (byId(dest.id) as { reveal: { relics: number } }).reveal.relics;
+    expect(n).toBeGreaterThan(0);
+    const deckTop = s.relicDeck.slice(0, n);
 
     const out = travel(s, 1, { siteId: dest.id });
 
     const revealed = out.sites.find((x) => x.id === dest.id)!;
     expect(revealed.facedown).toBe(false);
     expect(revealed.relics).toEqual(deckTop);
-    expect(out.relicDeck).toEqual(s.relicDeck.slice(relicCount));
+    expect(out.relicDeck).toEqual(s.relicDeck.slice(n));
+    checkInvariants(out);
+  });
+
+  it('places reveal.favor and reveal.secrets from the shared bank (Salt Flats: 2 favor, 1 secret)', () => {
+    const s = baseState();
+    s.players[1].supply = 4;
+    const dest = s.sites[1]; // Salt Flats — reveal { favor: 2, secrets: 1, relics: 0 }
+    dest.facedown = true;
+    dest.cards = dest.cards.map(() => null);
+    dest.relics = []; // baseState seeds one here; a facedown site starts empty
+    const bankFavorBefore = s.sharedBank.favor;
+    const bankSecretsBefore = s.sharedBank.secrets;
+
+    const out = travel(s, 1, { siteId: dest.id });
+
+    const revealed = out.sites.find((x) => x.id === dest.id)!;
+    expect(revealed.favor).toBe(2);
+    expect(revealed.secrets).toBe(1);
+    expect(revealed.relics).toEqual([]);
+    expect(out.sharedBank.favor).toBe(bankFavorBefore - 2);
+    expect(out.sharedBank.secrets).toBe(bankSecretsBefore - 1);
+    checkInvariants(out);
+  });
+
+  it('clamps reveal.favor to what the shared bank holds (Law §9.3)', () => {
+    const s = baseState();
+    s.players[1].supply = 4;
+    const dest = s.sites[1]; // Salt Flats
+    dest.facedown = true;
+    dest.cards = dest.cards.map(() => null);
+    // drain the shared favor bank to 1
+    s.favorBanks.hearth += s.sharedBank.favor - 1;
+    s.sharedBank.favor = 1;
+
+    const out = travel(s, 1, { siteId: dest.id });
+    expect(out.sites.find((x) => x.id === dest.id)!.favor).toBe(1);
+    expect(out.sharedBank.favor).toBe(0);
     checkInvariants(out);
   });
 
   it('draws as many relics as the deck has when it is short (Law §9.3)', () => {
     const s = baseState();
     s.players[1].supply = 4;
-    const dest = s.sites[7]; // Mountain — relicCount 1
+    const dest = s.sites[7]; // Mountain — reveal.relics 1
     dest.facedown = true;
     dest.cards = dest.cards.map(() => null);
     s.relicDeck = []; // deck empty

@@ -7,17 +7,16 @@
  *          ("the OTHER Cradle site", "either OTHER Hinterland site").
  *   §5.6.2 Move Pawn and Reveal Site — set `pawnSite`; if the destination
  *          was facedown, flip it faceup and resolve its reveal prompt
- *          (§2.8.2): draw its "R"-count relics from the relic deck onto
- *          the site, facedown (§9.3: as many as the deck holds).
+ *          (§2.8.2, `site.reveal`): draw its `relics` "R"-count relics
+ *          from the relic deck onto the site facedown (§9.3: as many as
+ *          the deck holds), and place `favor`/`secrets` from the shared
+ *          bank onto the site (favor §9.3-clamped, secrets unlimited).
  *
  * NOT implemented (all card-text, declared via `power.use` in v1 per
  * D28/D34 — cited here so it's clear they're deliberate omissions):
  *   - Site-power cost modifiers: Coast (§11.3), Charming Valley (§11.6),
  *     Shrouded Wood (§11.7), and "spend no Supply" powers (§7.6.2).
  *   - Narrow Pass's forced-destination rule (§11.8).
- *   - Favor/secret reveal-prompt placement (§2.8.2): P1's site data has
- *     the relic "R" count but not the favor/secret icon counts, same gap
- *     unit 4 flagged. Only the relic draw happens here.
  *
  * Supply spent by decrementing on the applyEffects output (the unit 7
  * convention).
@@ -55,12 +54,30 @@ function travel(state: OathState, action: GameAction): OathState {
 
   const effects: Effect[] = [];
   if (dest.facedown) {
-    // Law §5.6.2: flip faceup, then draw the reveal prompt's relics.
+    // Law §5.6.2 / §2.8.2: flip faceup, then resolve the reveal prompt.
     effects.push({ kind: 'flip', target: { kind: 'site', siteId } });
-    const relicCount = (byId(dest.id) as { relicCount: number }).relicCount;
-    const draws = Math.min(relicCount, state.relicDeck.length); // §9.3
-    for (let i = 0; i < draws; i++) {
+    const reveal = (byId(dest.id) as { reveal: { favor: number; secrets: number; relics: number } })
+      .reveal;
+    const relicDraws = Math.min(reveal.relics, state.relicDeck.length); // §9.3
+    for (let i = 0; i < relicDraws; i++) {
       effects.push({ kind: 'draw', from: { kind: 'relicDeck' }, to: { kind: 'siteRelics', siteId } });
+    }
+    const favor = Math.min(reveal.favor, state.sharedBank.favor); // §9.3
+    if (favor > 0) {
+      effects.push({
+        kind: 'favor',
+        from: { kind: 'sharedFavor' },
+        to: { kind: 'siteFavor', siteId },
+        amount: favor,
+      });
+    }
+    if (reveal.secrets > 0) {
+      effects.push({
+        kind: 'secret',
+        from: { kind: 'sharedSecrets' }, // §9.3: unlimited
+        to: { kind: 'siteSecrets', siteId },
+        amount: reveal.secrets,
+      });
     }
   }
 
