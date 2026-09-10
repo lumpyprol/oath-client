@@ -1,6 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import { cradle } from './engine/cradle.js';
+import { oath } from './oath/game/index.js';
 import { IllegalAction, StaleSeq, type GameDefinition } from './engine/types.js';
 import {
   appendAction,
@@ -15,7 +16,7 @@ import {
 } from './actionlog.js';
 
 /** Add real game definitions here as they arrive. */
-const DEFS: Record<string, GameDefinition<any>> = { cradle };
+const DEFS: Record<string, GameDefinition<any>> = { cradle, oath };
 
 export const router = express.Router();
 

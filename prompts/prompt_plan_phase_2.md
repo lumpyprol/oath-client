@@ -530,7 +530,7 @@ only in `oathSetup`.
 
 ---
 
-## Unit 5 — Turn skeleton and definition assembly
+## Unit 5 — Turn skeleton and definition assembly ✅ (completed 2026-09-10)
 
 **Purpose.** The game becomes a registered, runnable `GameDefinition` with
 the smallest real loop: turns advance, supply refreshes, pending and
@@ -589,6 +589,73 @@ Commit: "Add Oath turn skeleton; register the definition"
 
 **Done when.** An `oath` game can be created over HTTP and turns pass by
 resting; projection redacts; 409s work.
+
+## What unit 5 established (as built, 2026-09-10)
+
+- **Projection is stricter than the plan's own text.** The plan said
+  "world deck... as counts only" — that over-reveals. Law §9.4 makes the
+  world deck's SIZE private, not just its contents (every other zone —
+  relic deck, reliquary, dispossessed, discards — shows a count with
+  identities stripped; only the world deck shows nothing at all,
+  `worldDeck: {}`). Verified live: `JSON.stringify(view.worldDeck)`
+  contains no digit. Discard-pile counts ARE public per the same
+  section's explicit carve-out ("this includes... number of cards in
+  discard piles") — don't hide those.
+- **Site relics redact to a count for EVERY viewer, including the
+  ruler.** Law's minor-action list has "peek at relics at your site" as
+  something you DO, not something you already know — nobody has relic
+  identity by default. Revisit this the moment a peek action exists.
+- **A facedown site hides its own identity, not just its cards.** `id:
+  null` when `facedown: true` — the site card itself hasn't been
+  revealed (Law §2.8), so its region and slot-facing show, nothing else.
+- **`OathState.turn` gained `turnStartedAt`** (additive, per unit 1's own
+  convention) to make the 'turn' pending decision's id
+  (`` `turn:${activeSeat}:${turnStartedAt}` ``) stable across every
+  action taken mid-turn while still changing the instant the turn
+  passes — using live `actionCount` directly would have churned the id
+  on every action, breaking the notification-dedup promise (HLD D8) the
+  whole convention exists for. **Any future decision kind needs the same
+  pattern**: capture the actionCount value once, when the decision
+  arises, not read it live.
+- **`reduce`'s shared wrapper increments `actionCount` BEFORE dispatch,
+  not after** — the one deliberate deviation from a literal reading of
+  "every handler increments actionCount... in one shared wrapper." This
+  lets `turn.rest` stamp `turnStartedAt` from the very value this action
+  will be remembered by, with no special-casing in the generic wrapper
+  itself.
+- **Handlers are assembled by import, not a mutable registry.** Each
+  action module exports its own `*_HANDLERS` map (`TURN_HANDLERS` here);
+  `index.ts` is the only file that spreads them together
+  (`{ ...TURN_HANDLERS, ...PLAY_HANDLERS, ... }` as units 6+ land). No
+  registration side effects, and each module's handlers are unit-testable
+  in isolation.
+- **`pending()`'s `resolves` list is live, not hand-maintained** — it's
+  `Object.keys(HANDLERS)` minus `'game.created'`, read from the same
+  assembled map `reduce` dispatches through. It grows automatically as
+  units 6+ register actions; nobody needs to remember to update a
+  separate list.
+- **Two Rest sub-rules deliberately simplified, both flagged in
+  `turn.ts`'s header, not silently guessed:**
+  - **Law §4.3.2's secret return only sweeps the resting seat's own
+    adviser cards**, not secrets on site cards. The rule returns them
+    "to YOUR board," but state doesn't track WHICH seat placed a token
+    on a shared site card (unit 3's `siteCardSecrets` zone has no owner
+    field) — that's unit 14/15's question once `power.use` is what
+    actually places such tokens. Currently unreachable either way: no
+    action yet exists that could put a secret on a site card.
+  - **Law §4.3.4's "Save Supply" reads the player's CURRENT supply
+    value as "not spent this turn"** rather than tracking a separate
+    "supply at turn start" field — correct for now because no action
+    costs Supply yet (units 6+), so nothing could have been spent.
+    Whichever unit adds the first Supply-costing action must add that
+    tracking field and revisit `rest()`'s computation in `turn.ts` —
+    flagged there explicitly so it isn't missed.
+- **`'game.created'` is registered but dead code in the current fold
+  path** — confirmed by reading `actionlog.ts#loadState`: it folds from
+  `init()`'s seq-0 output, never replaying the seq-0 marker through
+  `reduce` at all (cradle's own reducer has no `'game.created'` case
+  either). Registered anyway, per the plan, as free insurance against a
+  future fold path that does include it.
 
 ---
 

@@ -32,6 +32,7 @@ import {
   CHANCELLOR_WARBANDS,
   DARKEST_SECRET_ID,
   EXILE_WARBANDS,
+  LEFTMOST_SUPPLY,
   PEOPLES_FAVOR_ID,
   REGIONS,
   type BannerState,
@@ -52,20 +53,11 @@ const FAVOR_BANK_LARGE = 4;
 
 /**
  * Starting Supply (Law §1.10: "place their Supply marker on the leftmost
- * space of their Supply track"). Neither board prints a numeral on this
- * space directly, but both the Chancellor's and Exile's Supply tracks have
- * 8 total spaces (a distinct "leftmost" space, then warband-count brackets
- * for the Rest refresh per §4.3.3, then blanks) — the same length on both
- * boards. Counting from the depleted (rightmost) end at 0, the leftmost
- * space is 7 for both. This is corroborated two ways: the bracket-based
- * Rest refresh (§4.3.3) can never reach this space on its own (no warband
- * count labels it), yet several citizenship rules (§6.6.2, §6.7, §6.8) say
- * "refresh Supply to its leftmost space" as a DISTINCT effect from a normal
- * Rest — confirming it is a real, named position, not setup-only
- * decoration. See RULINGS.md.
+ * space of their Supply track") — `LEFTMOST_SUPPLY` (state.ts), same value
+ * for both seats. See RULINGS.md for the derivation.
  */
-const CHANCELLOR_STARTING_SUPPLY = 7;
-const EXILE_STARTING_SUPPLY = 7;
+const CHANCELLOR_STARTING_SUPPLY = LEFTMOST_SUPPLY;
+const EXILE_STARTING_SUPPLY = LEFTMOST_SUPPLY;
 
 // ---- SetupSpec ------------------------------------------------------------
 
@@ -332,7 +324,7 @@ export function init(setup: OathSetup): OathState {
     dispossessed: [...spec.dispossessed],
     banners,
     visionsDrawn: 0,
-    turn: { activeSeat: 0, round: 1 }, // Law §1.2, §4 (Chancellor goes first)
+    turn: { activeSeat: 0, round: 1, turnStartedAt: 0 }, // Law §1.2, §4 (Chancellor goes first)
     campaign: null,
     actionCount: 0,
     complete: false,

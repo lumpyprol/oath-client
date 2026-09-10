@@ -153,7 +153,7 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
     dispossessed,
     banners,
     visionsDrawn: 1,
-    turn: { activeSeat: 1, round: 3 },
+    turn: { activeSeat: 1, round: 3, turnStartedAt: 17 },
     campaign: null,
     actionCount: 17,
     complete: false,

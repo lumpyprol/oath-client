@@ -43,6 +43,14 @@ export const EXILE_WARBANDS = 14;
 /** Advisers per player, faceup or facedown, Visions included (Law §2.2.2). */
 export const ADVISER_LIMIT = 3;
 
+/**
+ * The leftmost (maximum) Supply-track space, both seats (Law §1.10 setup;
+ * §6.6.2/§6.7/§6.8 name it directly as a citizenship-transition refresh
+ * target; RULINGS.md has the full derivation — neither board prints this
+ * number directly).
+ */
+export const LEFTMOST_SUPPLY = 7;
+
 /** The two banner placards (Law §2.5); both ids must exist in the card db. */
 export const PEOPLES_FAVOR_ID = 'banner:peoples-favor';
 export const DARKEST_SECRET_ID = 'banner:darkest-secret';
@@ -171,7 +179,18 @@ export interface OathState {
   dispossessed: string[];
   banners: BannerState[];
   visionsDrawn: number; // Law §2.1.6
-  turn: { activeSeat: number; round: number }; // round track: Law §2.1.4
+  turn: {
+    activeSeat: number;
+    round: number; // round track: Law §2.1.4
+    /**
+     * `actionCount` at the moment this became `activeSeat`'s turn (unit 5).
+     * The 'turn' pending decision's id is `` `turn:${activeSeat}:${turnStartedAt}` ``
+     * — stable across every action taken within the turn (actionCount keeps
+     * climbing but this doesn't), and changes the instant the turn passes,
+     * per the pending-decision-id convention every unit shares.
+     */
+    turnStartedAt: number;
+  };
   campaign: CampaignState | null;
   /** Incremented by every reduce; pending-decision ids derive from it. */
   actionCount: number;
@@ -223,6 +242,12 @@ export function checkInvariants(state: OathState): void {
     if (!state.complete) fail('winner is set but the game is not complete');
   }
   if (state.actionCount < 0) fail('actionCount is negative');
+  if (state.turn.turnStartedAt < 0 || state.turn.turnStartedAt > state.actionCount) {
+    fail(
+      `turn.turnStartedAt (${state.turn.turnStartedAt}) must be between 0 and ` +
+        `actionCount (${state.actionCount})`,
+    );
+  }
 
   // -- citizenship (Law §1.7–1.8; seat-0 convention) -----------------------
   const chancellors = players
