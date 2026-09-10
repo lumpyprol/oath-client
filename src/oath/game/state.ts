@@ -115,6 +115,13 @@ export interface SiteState {
 export interface PlayerState {
   citizenship: Citizenship;
   /**
+   * The site this seat's pawn is at (Law §1.23, §5.6). Always a real site
+   * id — every pawn starts on a faceup site and Travel only ever moves it
+   * to another site. "Your site" / "your region" in the rules resolve
+   * through this (unit 6+).
+   */
+  pawnSite: string;
+  /**
    * Transient Search hand (Law §5.1): cards drawn and awaiting keep/discard.
    * Empty outside a Search — Oath has no persistent hand.
    */
@@ -325,7 +332,11 @@ export function checkInvariants(state: OathState): void {
     s.relics.forEach((id, j) => seen(id, `sites[${i}].relics[${j}]`, ['relic:']));
   });
 
+  const siteIds = new Set(sites.map((s) => s.id));
   players.forEach((p, i) => {
+    if (!siteIds.has(p.pawnSite)) {
+      fail(`players[${i}].pawnSite (${p.pawnSite}) is not a site on the map`);
+    }
     p.hand.forEach((id, j) => seen(id, `players[${i}].hand[${j}]`, DRAWABLE));
     p.advisers.forEach((a, j) =>
       seen(a.id, `players[${i}].advisers[${j}]`, DRAWABLE),

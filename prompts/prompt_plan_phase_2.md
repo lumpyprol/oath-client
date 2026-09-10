@@ -659,7 +659,7 @@ resting; projection redacts; 409s work.
 
 ---
 
-## Unit 6 — Playing cards from hand
+## Unit 6 — Playing cards from hand ✅ (completed 2026-09-10)
 
 **Purpose.** Cards leave hands and enter the world — the prerequisite for
 Muster, Trade, and every power.
@@ -699,6 +699,49 @@ Commit: "Add playing cards from hand"
 
 **Done when.** Both placements work with the rulebook's constraints; the
 full-site rule is encoded and cited.
+
+## What unit 6 established (as built, 2026-09-10)
+
+- **`PlayerState.pawnSite` added** (additive). Unit 4 left pawn location
+  out of state entirely ("a seat's location is wherever its warbands
+  sit" — which was wrong: warbands and pawns move independently). Unit 6
+  is the first that needs "your site" (§5.1.4.1). `init()` seeds it from
+  `SetupSpec.startingPawnSite`; **unit 9 (Travel) mutates it**;
+  `checkInvariants` requires it to name a real site. Every "your site" /
+  "your region" rule from here on resolves through this field.
+- **`card.play` is the placement step of Search (§5.1.4), not a
+  standalone turn move.** It operates on the transient `hand`, which
+  nothing populates yet (Search's draw step is unit 10). Unit 6 tests it
+  against hand-built states. It does NOT advance the turn (Search is one
+  Act-Phase action; you keep playing after). **pending() and turn.rest
+  are untouched** — enforcing "a non-empty hand is a blocking decision
+  you must resolve" is unit 10's job (Search owns its flow); unit 6 just
+  registers the handler so `pending().resolves` picks it up.
+- **Payload extended past the plan's `as: 'adviser' | 'site'`** to
+  `'site' | 'adviser' | 'vision' | 'discard'` — the rulebook demands it:
+  §5.1.4.3 puts a revealed Vision on the Revealed Vision space (neither a
+  site nor an adviser), and §5.1.4 lets you discard the kept card
+  outright. `card.play` also auto-discards every OTHER card left in hand
+  (Search §5.1.3+5.1.4 combined into one action — the "one action
+  indexing the drawn set" model unit 10's prompt lists first).
+- **Over the 3-adviser limit → `discardAdviserId` in the payload**, not a
+  mid-action pending decision. Keeps the whole choice in one log entry.
+  A guard rejects discarding a token-bearing adviser ("not yet
+  supported") — unreachable now (nothing puts tokens on advisers yet),
+  resolved properly in unit 14 alongside the flipped-secret gap.
+- **No new effect tag** (D33 held). Everything composes from unit 3's
+  `card`/`favor`/`flip` movers — including the "clear the slot first"
+  ordering for replacing a Revealed Vision (old vision → discard, then
+  new vision → the now-empty slot).
+- **Deferred, flagged in `actions/play.ts`'s header:**
+  - The People's Favor holder's §5.1.4.1 exception (play to any site in
+    your region, discarding a card there first) — needs a "which card"
+    choice; TODO.
+  - The Conspiracy's faceup play (§5.1.4.4: burn a secret, seize a
+    relic/banner) — that's `power.use` territory (D34), unit 14. Unit 6
+    allows the Conspiracy only as a facedown adviser.
+  - Vision victory (§3.2) — unit 17's pipeline. Unit 6 only places the
+    card.
 
 ---
 

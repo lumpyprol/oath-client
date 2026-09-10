@@ -50,7 +50,11 @@ import { LEFTMOST_SUPPLY, type Citizenship, type OathState } from './state.js';
 
 export type Handler = (state: OathState, action: GameAction) => OathState;
 
-function requireActiveSeat(state: OathState, action: GameAction): number {
+/**
+ * Shared guard for any Act-Phase action: the game must be running and the
+ * actor must be the seat whose turn it is (Law §4.2).
+ */
+export function requireActiveSeat(state: OathState, action: GameAction): number {
   if (state.complete) throw new IllegalAction(`${action.type}: the game is already complete`);
   if (action.actor === null) throw new IllegalAction(`${action.type} requires a seated actor`);
   if (action.actor !== state.turn.activeSeat) {

@@ -54,6 +54,7 @@ interface AdviserView {
 
 interface PlayerView {
   citizenship: PlayerState['citizenship'];
+  pawnSite: string; // pawn location is public (visible on the board)
   hand: string[] | Redacted;
   advisers: AdviserView[];
   vision: string | null; // a Revealed Vision is faceup by definition (Law §2.2.1) — always public
@@ -124,6 +125,7 @@ function projectCardInPlay(c: CardInPlay, revealed: boolean): CardInPlayView {
 function projectPlayer(p: PlayerState, isSelf: boolean): PlayerView {
   return {
     citizenship: p.citizenship,
+    pawnSite: p.pawnSite,
     hand: isSelf ? [...p.hand] : { count: p.hand.length },
     advisers: p.advisers.map((a) => projectAdviser(a, isSelf)),
     vision: p.vision, // always public

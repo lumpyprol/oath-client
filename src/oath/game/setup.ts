@@ -271,6 +271,7 @@ export function init(setup: OathSetup): OathState {
     const onMap = isChancellor ? placedOnMap : 0;
     return {
       citizenship,
+      pawnSite: spec.startingPawnSite[seat], // Law §1.23
       hand: [],
       advisers: [{ id: setup.startingAdviser[seat], facedown: true, favor: 0, secrets: 0 }],
       vision: null,
@@ -281,11 +282,6 @@ export function init(setup: OathSetup): OathState {
       relics: [],
     };
   });
-
-  // Place each seat's pawn's presence is structural (turn.ts owns "whose
-  // turn"), so setup only needs the starting site for later units — it is
-  // not itself part of OathState (no per-seat pawn-location field exists;
-  // a seat's location is wherever its warbands/board currently sit).
 
   const favorBanks = Object.fromEntries(SUITS.map((s) => [s, favorBankSize(seats)])) as Record<
     Suit,

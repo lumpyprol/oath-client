@@ -65,6 +65,7 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
 
   const mkPlayer = (p: Partial<PlayerState>): PlayerState => ({
     citizenship: 'exile',
+    pawnSite: sites[0].id, // a faceup Cradle site; override per-seat below
     hand: [],
     advisers: [],
     vision: null,
@@ -79,14 +80,17 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
   const players: PlayerState[] = [
     mkPlayer({
       citizenship: 'chancellor',
+      pawnSite: sites[0].id, // Cradle
       advisers: [{ id: take(), facedown: false, favor: 0, secrets: 0 }],
       favor: 2,
     }),
     mkPlayer({
+      pawnSite: sites[5].id, // Hinterland, where seat 1 has warbands
       advisers: [{ id: take(), facedown: true, favor: 0, secrets: 0 }],
       vision: cards.visions[0].id,
     }),
     mkPlayer({
+      pawnSite: sites[2].id, // Provinces
       secrets: { ready: 1, flipped: 1 },
       relics: [relicIds[1]],
     }),

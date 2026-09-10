@@ -12,12 +12,14 @@ import { IllegalAction } from '../../engine/types.js';
 import { FIRST_GAME, init, oathSetup, type OathSetup } from './setup.js';
 import type { OathState } from './state.js';
 import { TURN_HANDLERS, turnPendingId, type Handler } from './turn.js';
+import { PLAY_HANDLERS } from './actions/play.js';
 import { project } from './project.js';
 
-// Additive: `{ ...TURN_HANDLERS, ...PLAY_HANDLERS, ... }` as later units
-// (6+) land their own actions/<name>.ts modules.
+// Additive: each action module contributes its own `*_HANDLERS` map; this
+// is the only place they're merged.
 const HANDLERS: Record<string, Handler> = {
   ...TURN_HANDLERS,
+  ...PLAY_HANDLERS,
 };
 
 /** Action types a client may actually submit — 'game.created' is a marker, never one of them. */
