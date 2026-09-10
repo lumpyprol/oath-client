@@ -546,6 +546,65 @@ between this server and TTS/Vassal.
 
 ---
 
+### v2 — Engine-enforced card powers — `not started`
+
+**Goal.** The engine knows what every card does. `power.use` still exists
+and its log/reducer/action shape never change (D28/D34) — enforcement
+means a registered per-card implementation produces the effects instead of
+the player composing them. v2 is "fill in the registry", not a rewrite.
+
+This is the deliberately-deferred half of v1. The seam ships empty in P2
+(unit 15); the storage/fold/rollback layer and the client (P4) need no
+change — only *who composes the effects* changes.
+
+**What it requires (rough order of size).**
+
+1. **Card text as structured power specs.** Today `text.json` is a
+   display-only overlay the engine never reads (D20). Enforcement needs a
+   machine-readable spec per power: cost, timing, the effects it produces,
+   the choices it asks for. ~230 powers (198 denizens, 23 site powers, 20
+   relics, 6 edifices/ruins, 5 visions, 2 banners). This is the bulk of
+   the work and the bulk of the IP-exposure surface — keep it private,
+   same as text and art.
+2. **Effect-vocabulary growth (D33).** Many powers need effects the six
+   actions never did: swap, exchange, kill (distinct from a warband
+   mover), sacrifice, burn-to-box, peek, banner-holder transfer, plus the
+   two gaps unit 3 already flagged — the secret ready/flipped distinction
+   (§7.1.2 "pay a cost outside your turn") and relic power-cost tokens
+   (`player.relics` needs a token-bearing shape). Each lands additively:
+   a tag, an `applyEffect` case, tests.
+3. **Timing / interrupt integration.** Persistent powers modify an action
+   in flight; "When Played" triggers; Wake/Rest powers; battle plans
+   (used in a specific Campaign step). Needs P3's interrupt machinery
+   mature, plus a representation for power *windows* and *triggers*.
+4. **Choice modeling.** Enforced powers take `choices`; each needs a
+   schema and, for powers that ask mid-resolution, a pending-decision
+   flow.
+5. **A registry entry per card.** Additive, one at a time — the point of
+   D28. The v1 exit criterion (unit 15: `registry.size === 0`) flips to
+   "coverage" tracking.
+
+**Deferred from v1 — the running list of specific card-text rules the
+engine does NOT enforce, to be picked up here.** Units 6–20 append as
+they go.
+
+- **Travel (unit 9):** Coast cost = 1 (§11.3), Charming Valley +1 (§11.6),
+  Shrouded Wood cost = 2 + forced destination (§11.7), "spend no Supply"
+  powers ignore Travel cost (§7.6.2), Narrow Pass forced destination
+  *and* forced Campaign target (§11.8).
+- **card.play (unit 6):** the People's Favor holder's "discard a card at
+  any site in your region, then play to any site in your region"
+  (§5.1.4.1); the Conspiracy's faceup play — burn a secret to seize a
+  relic/banner (§5.1.4.4).
+- **Rest (unit 5):** §4.3.5 "Use Rest Powers"; the §7.1.2 "pay a cost
+  outside your turn" secret-flip nuance.
+
+**Not in scope for v2.** The append-only log, fold, snapshots, rollback,
+optimistic concurrency, projection, and the chronicle/seed interop are
+all v1 and unchanged. So is the structural endgame (D35).
+
+---
+
 ## 7. Decision log
 
 Format: id, decision, rationale, status. Reversed decisions stay in the log
@@ -650,7 +709,7 @@ with `reversed by`.
 | Hidden-info leak via a projection bug | Trust | P2 fuzz audit of `project()` over full games |
 | Single machine dies | Game state lost | P6 backups; SQLite is one file to copy |
 | Art assets leak or bloat the repo | IP exposure; unwieldy clones | Assets outside git, token-gated; only the manifest is committed |
-| Enforcement creep: implementing "just a few" cards eats P2 | Schedule | Registry stays empty in v1 except the one test card; enforced cards are a post-P6 backlog |
+| Enforcement creep: implementing "just a few" cards eats P2 | Schedule | Registry stays empty in v1 except the one test card; enforced cards are v2 (§6, "v2 — Engine-enforced card powers"), which carries the running list of deferred card-text rules |
 
 ---
 
@@ -669,3 +728,5 @@ with `reversed by`.
 | chronicle | The cross-game history; also the end-of-game phase that produces the next setup |
 | seed | The TTS/Vassal chronicle string |
 | witness | One of the two upstream data sources being reconciled in P1 |
+| v1 | The initial build, phases P0–P6: a full async Oath server whose engine enforces structure but not card text — powers are player-declared via `power.use`, mistakes fixed by rollback. The registry seam ships but empty. |
+| v2 | Engine-enforced card powers: a registered implementation per card produces the effects instead of the player. Additive on top of v1 (§6, "v2 — Engine-enforced card powers"); the log, reducer, and action shape don't change. |

@@ -12,8 +12,9 @@
  *          the deck holds), and place `favor`/`secrets` from the shared
  *          bank onto the site (favor §9.3-clamped, secrets unlimited).
  *
- * NOT implemented (all card-text, declared via `power.use` in v1 per
- * D28/D34 — cited here so it's clear they're deliberate omissions):
+ * NOT enforced — card text, so v1 players declare these via `power.use`
+ * and the engine only ever charges the base cost (HLD D28; the v2
+ * "Engine-enforced card powers" section carries the running list):
  *   - Site-power cost modifiers: Coast (§11.3), Charming Valley (§11.6),
  *     Shrouded Wood (§11.7), and "spend no Supply" powers (§7.6.2).
  *   - Narrow Pass's forced-destination rule (§11.8).
