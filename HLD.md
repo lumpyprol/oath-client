@@ -6,8 +6,8 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | Field | Value |
 | --- | --- |
 | Started | 2026-09-07 |
-| Last updated | 2026-09-09 |
-| Current phase | P2 (in progress, units 1–6 done) |
+| Last updated | 2026-09-10 |
+| Current phase | P2 (in progress, units 1–7 done) |
 | Owner | Ben |
 
 ---
@@ -602,7 +602,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–6 done (state, map, effects, setup, turn skeleton, `card.play`); next is unit 7 (Muster) |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–7 done (state, map, effects, setup, turn skeleton, `card.play`, Muster); next is unit 8 (Trade) |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |

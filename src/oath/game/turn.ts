@@ -37,11 +37,15 @@
  *         6/5/4/3; Exile 9+/8-4/3-0 -> 6/5/4). Citizen: copy the
  *         Chancellor's CURRENT Supply outright, ignoring their own bank.
  *   4.3.4 Save Supply — add back Supply not spent this turn, capped at the
- *         leftmost space (7, both seats — RULINGS.md). No action costs
- *         Supply yet (units 6+), so "not spent this turn" is simply the
- *         player's Supply value coming into this Rest call; the unit that
- *         adds the first Supply-costing action must start tracking
- *         "Supply at turn start" explicitly and revisit this computation.
+ *         leftmost space (7, both seats — RULINGS.md). "Supply not spent
+ *         this turn" is exactly the player's marker position coming into
+ *         Rest, i.e. `player.supply` read before §4.3.3 overwrites it:
+ *         §4.2 only ever moves the marker RIGHT when you spend, so what's
+ *         left is what you didn't spend. Verified correct against Muster
+ *         (unit 7, the first Supply-costing action) — no separate
+ *         "Supply at turn start" field is needed. (Powers that GAIN
+ *         Supply mid-turn also just move the marker, capped at leftmost,
+ *         so the identity still holds.)
  */
 
 import { byId } from '../cards/index.js';

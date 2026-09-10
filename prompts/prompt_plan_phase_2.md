@@ -745,7 +745,7 @@ full-site rule is encoded and cited.
 
 ---
 
-## Unit 7 — Muster
+## Unit 7 — Muster ✅ (completed 2026-09-10)
 
 **Purpose.** First of the six actions: warbands onto the map.
 
@@ -771,6 +771,32 @@ Commit: "Add Muster action"
 ```
 
 **Done when.** Muster matches the rulebook with citations.
+
+## What unit 7 established (as built, 2026-09-10)
+
+- **Muster** (`actions/muster.ts`): 1 Supply + 1 favor placed on a
+  token-free denizen/intact-edifice at your site (Law §5.2.1) → gain
+  `min(2, personal bank)` warbands, bank → board (§5.2.2, §9.3). Cost is
+  paid even if the bank is empty and 0 warbands arrive.
+- **Supply is spent by decrementing `player.supply` directly** — it is
+  not a zone in the effect vocabulary (there's nothing for a "spent"
+  supply token to move TO; §4.2 just moves the marker). No new effect
+  tag. The convention for a Supply-costing action: build the effect list,
+  `const next = applyEffects(...)`, then `next.players[seat].supply -=
+  cost`. Mutate the OUTPUT clone, never the input (matches `play.ts`;
+  `turn.rest` is the exception only because it doesn't use `applyEffects`
+  at all).
+- **Unit 5's Save Supply (§4.3.4) was already correct** — verified now
+  that a real Supply-costing action exists. "Supply not spent this turn"
+  is exactly `player.supply` read at Rest before §4.3.3 overwrites it,
+  because §4.2 only ever moves the marker RIGHT when spending. **No
+  "Supply at turn start" tracking field is needed** — the note in
+  `turn.ts` that said a future unit must add one is retracted (updated
+  in place).
+- **The Citizen "purple warbands instead" clause (§5.2.2)** needs no
+  special handling — the abstract per-seat warband model doesn't track
+  token colour, and Imperial purple-pool conservation is already an
+  invariant. Every seat's Muster is the same bank → board move.
 
 ---
 
