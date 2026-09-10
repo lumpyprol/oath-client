@@ -547,7 +547,11 @@ export function applyEffects(state: OathState, actor: number, effects: Effect[])
       }
       case 'secret': {
         const have = readSecrets(working, effect.from, index);
-        if (have < effect.amount) {
+        // Law §9.3: secrets (like dice) are NOT component-limited — the
+        // shared bank is an inexhaustible source, so a draw from it always
+        // succeeds and its tally may go "negative" (proxy tokens). Every
+        // other secret zone is a real, limited pile.
+        if (effect.from.kind !== 'sharedSecrets' && have < effect.amount) {
           fail(index, 'secret', `${effect.from.kind} has ${have}, need ${effect.amount}`);
         }
         writeSecrets(working, effect.from, have - effect.amount, index);

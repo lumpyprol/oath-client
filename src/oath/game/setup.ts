@@ -299,6 +299,12 @@ export function init(setup: OathSetup): OathState {
     1; // the People's Favor's starting token
   const sharedFavor = 36 - favorPlaced; // TOTAL_FAVOR, Law §1.4 (see state.ts)
 
+  // Boxed secrets (Law §1.4: 20) minus the 1 on the Darkest Secret (§1.5)
+  // and the 1 each player starts with (§1.11, §1.15). Not load-bearing —
+  // §9.3 exempts secrets from component limits, so this can go negative in
+  // play — but it keeps the count honest for display.
+  const sharedSecrets = 20 - 1 - seats;
+
   return {
     seats,
     oath: spec.oath,
@@ -307,7 +313,7 @@ export function init(setup: OathSetup): OathState {
     players,
     sites,
     favorBanks,
-    sharedBank: { favor: sharedFavor, secrets: 0 },
+    sharedBank: { favor: sharedFavor, secrets: sharedSecrets },
     worldDeck: [...setup.worldDeck],
     relicDeck: [...setup.relicDeck],
     reliquary: [...setup.reliquary],

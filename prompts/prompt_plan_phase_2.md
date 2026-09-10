@@ -800,7 +800,7 @@ Commit: "Add Muster action"
 
 ---
 
-## Unit 8 — Trade
+## Unit 8 — Trade ✅ (completed 2026-09-10)
 
 **Purpose.** The favor/secret economy comes alive: banks, suit counting.
 
@@ -830,6 +830,29 @@ Commit: "Add Trade action"
 ```
 
 **Done when.** Yields match hand-computed rulebook examples.
+
+## What unit 8 established (as built, 2026-09-10)
+
+- **Trade** (`actions/trade.ts`): 1 Supply (§5.3.1), then `for: 'favor'`
+  (place 1 secret on a token-free card at your site → gain `1 + matches`
+  favor from that card's suit bank, §9.3-clamped) or `for: 'secrets'`
+  (place 2 favor → gain `matches` secrets from the shared bank). The two
+  yields are **asymmetric**: favor always gives ≥1, secrets gives
+  exactly `matches` (0 with no matching faceup advisers) — worth not
+  glossing over.
+- **`matchingFaceupAdvisers(player, suit)`** exported from `trade.ts` as
+  the plan asked — a pure suit-count helper. Facedown advisers have no
+  suit (§2.2.2) and never count.
+- **`applyEffects` now treats `sharedSecrets` as an inexhaustible
+  source** (Law §9.3: "Oath is component-limited except for secrets and
+  dice"). The `secret` mover skips its "insufficient" check when
+  `from.kind === 'sharedSecrets'`; the tally may go negative (proxy
+  tokens) — harmless, `checkInvariants` doesn't conserve secrets (D36).
+  This was a genuine gap in unit 3's minimal `applyEffects` (it predates
+  any secret-gaining action).
+- **Fixed a stale init()**: `sharedBank.secrets` was hardcoded `0`; now
+  `20 - 1 - seats` (§1.4/§1.5/§1.11/§1.15). Not load-bearing (§9.3), but
+  honest for a client display.
 
 ---
 

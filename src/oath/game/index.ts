@@ -14,6 +14,7 @@ import type { OathState } from './state.js';
 import { TURN_HANDLERS, turnPendingId, type Handler } from './turn.js';
 import { PLAY_HANDLERS } from './actions/play.js';
 import { MUSTER_HANDLERS } from './actions/muster.js';
+import { TRADE_HANDLERS } from './actions/trade.js';
 import { project } from './project.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -22,6 +23,7 @@ const HANDLERS: Record<string, Handler> = {
   ...TURN_HANDLERS,
   ...PLAY_HANDLERS,
   ...MUSTER_HANDLERS,
+  ...TRADE_HANDLERS,
 };
 
 /** Action types a client may actually submit — 'game.created' is a marker, never one of them. */
