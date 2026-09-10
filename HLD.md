@@ -275,7 +275,7 @@ Dockerfile, `fly.toml`.
 - [x] smoke script kills the server mid-game and state is byte-identical after
 - [x] hidden information never appears in the action log or in another seat's view
 - [x] stale `prevSeq` rejected with 409; illegal action never persisted
-- [ ] deployed to Fly and a turn taken from a tablet or laptop *(not yet done — do before P2)*
+- [x] deployed to Fly and a turn taken from a tablet or laptop *(done 09-10: `oath-async.fly.dev`, `cradle` game `73b1a40a-...`, `draw` action taken from a real device, seq 0→1)*
 
 ---
 
@@ -599,9 +599,9 @@ with `reversed by`.
 
 | Phase | Status | Started | Done | Prompt plan | Notes |
 | --- | --- | --- | --- | --- | --- |
-| P0 Skeleton | done | 09-07 | 09-07 | — | Fly deploy still pending — do before P2 unit 5 |
+| P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–4 done (map geometry, effect vocabulary, setup/init, D31 engine change); Q2 (deploy) and the Supply-track numeric ruling still pending before unit 5 |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–4 done (map geometry, effect vocabulary, setup/init, D31 engine change); Q2 resolved and Supply-track ruling resolved — clear to start unit 5 |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
@@ -624,7 +624,7 @@ with `reversed by`.
 | # | Question | Blocks | Owner |
 | --- | --- | --- | --- |
 | Q1 | ~~Which Oath printing does Ben own?~~ **Resolved 09-08:** 2nd printing or later; newer names canonical, old names aliased | — | — |
-| Q2 | Fly.io vs VPS? | P0 exit (deploy) — do before P2 unit 5 | Ben |
+| Q2 | ~~Fly.io vs VPS?~~ **Resolved 09-10:** Fly — `fly launch --copy-config` against the existing `fly.toml`/Dockerfile, volume created, deployed, tablet turn confirmed against `oath-async.fly.dev` | — | — |
 | Q3 | Does the client need `powerKind`? | P4 | Ben, decide in P4 |
 | Q4 | ~~Commit `text.json`?~~ **Resolved 09-08:** yes, when it exists (default stood) | — | — |
 | Q5 | ~~Rulebook edition~~ **Resolved 09-09:** the Buried Giant rules library, Oath printing p1 (Ben's pick), numbering-identical to the Law of Oath Oct 20 2020; cited as `Law §x.y`; edition + p1-vs-2nd-printing caveat recorded in `RULINGS.md` | — | — |
