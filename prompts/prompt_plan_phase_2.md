@@ -856,7 +856,7 @@ Commit: "Add Trade action"
 
 ---
 
-## Unit 9 — Travel
+## Unit 9 — Travel ✅ (completed 2026-09-10)
 
 **Purpose.** Movement, using unit 2's geometry, plus whatever the rulebook
 says happens on arrival.
@@ -884,6 +884,29 @@ Commit: "Add Travel action"
 ```
 
 **Done when.** All region-pair costs exercised through the action.
+
+## What unit 9 established (as built, 2026-09-10)
+
+- **Travel** (`actions/travel.ts`): cost is `travelCost(fromRegion,
+  toRegion)` (unit 2's table, §5.6.1). You can't travel to your current
+  site. On arrival at a facedown destination, it flips faceup and draws
+  its `relicCount` ("R"-icon) relics from the relic deck onto the site,
+  facedown (§5.6.2, §9.3 clamps to what the deck holds).
+- **`FlipTarget` gained `{ kind: 'site', siteId }`** — the effects.ts
+  header had anticipated this ("add a `site` flip target in unit 9").
+  Toggles `site.facedown`.
+- **Deferred, all cited in `actions/travel.ts`'s header** — every one is
+  card text, so it's `power.use` territory in v1 per D28/D34:
+  - Site-power cost modifiers: Coast (§11.3), Charming Valley (§11.6),
+    Shrouded Wood (§11.7), "spend no Supply" powers (§7.6.2).
+  - Narrow Pass's forced-destination rule (§11.8).
+  - Favor/secret reveal-prompt placement (§2.8.2): P1 site data has the
+    relic "R" count but NOT the favor/secret icon counts — the same gap
+    unit 4 flagged. Only the relic draw happens on reveal. **This one is
+    NOT card text** — it's a P1 data gap; fixing it needs either a P1
+    site-data regeneration to add favor/secret reveal-prompt counts, or
+    a `SetupSpec` field. Worth doing before unit 19's full game so
+    revealed sites carry their tokens.
 
 ---
 

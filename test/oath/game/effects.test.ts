@@ -233,6 +233,16 @@ describe('flip', () => {
     expect(card!.ruined).toBe(true);
     checkInvariants(out);
   });
+
+  it('toggles a site facedown/faceup (Law §5.6.2 reveal)', () => {
+    const s = baseState();
+    s.sites[3].facedown = true;
+    const out = applyEffects(s, 0, [
+      { kind: 'flip', target: { kind: 'site', siteId: s.sites[3].id } },
+    ]);
+    expect(out.sites[3].facedown).toBe(false);
+    checkInvariants(out);
+  });
 });
 
 describe('ordering', () => {

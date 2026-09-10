@@ -26,9 +26,6 @@
  *     pool as a distinct endpoint; that's unit 14/15's problem once
  *     `power.use` is reachable during another seat's turn (the campaign
  *     response window, unit 12+).
- *   - Flipping a site facedown/faceup (Travel's arrival reveal, Law
- *     §5.6.2). Only adviser and edifice flips exist here; add a `site`
- *     flip target in unit 9 when Travel needs it.
  *   - The Imperial Reliquary as a zone. Setup deals into it directly
  *     (bypassing effects entirely, per unit 4/setup.ts), and nothing
  *     inside `reduce` moves a card there or out of it until Citizenship
@@ -147,16 +144,18 @@ const CardZoneSchema: z.ZodType<CardZone> = z.discriminatedUnion('kind', [
 
 /**
  * Non-mover effect: toggles a facedown/faceup or intact/ruined state in
- * place. Only these two exist because a zone-to-zone mover can't express
- * "same location, different face" (D33's bar for a non-mover effect).
+ * place. A zone-to-zone mover can't express "same location, different
+ * face" (D33's bar for a non-mover effect).
  */
 export type FlipTarget =
   | { kind: 'adviser'; seat: number; cardId: string } // Law §6.1: play faceup/facedown
-  | { kind: 'edifice'; siteId: string; cardId: string }; // Law §2.9: intact <-> ruin
+  | { kind: 'edifice'; siteId: string; cardId: string } // Law §2.9: intact <-> ruin
+  | { kind: 'site'; siteId: string }; // Law §5.6.2: Travel's arrival reveal
 
 const FlipTargetSchema: z.ZodType<FlipTarget> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('adviser'), seat, cardId: z.string() }),
   z.object({ kind: z.literal('edifice'), siteId: z.string(), cardId: z.string() }),
+  z.object({ kind: z.literal('site'), siteId: z.string() }),
 ]);
 
 // ---- effects --------------------------------------------------------------
@@ -512,6 +511,11 @@ function applyFlip(state: OathState, target: FlipTarget, index: number): void {
     case 'edifice': {
       const card = findSiteCard(state, target.siteId, target.cardId, index, 'flip');
       card.ruined = !card.ruined;
+      return;
+    }
+    case 'site': {
+      const site = findSite(state, target.siteId, index, 'flip');
+      site.facedown = !site.facedown;
       return;
     }
   }
