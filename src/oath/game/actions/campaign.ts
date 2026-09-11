@@ -26,7 +26,10 @@
  *     (§2.5.2 — the SAME field means favor-on-it for the People's Favor
  *     and secrets-on-it for the Darkest Secret; see `BannerState.tokens`)
  *     + a targeted relic's printed `defenseDice` (§2.4.2 — P1 follow-up
- *     landed 2026-09-11, data/relic-defense-dice.json). No card powers
+ *     landed 2026-09-11, data/relic-defense-dice.json) + the Grand
+ *     Scepter's printed 5 if targeted (unit 16c; its own target kind,
+ *     since it has no card-database id) + the DEFENDER'S TITLE, once, per
+ *     §2.11 (unit 16c — see `titleDefenseDice`). No card powers
  *     apply to any of this yet (v1: power.use, unit 14) — but Plains and
  *     Mountain's attack-die modifiers (§11.4) are NOT card-power text,
  *     they're a mandatory Site Reference rule keyed only on site identity
@@ -204,6 +207,16 @@ const PAWN_FAVOR_DICE = 2; // Law §5.5.2 (fixed, "as shown by the shield on the
 const SITE_DEFENSE_DICE = 1; // Law §2.8.3 ("a defense die" — every site prints exactly one)
 const SEIZE_BANNER_BURN = 2; // Law §2.5.3
 const SEIZE_BANNER_MINIMUM = 1; // Law §2.5.3 ("to a minimum of one")
+/**
+ * The Grand Scepter's printed defense dice (§2.4.2's top-right shield).
+ * Five — more than any of the 20 ordinary relics, which run 1-3. Read off
+ * the card itself (cards.buriedgiant.com/card/OATH-231, "Defense: 5"); see
+ * RULINGS.md, since the Scepter is not in the P1 card database.
+ */
+const SCEPTER_DEFENSE_DICE = 5;
+/** Law §2.11: "The Oathkeeper must add one defense die... the Usurper must add two." */
+const OATHKEEPER_DEFENSE_DICE = 1;
+const USURPER_DEFENSE_DICE = 2;
 
 /** Playbook "Dice Faces" (p.15) — see file header. */
 export const ATTACK_DIE: readonly AttackFace[] = [
@@ -228,7 +241,49 @@ const TargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('pawnFavor') }),
   z.object({ kind: z.literal('banner'), bannerId: z.enum(['peoples-favor', 'darkest-secret']) }),
   z.object({ kind: z.literal('relic'), relicId: z.string() }),
+  z.object({ kind: z.literal('scepter') }),
 ]);
+
+/**
+ * Law §2.11's mandatory title dice, added to the defense pool once (they
+ * belong to the defender, not to any one target):
+ *
+ *   "The Oathkeeper must add one defense die in Campaign as defender
+ *   (5.5.2), and the Usurper must add two."
+ *   "The Chancellor holds the Oathkeeper of Supremacy title if the Empire
+ *   meets the goal, and always adds its power when any Imperial player is
+ *   defending (5.5.2)."
+ *
+ * Structural by unit 12's own Plains/Mountain precedent (§11.4): keyed on
+ * identity alone and stated with "must", so it is the engine's to apply
+ * rather than card text for a player to declare.
+ *
+ * The two clauses never stack. A Chancellor defending in their own right is
+ * already covered by the first — and would be on the Oathkeeper side
+ * anyway, since only an Exile ever flips the title to Usurper (§4.1.3). The
+ * second clause exists for the case the first misses: a DIFFERENT Imperial
+ * seat is defending, and the Chancellor's title backs them up.
+ *
+ * "Any Imperial player is defending" is read through §5.5.1's carve-out
+ * (unit 16a's `imperialForce`), so a Citizen suspended by a Chancellor's
+ * attack gets no Imperial backing — consistent with that same Campaign
+ * having no Allies.
+ */
+function titleDefenseDice(
+  state: OathState,
+  attackerSeat: number,
+  defenderSeat: number | 'bandits',
+): number {
+  if (defenderSeat === 'bandits') return 0; // bandits hold no title
+  if (state.oathkeeper === defenderSeat) {
+    return state.usurper ? USURPER_DEFENSE_DICE : OATHKEEPER_DEFENSE_DICE;
+  }
+  const exclusion = imperialExclusionFor(state, attackerSeat, defenderSeat);
+  const imperialDefender = imperialForce(state, exclusion).includes(defenderSeat);
+  return imperialDefender && state.oathkeeper === chancellorSeatOf(state)
+    ? OATHKEEPER_DEFENSE_DICE
+    : 0;
+}
 
 const DeclarePayloadSchema = z.object({
   defender: z.union([z.number().int().min(0), z.literal('bandits')]),
@@ -298,7 +353,7 @@ function declare(state: OathState, action: GameAction): OathState {
           ? `banner:${t.bannerId}`
           : t.kind === 'relic'
             ? `relic:${t.relicId}`
-            : 'pawnFavor';
+            : t.kind;
     if (seen.has(key)) throw new IllegalAction(`campaign.declare: duplicate target (${key})`);
     seen.add(key);
 
@@ -362,6 +417,21 @@ function declare(state: OathState, action: GameAction): OathState {
         locationSiteId = attackerSite;
         break;
       }
+      case 'scepter': {
+        // Law §5.5.2's "any of their relics" — the Grand Scepter is one
+        // (§2.4), it just lives in `grandScepter` instead of `relics`.
+        if (!defenderPawnHere) {
+          throw new IllegalAction(
+            "campaign.declare: the Grand Scepter requires the defender's pawn at your site (Law §5.5.2)",
+          );
+        }
+        if (state.grandScepter !== defender) {
+          throw new IllegalAction('campaign.declare: the defender does not hold the Grand Scepter (Law §5.5.2)');
+        }
+        dice = SCEPTER_DEFENSE_DICE;
+        locationSiteId = attackerSite;
+        break;
+      }
     }
 
     defenseDice += dice;
@@ -384,6 +454,10 @@ function declare(state: OathState, action: GameAction): OathState {
       'campaign.declare: the defender rules your site — you must target it (Law §5.5.2)',
     );
   }
+
+  // Law §2.11: the defender's title, not any one target, so it lands on the
+  // pool once — same "mandatory and identity-only" footing as §11.4 below.
+  defenseDice += titleDefenseDice(state, attackerSeat, defender);
 
   // Law §11.4: mandatory, keyed on site identity alone — not a card power.
   const dieModifier = (targetsPlains ? 1 : 0) - (targetsMountain ? 1 : 0);
@@ -802,6 +876,17 @@ function applyVictorySpoils(state: OathState, c: CampaignState): OathState {
     banner.tokens = after;
     banner.holder = c.attackerSeat;
     if (isFavor) banner.mob = true;
+  }
+
+  // ...and the Grand Scepter (unit 16c), a direct holder mutation for the
+  // same reason a banner's is: `grandScepter` records WHO HOLDS it, and the
+  // effect vocabulary addresses currency and cards, never holder fields.
+  // Note the knock-on the Law leaves implicit: whoever holds the Scepter is
+  // who may offer Citizenship and exile Citizens (§6.6.1, §6.7), so seizing
+  // it moves those powers too. No code is needed for that — `citizenship.ts`
+  // already reads `state.grandScepter` rather than assuming the Chancellor.
+  if (c.targets.some((t) => t.kind === 'scepter')) {
+    working.grandScepter = c.attackerSeat;
   }
 
   return working;

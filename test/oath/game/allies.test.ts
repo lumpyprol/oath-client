@@ -92,7 +92,10 @@ describe('unit 16a part 1 — the Imperial defending force (Law §5.5.4)', () =>
       targets: [{ kind: 'site', siteId: s.sites[0].id }, { kind: 'pawnFavor' }],
       attackDice: 3,
       attackFaces: ['sword', 'sword', 'sword'],
-      defenseFaces: ['blank', 'blank', 'blank'],
+      // + one blank for §2.11's title die (unit 16c): baseState's Oathkeeper is
+      // the Chancellor, and this defender is Imperial. A blank adds 0 shields,
+      // so the hand-computed defense totals below are unchanged.
+      defenseFaces: ['blank', 'blank', 'blank', 'blank'],
     });
 
     // Hand-computed. Shields 0. The force is the Chancellor's 2 warbands at
@@ -158,7 +161,10 @@ describe('unit 16a part 1 — casualty destinations (Law §5.5.6 + §5.5.7\'s pu
       targets: [{ kind: 'site', siteId: s.sites[0].id }, { kind: 'pawnFavor' }],
       attackDice: 3,
       attackFaces: ['sword', 'sword', 'sword'],
-      defenseFaces: ['blank', 'blank', 'blank'],
+      // + one blank for §2.11's title die (unit 16c): baseState's Oathkeeper is
+      // the Chancellor, and this defender is Imperial. A blank adds 0 shields,
+      // so the hand-computed defense totals below are unchanged.
+      defenseFaces: ['blank', 'blank', 'blank', 'blank'],
     });
     return act(rolled, 'campaign.resolve', 1, { sacrifice: 3 });
   }
@@ -249,7 +255,10 @@ describe('unit 16a part 1 — the casualties phase is skipped when it cannot mat
       targets: [{ kind: 'site', siteId: s.sites[0].id }, { kind: 'pawnFavor' }],
       attackDice: 3,
       attackFaces: ['sword', 'sword', 'sword'],
-      defenseFaces: ['blank', 'blank', 'blank'],
+      // + one blank for §2.11's title die (unit 16c): baseState's Oathkeeper is
+      // the Chancellor, and this defender is Imperial. A blank adds 0 shields,
+      // so the hand-computed defense totals below are unchanged.
+      defenseFaces: ['blank', 'blank', 'blank', 'blank'],
     });
     // Force: 2 at sites[0] + the Chancellor's 3 board = 5, quota 2.
     const out = act(rolled, 'campaign.resolve', 1, { sacrifice: 3 });
@@ -274,7 +283,10 @@ describe('unit 16a part 1 — the casualties phase is skipped when it cannot mat
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 2,
       attackFaces: ['sword', 'sword'],
-      defenseFaces: ['blank', 'blank'],
+      // + one blank for §2.11's title die (unit 16c): baseState's Oathkeeper is
+      // the Chancellor, and this defender is Imperial. A blank adds 0 shields,
+      // so the hand-computed defense totals below are unchanged.
+      defenseFaces: ['blank', 'blank', 'blank'],
     });
     // Force is 1 warband, quota floor(1/2) = 0 — nothing to allocate.
     const out = act(rolled, 'campaign.resolve', 1, {});
@@ -295,7 +307,10 @@ describe('unit 16a part 1 — the casualties phase is skipped when it cannot mat
       targets: [{ kind: 'site', siteId: s.sites[5].id }],
       attackDice: 3,
       attackFaces: ['sword', 'sword', 'sword'],
-      defenseFaces: ['blank'],
+      // + one blank for §2.11's title die (unit 16c): baseState's Oathkeeper is
+      // the Chancellor, and this defender is Imperial. A blank adds 0 shields,
+      // so the hand-computed defense totals below are unchanged.
+      defenseFaces: ['blank', 'blank'],
     });
     // Force: the Chancellor's 3 warbands at sites[5]. The Citizen's board is
     // out (their pawn fails §5.5.4's test). Quota 1, but one destination.
@@ -399,7 +414,10 @@ describe('unit 16a part 2 — §5.5.4\'s per-Ally board bonus', () => {
       targets: [{ kind: 'site', siteId: s.sites[0].id }, { kind: 'pawnFavor' }],
       attackDice: 3,
       attackFaces: ['sword', 'sword', 'sword'],
-      defenseFaces: ['blank', 'blank', 'blank'],
+      // + one blank for §2.11's title die (unit 16c): baseState's Oathkeeper is
+      // the Chancellor, and this defender is Imperial. A blank adds 0 shields,
+      // so the hand-computed defense totals below are unchanged.
+      defenseFaces: ['blank', 'blank', 'blank', 'blank'],
     });
     expect(rolled.campaign!.allies).toEqual([0]); // an Ally all the same
     // Force is still just 2 (site) + 3 (the Citizen's board) = 5.
@@ -415,7 +433,10 @@ describe('unit 16a part 2 — §5.5.4\'s per-Ally board bonus', () => {
       targets: [{ kind: 'site', siteId: s.sites[0].id }, { kind: 'pawnFavor' }],
       attackDice: 3,
       attackFaces: ['sword', 'sword', 'sword'],
-      defenseFaces: ['blank', 'blank', 'blank'],
+      // + one blank for §2.11's title die (unit 16c): baseState's Oathkeeper is
+      // the Chancellor, and this defender is Imperial. A blank adds 0 shields,
+      // so the hand-computed defense totals below are unchanged.
+      defenseFaces: ['blank', 'blank', 'blank', 'blank'],
     });
     // 2 (site) + 3 (Citizen's board) + 3 (the Chancellor Ally's board) = 8.
     expect(() => act(rolled, 'campaign.resolve', 1, { sacrifice: 1 })).toThrow(/must be exactly 6\b/);
@@ -432,7 +453,9 @@ describe('unit 16a part 2 — §5.5.4\'s per-Ally board bonus', () => {
     expect(offered.campaign!.allyVolunteers).toEqual([2]);
     expect(offered.campaign!.allies).toEqual([]); // offering is not joining
 
-    const faces = { attackFaces: ['sword', 'sword', 'sword'], defenseFaces: ['blank', 'blank'] };
+    // 3 defense faces: 2 from pawnFavor + 1 for §2.11's title die (the
+    // Chancellor defends and holds the Oathkeeper). Blanks, so 0 shields.
+    const faces = { attackFaces: ['sword', 'sword', 'sword'], defenseFaces: ['blank', 'blank', 'blank'] };
 
     // Declined: the force is the Chancellor's 3 board warbands alone.
     const declined = act(act(offered, 'campaign.respond', 0, { allies: [] }), 'campaign.roll', 1, faces);
@@ -563,9 +586,20 @@ describe('unit 16a — a full Imperial defence, end to end through the store', (
 
   it('declare -> ally -> respond -> roll -> resolve -> casualties -> seize, and the log refolds identically', () => {
     const opening = chancellorDefendsState();
-    // A deep attacker board, so the exact sacrifice is always affordable
-    // whatever the two defense dice come up as.
-    opening.players[1].warbands = { bank: 0, board: 12 };
+    // This test rolls REAL dice through prepare(), so the sacrifice it will
+    // owe is not known in advance — only bounded. Two deliberate choices
+    // keep that bound under the attacker's means:
+    //   - the Oathkeeper title sits with seat 2, not the defender, so §2.11
+    //     adds no die here (it has its own tests in campaign1). The pool is
+    //     pawnFavor's 2, whose shields top out at 4.
+    //   - the attacker's whole 14 warbands are on their board.
+    // Worst case is then 4 shields + a force of 7 = 11 defense, so 12 to
+    // sacrifice against a board of 14. The assertion below makes that bound
+    // explicit, so a future rules change turns this into a loud failure
+    // rather than a test that passes on most rolls.
+    opening.oathkeeper = 2;
+    opening.players[1].warbands = { bank: 0, board: 14 };
+    opening.sites[5].warbands[1] = 0;
     checkInvariants(opening);
 
     const { gameId } = store.createGame(oath, ['Chancellor', 'Red', 'Blue', 'Yellow']);
@@ -591,6 +625,8 @@ describe('unit 16a — a full Imperial defence, end to end through the store', (
     // Zero attack dice, so the attack is whatever is sacrificed, and §9.5
     // makes that exactly defense + 1.
     const defense = shieldsOf(rolled.campaign!.defenseFaces!) + 7;
+    expect(rolled.campaign!.defenseDice).toBe(2); // no title die — see above
+    expect(defense + 1).toBeLessThanOrEqual(rolled.players[1].warbands.board);
     const pending = append('campaign.resolve', 1, { sacrifice: defense + 1 });
     expect(pending.campaign!.phase).toBe('casualties');
     expect(pending.campaign!.casualties!.quota).toBe(3); // floor(7 / 2)

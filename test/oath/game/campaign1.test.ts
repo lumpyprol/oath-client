@@ -510,3 +510,124 @@ describe('campaign.declare — Law §6.6.3 Imperial-site-ruling + §5.5.1 carve-
     expect(out.campaign!.defenderSeat).toBe(1);
   });
 });
+
+describe('campaign.declare — §2.11 mandatory title defense dice (unit 16c)', () => {
+  // baseState: Oathkeeper is seat 0 (the Chancellor), title on its
+  // Oathkeeper side. declareState puts seat 2's pawn at the attacker's site,
+  // so a lone pawnFavor target (2 dice) isolates the title's contribution.
+  const PAWN_FAVOR_ONLY = [{ kind: 'pawnFavor' }];
+
+  function diceFor(s: OathState, defender: number): number {
+    return declare(s, 1, { defender, targets: PAWN_FAVOR_ONLY, attackDice: 1 }).campaign!.defenseDice;
+  }
+
+  it('adds nothing when the defender holds no title and is no Imperial player', () => {
+    const s = declareState(); // seat 2 is an Exile; the title is seat 0's
+    expect(diceFor(s, 2)).toBe(2);
+  });
+
+  it('adds one for a defender holding the Oathkeeper side', () => {
+    const s = declareState();
+    s.oathkeeper = 2;
+    expect(diceFor(s, 2)).toBe(3);
+  });
+
+  it('adds two for a defender holding the Usurper side', () => {
+    const s = declareState();
+    s.oathkeeper = 2;
+    s.usurper = true;
+    expect(diceFor(s, 2)).toBe(4);
+  });
+
+  it("adds the Chancellor's one whenever any IMPERIAL player is defending, defender or not", () => {
+    const s = declareState();
+    s.players[2].citizenship = 'citizen'; // now an Imperial defender
+    s.players[2].warbands = { bank: 0, board: 3 };
+    s.players[0].warbands.bank = 15;
+    expect(s.oathkeeper).toBe(0); // the Chancellor still holds the title
+    expect(diceFor(s, 2)).toBe(3);
+  });
+
+  it('does not stack the two clauses for a Chancellor defending in their own right', () => {
+    const s = declareState();
+    s.players[0].pawnSite = s.sites[5].id; // the Chancellor defends at the attacker's site
+    expect(s.oathkeeper).toBe(0);
+    expect(diceFor(s, 0)).toBe(3); // 2 + 1, not 2 + 1 + 1
+  });
+
+  it("gives a §5.5.1-suspended Citizen no Imperial backing — the same Campaign has no Allies either", () => {
+    const s = declareState();
+    s.players[2].citizenship = 'citizen';
+    s.players[2].warbands = { bank: 0, board: 3 };
+    s.players[0].warbands.bank = 15;
+    s.players[0].pawnSite = s.sites[5].id;
+    s.turn.activeSeat = 0; // the CHANCELLOR attacks the Citizen: §5.5.1 suspends them
+    const out = declare(s, 0, { defender: 2, targets: PAWN_FAVOR_ONLY, attackDice: 1 });
+    expect(out.campaign!.defenseDice).toBe(2); // no title die
+    expect(out.campaign!.allies).toEqual([]); // and no Allies, for the same reason
+  });
+
+  it('adds nothing against bandits, who hold no title', () => {
+    const s = baseState();
+    s.players[1].pawnSite = s.sites[3].id;
+    const out = declare(s, 1, {
+      defender: 'bandits',
+      targets: [{ kind: 'site', siteId: s.sites[3].id }],
+      attackDice: 1,
+    });
+    expect(out.campaign!.defenseDice).toBe(1); // the site's own die, nothing more
+  });
+});
+
+describe('campaign — the Grand Scepter as a target (Law §5.5.2, §2.4; unit 16c)', () => {
+  it('adds its printed 5 defense dice, and requires the defender to hold it', () => {
+    const s = declareState();
+    expect(s.grandScepter).toBe(0); // the Chancellor starts with it (Law §1.8)
+    expect(() =>
+      declare(s, 1, { defender: 2, targets: [{ kind: 'scepter' }], attackDice: 1 }),
+    ).toThrow(/does not hold the Grand Scepter/);
+
+    s.grandScepter = 2;
+    const out = declare(s, 1, { defender: 2, targets: [{ kind: 'scepter' }], attackDice: 1 });
+    checkInvariants(out);
+    expect(out.campaign!.defenseDice).toBe(5);
+    expect(out.campaign!.targets).toEqual([{ kind: 'scepter' }]);
+  });
+
+  it("requires the defender's pawn at your site, like any other relic", () => {
+    const s = declareState();
+    s.grandScepter = 2;
+    s.players[2].pawnSite = s.sites[2].id; // away from the attacker
+    s.sites[5].warbands[2] = 1; // ...but still a legal defender, ruling the site
+    s.players[2].warbands.bank -= 1;
+    expect(() =>
+      declare(s, 1, {
+        defender: 2,
+        targets: [{ kind: 'site', siteId: s.sites[5].id }, { kind: 'scepter' }],
+        attackDice: 1,
+      }),
+    ).toThrow(/pawn at your site/);
+  });
+
+  it('cannot be targeted against bandits, who hold nothing', () => {
+    const s = baseState();
+    s.players[1].pawnSite = s.sites[3].id;
+    // Rejected on the pawn clause, which comes first: bandits have no pawn
+    // to be at your site, so the holder test is never even reached.
+    expect(() =>
+      declare(s, 1, {
+        defender: 'bandits',
+        targets: [{ kind: 'site', siteId: s.sites[3].id }, { kind: 'scepter' }],
+        attackDice: 1,
+      }),
+    ).toThrow(/pawn at your site/);
+  });
+
+  it('is rejected as a duplicate target', () => {
+    const s = declareState();
+    s.grandScepter = 2;
+    expect(() =>
+      declare(s, 1, { defender: 2, targets: [{ kind: 'scepter' }, { kind: 'scepter' }], attackDice: 1 }),
+    ).toThrow(/duplicate target/);
+  });
+});

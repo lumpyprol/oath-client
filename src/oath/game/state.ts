@@ -174,7 +174,14 @@ export type CampaignTarget =
   | { kind: 'site'; siteId: string }
   | { kind: 'pawnFavor' }
   | { kind: 'banner'; bannerId: string }
-  | { kind: 'relic'; relicId: string };
+  | { kind: 'relic'; relicId: string }
+  /**
+   * The Grand Scepter (unit 16c). It is a relic (§2.4) and so falls under
+   * §5.5.2's "any of their relics", but it has no entry in the P1 card
+   * database and lives in `grandScepter` rather than a seat's `relics`, so
+   * it gets its own target kind instead of a fabricated card id.
+   */
+  | { kind: 'scepter' };
 
 /** A face of the attack die (Law §5.5.5; faces per the Playbook's "Dice Faces" reference, p.15). */
 export type AttackFace = 'sword' | 'hollowSword' | 'skull';

@@ -386,3 +386,80 @@ describe('campaign end to end — through the store, replay-stable (unit 13 exit
     expect(second).toEqual(first);
   });
 });
+
+describe('campaign — seizing the Grand Scepter (Law §5.5.7; unit 16c)', () => {
+  /**
+   * Seat 1 attacks seat 2, who holds the Scepter with their pawn at the
+   * attacker's site. Targets are pawnFavor (2 dice) + the Scepter (5), so
+   * the defense pool is 7; seat 2 is an Exile holding no title, so §2.11
+   * adds nothing. The defender's board is emptied, leaving defense =
+   * shields alone.
+   */
+  function scepterCampaign(): OathState {
+    const s = baseState();
+    s.players[2].pawnSite = s.sites[5].id;
+    s.grandScepter = 2;
+    setBoard(s, 2, 0);
+    const declared = declare(s, 1, {
+      defender: 2,
+      targets: [{ kind: 'pawnFavor' }, { kind: 'scepter' }],
+      attackDice: 2,
+    });
+    expect(declared.campaign!.defenseDice).toBe(7);
+    return respond(declared, 2);
+  }
+
+  it('a victorious attacker holds it afterward', () => {
+    const s = rollAction(scepterCampaign(), 1, {
+      attackFaces: ['sword', 'sword'],
+      defenseFaces: ['blank', 'blank', 'blank', 'blank', 'blank', 'blank', 'blank'],
+    });
+    const out = resolveAction(s, 1, { sacrifice: 0 }); // attack 2 > defense 0
+    checkInvariants(out);
+    expect(out.campaign).toMatchObject({ phase: 'seize' });
+    expect(out.grandScepter).toBe(1);
+
+    // The Law leaves this implicit, and it is the point of taking it: the
+    // Scepter carries the power to offer Citizenship (§6.6.1). No code in
+    // citizenship.ts changed for this — it already reads `grandScepter`
+    // rather than assuming the Chancellor.
+    const afterSeize = seizeAction(out, 1, {});
+    const relicId = afterSeize.reliquary[0].relicId;
+    const offered = act(afterSeize, 'citizenship.offer', 1, { exile: 2, relicId });
+    expect(offered.citizenshipOffer).toMatchObject({ scepterSeat: 1, exile: 2 });
+
+    // ...and the seat that lost it can no longer offer, on their own turn.
+    const formerHolder = structuredClone(afterSeize);
+    formerHolder.turn.activeSeat = 2;
+    expect(() =>
+      act(formerHolder, 'citizenship.offer', 2, { exile: 1, relicId }),
+    ).toThrow(/only the Grand Scepter holder/);
+  });
+
+  it('a defeated attacker leaves it where it was', () => {
+    const s = rollAction(scepterCampaign(), 1, {
+      attackFaces: ['hollowSword', 'hollowSword'],
+      defenseFaces: ['shield', 'shield', 'blank', 'blank', 'blank', 'blank', 'blank'],
+    });
+    const out = resolveAction(s, 1, { sacrifice: 0 }); // attack 1 <= defense 2
+    checkInvariants(out);
+    expect(out.campaign).toBeNull();
+    expect(out.grandScepter).toBe(2);
+  });
+
+  it('an untargeted Scepter never moves, even on a win', () => {
+    const s = baseState();
+    s.players[2].pawnSite = s.sites[5].id;
+    s.grandScepter = 2;
+    setBoard(s, 2, 0);
+    const declared = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
+    const out = resolveAction(
+      rollAction(respond(declared, 2), 1, { attackFaces: ['sword', 'sword'], defenseFaces: ['blank', 'blank'] }),
+      1,
+      { sacrifice: 0 },
+    );
+    checkInvariants(out);
+    expect(out.campaign).toMatchObject({ phase: 'seize' });
+    expect(out.grandScepter).toBe(2);
+  });
+});
