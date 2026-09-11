@@ -49,8 +49,13 @@ describe('replay', () => {
     const a = store.loadState(cradle, gameId).state;
     const b = store.loadState(cradle, gameId).state;
     expect(a).toEqual(b);
-    // Randomness actually happened, so this is a real test and not a tautology.
-    expect((a as any).favor.some((f: number) => f > 0)).toBe(true);
+    // Randomness actually happened, so this is a real test and not a
+    // tautology. Asserted on the rolls being RECORDED rather than on what
+    // they came up: the cradle die has two blank faces, so a two-dice roll
+    // legitimately gains 0 favor about 1 time in 9, and asserting
+    // `favor > 0` failed roughly 1 run in 80.
+    const rolls = (a as any).log.filter((line: string) => line.includes('rolled'));
+    expect(rolls).toHaveLength(2);
   });
 
   it('folds identically with and without a snapshot', () => {

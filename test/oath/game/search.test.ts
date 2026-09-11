@@ -187,7 +187,15 @@ describe('search — the action log leaks no drawn identity (HLD §4, through th
     });
     seq = r1.seq;
     const drawnIds = (r1.state as any).players[0].hand as string[];
-    expect(drawnIds).toHaveLength(3);
+    // NOT necessarily 3: Law §5.1.2 says a world-deck draw stops the moment
+    // a Vision turns up, so a real shuffle hands back 1-3 cards, the short
+    // ones ending on the Vision. (Asserting 3 unconditionally here failed
+    // about 1 run in 15 — the engine was right and the test was wrong.)
+    expect(drawnIds.length).toBeGreaterThan(0);
+    expect(drawnIds.length).toBeLessThanOrEqual(3);
+    if (drawnIds.length < 3) {
+      expect(drawnIds[drawnIds.length - 1]).toMatch(/^vision:/);
+    }
 
     // keep one as a FACEDOWN adviser — its identity must stay hidden
     const r2 = store.appendAction(oath, gameId, seq, {
