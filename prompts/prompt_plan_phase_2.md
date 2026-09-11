@@ -2138,7 +2138,7 @@ tested and cited.
 
 ---
 
-## Unit 16d — Effects growth: Supply and the occupied-card rule
+## Unit 16d — Effects growth: Supply and the occupied-card rule ✅ (completed 2026-09-11)
 
 **Purpose.** Two `applyEffects`-level fixes that make the v1 deferral list
 honest: declared powers must be able to *say* what the deferred cards do
@@ -2187,6 +2187,53 @@ Commit: "Add supply effect; enforce the occupied-card cost rule"
 
 **Done when.** A declared power can move Supply end to end; §7.1.2 is a
 feasibility rule.
+
+## What unit 16d established (as built, 2026-09-11)
+
+- **This is the first effect added for a DEFERRED power rather than a
+  built action**, and it is what makes the v1 bargain true rather than
+  merely stated. D9/D28 promise that unenforced card text can still be
+  *declared*; for every Supply-touching power that was false, because
+  `travel` charged the base cost and no effect could give it back. The
+  deferral list had been quietly resting on a workaround that did not
+  exist. Worth remembering as a review question for the rest of the v1
+  list: not "is this deferred?" but "can a player actually SAY it?"
+- **Supply is a non-mover on purpose.** It is a marker position on a
+  track, not a conserved token — nothing is taken from anywhere when it
+  moves, which is exactly why `checkInvariants` has no conservation law
+  for it and why a zone pair would have been the wrong shape. Same class
+  as `flip`.
+- **Spend fails, gain clamps** — and that asymmetry is the Law's, not a
+  convenience: §4.2 gives no space past the depleted end (so you cannot
+  afford it), while §4.3.4 says you "cannot refresh beyond its leftmost
+  space" (so it caps). `turn.ts`'s Rest already resolved it the same way.
+- **§7.1.2's granularity is literal, and both halves are tested.** One
+  mover placing 2 favor on an empty card is legal — that is Trade's own
+  §5.3.2.II shape — but the same 2 split across two movers is not,
+  because the second sees what the first placed. A power that genuinely
+  places two at once must say so as a single effect. This is the honest
+  reading of "a card that has favor or secrets on it already"; anything
+  looser would need the Law to talk about whole actions, which it does
+  not.
+- **Destinations only.** Rest's §4.3.1 sweep takes tokens *off* occupied
+  cards constantly, so applying the check to sources would have broken
+  the game. Tested explicitly, because it is the obvious way to get this
+  wrong.
+
+### Noted while here, not fixed (out of unit scope)
+
+`tsconfig.json` has `include: ["src"]`, so **test files are never
+typechecked** — `npm run build` and `tsc --noEmit` both skip them, and
+vitest strips types without checking them. A missing `OathState` import
+in this unit's own test slipped through and was caught by eye rather than
+by a tool. Checked the size of the gap: adding `test` to a typecheck pass
+surfaces only three real issues (one implicit `any` in `replay.test.ts`,
+two stale `@ts-expect-error` directives in `test/oath/cards/index.test.ts`)
+plus nine module-resolution complaints unique to `replay.test.ts`, which
+sits at the repo root and imports `../src/...` — a path tsc rejects and
+Vite resolves happily, verified at runtime. **Suggested home: unit 20**,
+which already deletes `cradle` and with it `replay.test.ts`, removing
+nine of the twelve for free; the remaining three are one-line fixes.
 
 ---
 
@@ -2416,6 +2463,17 @@ Unit 20 of Phase 2: audit and close.
    - scripts/smoke.mjs: rewrite the game-flow steps against kind 'oath'
      (create, view two seats, one legal action from the projected view, a
      409 check, restart survival) — keep the check count meaningful
+
+2b. Typecheck the tests (recorded in unit 16d's notes): `tsconfig.json`
+   has `include: ["src"]`, so no test file is ever typechecked by
+   `npm run build` or `tsc --noEmit` — a missing import in a test
+   compiles happily because vitest strips types without checking them.
+   Step 2 above deletes `replay.test.ts`, which is 9 of the 12 errors a
+   test-inclusive pass currently reports (its root-level `../src/...`
+   imports, which Vite resolves and tsc does not). Fix the remaining
+   three — one implicit `any`, two stale `@ts-expect-error` directives in
+   `test/oath/cards/index.test.ts` — and add a `typecheck` script
+   covering `src` + `test` so the gate is real from P3 on.
 
 3. Docs: root README gains a "Game engine" section (module layout, the
    action list, effects and the enforcement seam, how a game is created

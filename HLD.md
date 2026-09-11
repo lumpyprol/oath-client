@@ -7,7 +7,7 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | --- | --- |
 | Started | 2026-09-07 |
 | Last updated | 2026-09-11 |
-| Current phase | P2 (in progress, units 1–16 and 16a–16c done; 16d, 17–20 to go) |
+| Current phase | P2 (in progress, units 1–16 and 16a–16d done; 17–20 to go) |
 | Owner | Ben |
 
 ---
@@ -708,9 +708,13 @@ they go.
   addendum from cards.buriedgiant.com vs leave self-policed until v2).
   Also note: unit 16d's `supply` effect is what makes the Travel-cost
   deferrals above (§11.3/§11.6/§11.7/§7.6.2) *declarable* at all — until
-  it lands, the engine charges base cost with no way to give Supply
+  it landed, the engine charged base cost with no way to give Supply
   back, so that entry's "players declare these via power.use" premise
-  holds only from 16d onward.
+  held only from 16d onward. **Landed 2026-09-11**; a Coast trip is now
+  an ordinary `travel` plus a `power.use` refunding the difference,
+  proven end to end. Unit 16d also closed §7.1.2 (nothing may be placed
+  on a card that already carries favor or secrets) as a feasibility
+  rule, so a declared power can no longer do what no rule permits.
 
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are
@@ -780,7 +784,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a. 16a-16c done 09-11; next is 16d |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a. 16a-16d done 09-11; next is 17 (victory) |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
