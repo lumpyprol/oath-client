@@ -2237,7 +2237,7 @@ nine of the twelve for free; the remaining three are one-line fixes.
 
 ---
 
-## Unit 17 — Victory and game end
+## Unit 17 — Victory and game end ✅ (completed 2026-09-11)
 
 **Purpose.** Games end (D35: structurally enforced). Oathkeeper, succession,
 visions, and the end-of-game clock.
@@ -2338,6 +2338,53 @@ Commit: "Add the Wake Phase, oathkeeper tracking, and every road to game end"
 
 **Done when.** All four roads to game end (§3.1–3.4) are enforced, cited,
 and replay-safe; the Wake Phase runs in Law order.
+
+## What unit 17 established (as built, 2026-09-11)
+
+- **The Law's step ORDER is the Usurper clock, not decoration.** §4.1.2
+  (check for win) runs before §4.1.3 (flip to Usurper), so the turn an
+  Exile takes the title they do not win — the check sees the Oathkeeper
+  side, and only then does it flip. They must survive to their next Wake.
+  Implementing §4.1.3 first would pay the game out a full round early.
+  Both halves are tested; it is the single most load-bearing ordering in
+  the unit.
+- **A found data error blocked the unit before it started.** The Law's
+  four Vision goals (§3.2) would not map onto the database: it had
+  "Dynasty", a card the Law never names, and no Sanctuary. Resolved as a
+  printing rename against the card library (separate commit, RULINGS.md)
+  — `vision:dynasty` is `vision:sanctuary`, "most relics and banners".
+  The card also prints the three-Vision floor itself, corroborating
+  §3.2's parenthetical.
+- **"Meets the goal" includes ties, and §2.11 proves it.** Its own tie
+  rule — "if the title's holder becomes tied with another player FOR
+  MEETING the goal, the holder keeps the token" — only parses if both
+  tied players meet it. The same reading then decides a tied Visionary
+  Win, which §3.2 leaves unstated. Recorded in RULINGS.md rather than
+  left implicit in code, because it decides games.
+- **Only Supremacy is collective.** §2.11 names the Chancellor's Empire
+  clause for Supremacy alone, and the reason is structural: §6.6.3
+  leaves every Imperial seat ruling exactly the same purple sites, so
+  they can never break that tie among themselves. The other three goals
+  are individual, and a Citizen really can hold the Oathkeeper of
+  Protection.
+- **The end die rolls on a deliberately WEAKER condition than the one
+  that consumes it.** `prepareRest` ignores who holds the title and rolls
+  on any round-ending rest in rounds five to seven; `roundEnd` then
+  applies §3.3's title test. A stale unused die in a payload is
+  harmless; a missing one would be an unreplayable game. This is the
+  general shape for any `prepare()` whose consumer has a narrower test —
+  worth reusing.
+- **Continuous title tracking exposed an inconsistent test fixture** in
+  unit 16 that had set an Oathkeeper who did not meet the goal. Nothing
+  had ever recomputed it, so nothing had ever noticed. Enforcing a rule
+  continuously is a good way to find states your tests were only
+  pretending were legal.
+- **Known gap, recorded not hidden:** the very first turn of the game
+  gets no Wake Phase, because the wake is driven by `turn.rest` and seat
+  0 acts before any rest has happened. The only step that could bite is
+  §4.1.1, and only when the Chancellor starts holding the People's
+  Favor (§1.13). Noted in `victory.ts`'s header; unit 19's scripted game
+  is the natural place to decide whether it is worth an `init` hook.
 
 ---
 
