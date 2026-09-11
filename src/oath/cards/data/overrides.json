@@ -70,6 +70,13 @@
     "reason": "Printing rename of the relic. 2nd-printing-or-later card reads 'Ivory Eye'; 'Proof of Nobility' (2020 TTS mod) kept as an alias."
   },
   {
+    "numbering": "card",
+    "saveId": 210,
+    "name": "Sanctuary",
+    "aliases": ["Dynasty", "Vision of Sanctuary"],
+    "reason": "Printing rename, found in unit 17 when the Law's four Vision goals (\u00a73.2) would not map onto the database: the Law names Conquest, Rebellion, Sanctuary and Faith, and we had Conquest, Rebellion, Faith and 'Dynasty'. The current card library has no Dynasty at all, and its OATH-235 reads 'Vision of Sanctuary \u2014 Wake: You win if you hold the most relics and banners, and at least three visions have been drawn', which is \u00a73.2's Sanctuary exactly. 'Dynasty' is the 2020 TTS mod's name, kept as an alias for older seeds. Every Vision's printed name carries a 'Vision of' prefix (OATH-233 is 'Vision of Faith') which this database consistently drops, so the canonical name here is the bare 'Sanctuary'; the full printed form is also an alias."
+  },
+  {
     "numbering": "site",
     "saveId": 17,
     "name": "Drowned City",

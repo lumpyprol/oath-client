@@ -1,9 +1,13 @@
 [
   {
-    "id": "vision:dynasty",
-    "name": "Dynasty",
+    "id": "vision:sanctuary",
+    "name": "Sanctuary",
     "set": "base",
-    "saveId": 210
+    "saveId": 210,
+    "aliases": [
+      "Dynasty",
+      "Vision of Sanctuary"
+    ]
   },
   {
     "id": "vision:rebellion",

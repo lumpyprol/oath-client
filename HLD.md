@@ -232,7 +232,7 @@ broken image at play time.
 ### Card ids (P1)
 
 Namespaced slugs: `denizen:wrestlers`, `site:mine`, `relic:brass-horse`,
-`edifice:sprawling-rampart`, `banner:peoples-favor`, `vision:dynasty`.
+`edifice:sprawling-rampart`, `banner:peoples-favor`, `vision:sanctuary`.
 Readable in the log; collision-proof across kinds. `saveId` is an attribute
 kept for seed interop, never used as an identifier internally.
 
