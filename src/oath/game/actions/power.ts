@@ -123,9 +123,18 @@ function hasAccess(state: OathState, actor: number, cardId: string): boolean {
   return false;
 }
 
-/** Law §5.5.3's naive P2 door (unit 12): the response window's owner, mid-window. */
+/**
+ * Law §5.5.3's naive P2 door (unit 12): who may act inside the response
+ * window. Unit 16a part 2 widened it from the defender alone to the
+ * defender AND their permitted Imperial Allies — "If an Imperial player is
+ * defending, the defender and any Allies may use any battle plans they
+ * rule." Only WHO may act is structural; the battle plans themselves stay
+ * v1-declared (see this file's header).
+ */
 function isRespondingDefender(state: OathState, actor: number): boolean {
-  return state.campaign?.phase === 'respond' && state.campaign.defenderSeat === actor;
+  const c = state.campaign;
+  if (c?.phase !== 'respond') return false;
+  return c.defenderSeat === actor || c.allies.includes(actor);
 }
 
 function requireTiming(state: OathState, action: GameAction): number {

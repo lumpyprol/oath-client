@@ -44,14 +44,30 @@
  *     window UNLESS the defender is bandits (no player to respond, so
  *     `declare` skips straight to phase `'roll'`).
  *
+ *   campaign.ally — an eligible CITIZEN, during the response window (unit
+ *     16a part 2). §5.5.2: "any Citizen except the attacker, with the
+ *     defender's permission, may choose to join as an Ally if their pawn
+ *     is at a targeted site or the site of the attacker's pawn." This is
+ *     the Citizen's half of that — offering. The defender's half is
+ *     `campaign.respond`'s `allies` payload, which must name a subset of
+ *     those who offered, so both consents are explicit actions in the log
+ *     without a third phase. The Chancellor needs neither: their join is
+ *     mandatory and recorded at `declare` (see `mandatoryAllies`).
+ *
  *   campaign.respond — the defender ONLY (not necessarily the active
- *     seat — turn order doesn't pass during a campaign). Closes the
- *     response window. The real rule (§5.5.3, battle plans) is a card-
- *     power interaction; this unit's naive P2 window is just: the
- *     defender may `power.use` first (unit 14 wires that action to check
+ *     seat — turn order doesn't pass during a campaign). Grants Ally
+ *     permission, then closes the response window. The real rule (§5.5.3,
+ *     battle plans) is a card-power interaction; this unit's naive P2
+ *     window is just: the defender AND their permitted Allies may
+ *     `power.use` first (unit 14 wires that action to check
  *     `state.campaign` so its window-owner timing rule has something to
- *     check against), then submits this action to move on. P3 will batch
- *     interrupts like this into fewer round trips.
+ *     check against), then the defender submits this action to move on.
+ *     P3 will batch interrupts like this into fewer round trips — which is
+ *     also what would let a CITIZEN Ally use a battle plan: with one
+ *     window, a Citizen's permission arrives in the very action that
+ *     closes it, so in practice only the mandatory Chancellor Ally (joined
+ *     at declare) can act inside it. The Law's own order — §5.5.2 join,
+ *     then §5.5.3 battle plans — needs the two windows P3 will provide.
  *
  *   campaign.roll — the attacker ONLY, once no response window remains
  *     (`phase === 'roll'`). §5.5.4/5.5.5: rolls `attackDice` attack dice
@@ -146,12 +162,16 @@
  * "the Chancellor chooses which warbands are killed" became a real choice
  * and got its own phase (`campaign.casualties`).
  *
+ * UNIT 16a PART 2 added the Allies opt-in itself: §5.5.2's mandatory
+ * Chancellor join and permissioned Citizen join (`campaign.ally` +
+ * `campaign.respond`'s `allies`), §5.5.4's per-Ally board bonus (via
+ * `boardContributors`, so Ally warbands also enter part 1's casualty
+ * allocation — the case that makes the Chancellor's choice most obviously
+ * load-bearing), and §5.5.3's window membership.
+ *
  * DEFERRED (documented, not silently dropped):
- *   - Imperial Allies' OPT-IN: §5.5.2's Chancellor-joins/Citizen-may-join
- *     and §5.5.4's per-Ally board bonus. Part 1 above fixed the SITE half
- *     of the force (which needs no Allies, since site pieces are purple
- *     regardless of who joined); the BOARD half still contributes only the
- *     recorded defender's own warbands. Unit 16a part 2.
+ *   - A Citizen Ally acting inside the battle-plan window — see
+ *     `campaign.respond` above; it needs P3's two windows, not more rules.
  *   - Battle plans (§5.5.3, §5.5.8) — card powers; v1 defers all power
  *     text, including "if you're victorious"/"if you're defeated"/"at
  *     end, discard" battle-plan triggers, §5.5.3's "a specific battle plan
@@ -377,10 +397,37 @@ function declare(state: OathState, action: GameAction): OathState {
     attackDice: finalAttackDice,
     defenseDice,
     phase: defender === 'bandits' ? 'roll' : 'respond',
+    allies: mandatoryAllies(state, attackerSeat, defender), // Law §5.5.2
+    allyVolunteers: [],
     declaredAt: state.actionCount,
   };
   return state;
 }
+
+/** Law §5.5.2's Citizen half: offering to join. The defender still has to accept. */
+function ally(state: OathState, action: GameAction): OathState {
+  if (state.complete) throw new IllegalAction('campaign.ally: the game is already complete');
+  const c = state.campaign;
+  if (!c || c.phase !== 'respond') {
+    throw new IllegalAction('campaign.ally: no campaign is open to Allies');
+  }
+  if (action.actor === null) throw new IllegalAction('campaign.ally requires a seated actor');
+  if (c.allyVolunteers.includes(action.actor)) {
+    throw new IllegalAction('campaign.ally: you have already offered to join');
+  }
+  if (!mayVolunteerAsAlly(state, c, action.actor)) {
+    throw new IllegalAction(
+      `campaign.ally: seat ${action.actor} cannot join this Campaign as an Ally (Law §5.5.2)`,
+    );
+  }
+  c.allyVolunteers.push(action.actor);
+  return state;
+}
+
+const RespondPayloadSchema = z.object({
+  /** Law §5.5.2's "with the defender's permission" — a subset of the volunteers. */
+  allies: z.array(z.number().int().min(0)).default([]),
+});
 
 function respond(state: OathState, action: GameAction): OathState {
   if (state.complete) throw new IllegalAction('campaign.respond: the game is already complete');
@@ -390,6 +437,16 @@ function respond(state: OathState, action: GameAction): OathState {
   }
   if (action.actor !== c.defenderSeat) {
     throw new IllegalAction("campaign.respond: only the campaign's defender may respond");
+  }
+  const parsed = RespondPayloadSchema.safeParse(action.payload ?? {});
+  if (!parsed.success) throw new IllegalAction('campaign.respond: malformed payload');
+  for (const seat of parsed.data.allies) {
+    if (!c.allyVolunteers.includes(seat)) {
+      throw new IllegalAction(
+        `campaign.respond: seat ${seat} did not offer to join as an Ally (Law §5.5.2)`,
+      );
+    }
+    if (!c.allies.includes(seat)) c.allies.push(seat);
   }
   c.phase = 'roll';
   return state;
@@ -448,15 +505,60 @@ function boardBonusApplies(state: OathState, c: CampaignState, seat: number): bo
 }
 
 /**
- * Whose BOARD warbands are in the defending force. Part 1 of unit 16a: the
- * defender alone, exactly as before. (Part 2 adds the permitted Allies
- * here. §5.5.4's Ally aside is about board warbands ONLY — which is why
+ * Whose BOARD warbands are in the defending force: the defender and each
+ * permitted Ally, every one of them subject to §5.5.4's own pawn test.
+ *
+ * §5.5.4's Ally aside is about board warbands ONLY — which is why
  * `defendingForce`'s SITE warbands below deliberately do not consult this
- * list.)
+ * list. A site's purple pieces defend it whoever joined.
  */
 function boardContributors(state: OathState, c: CampaignState): number[] {
   if (c.defenderSeat === 'bandits') return [];
-  return [c.defenderSeat].filter((seat) => boardBonusApplies(state, c, seat));
+  return [c.defenderSeat, ...c.allies].filter((seat) => boardBonusApplies(state, c, seat));
+}
+
+/**
+ * Law §5.5.2: "If an Imperial player is defending, the Chancellor joins as
+ * an Ally." Mandatory and unconditional — no action, no permission, and
+ * notably no pawn requirement: the pawn condition in §5.5.2 attaches to the
+ * Citizen clause only. §5.5.4's board bonus then applies its own pawn test
+ * separately, so a mandatorily-joined Chancellor may well be an Ally who
+ * contributes nothing (they still matter for §5.5.3's battle-plan window).
+ *
+ * Returns [] when the Chancellor IS the defender (you are not your own
+ * Ally) or the attacker, and when §5.5.1 has left no Imperial defender at
+ * all — a Chancellor attacking a Citizen suspends that Citizen, so that
+ * Campaign has no Imperial defender and therefore no Allies.
+ */
+function mandatoryAllies(state: OathState, attackerSeat: number, defenderSeat: number | 'bandits'): number[] {
+  if (defenderSeat === 'bandits') return [];
+  const exclusion = imperialExclusionFor(state, attackerSeat, defenderSeat);
+  if (!imperialForce(state, exclusion).includes(defenderSeat)) return [];
+  const chancellor = chancellorSeatOf(state);
+  return chancellor === defenderSeat || chancellor === attackerSeat ? [] : [chancellor];
+}
+
+/**
+ * Law §5.5.2: "any Citizen except the attacker, with the defender's
+ * permission, may choose to join as an Ally if their pawn is at a targeted
+ * site or the site of the attacker's pawn." This is the CITIZEN's half —
+ * eligibility to offer; `campaign.respond` supplies the defender's half.
+ */
+function mayVolunteerAsAlly(state: OathState, c: CampaignState, seat: number): boolean {
+  if (state.players[seat].citizenship !== 'citizen') return false;
+  if (seat === c.attackerSeat || seat === c.defenderSeat) return false;
+  const exclusion = imperialExclusionFor(state, c.attackerSeat, c.defenderSeat);
+  if (!imperialForce(state, exclusion).includes(seat)) return false;
+  if (!imperialForce(state, exclusion).includes(c.defenderSeat as number)) return false;
+  return boardBonusApplies(state, c, seat); // the same pawn test, stated once
+}
+
+/** Citizens who could still offer to join this campaign (drives `pending()`). */
+export function eligibleAllyVolunteers(state: OathState, c: CampaignState): number[] {
+  if (c.phase !== 'respond') return [];
+  return state.players
+    .map((_, seat) => seat)
+    .filter((seat) => !c.allyVolunteers.includes(seat) && mayVolunteerAsAlly(state, c, seat));
 }
 
 /**
@@ -910,6 +1012,7 @@ function seize(state: OathState, action: GameAction): OathState {
 
 export const CAMPAIGN_HANDLERS: Record<string, Handler> = {
   'campaign.declare': declare,
+  'campaign.ally': ally,
   'campaign.respond': respond,
   'campaign.roll': roll,
   'campaign.resolve': resolve,

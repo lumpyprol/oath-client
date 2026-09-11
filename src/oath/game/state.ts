@@ -198,6 +198,17 @@ export interface CampaignState {
   /** Sum of each target's printed defense dice, fixed at declare (Law §5.5.2). */
   defenseDice: number;
   /**
+   * Imperial Allies fighting alongside the defender (Law §5.5.2; unit 16a
+   * part 2). The Chancellor is here from `declare` whenever an Imperial
+   * player other than themselves is defending — that join is mandatory and
+   * unconditional. Citizens are added by `campaign.respond`, from among
+   * those who offered (`allyVolunteers`), which is the Law's "with the
+   * defender's permission". Always empty against bandits or an Exile.
+   */
+  allies: number[];
+  /** Citizens who have offered to join, via `campaign.ally` (Law §5.5.2). */
+  allyVolunteers: number[];
+  /**
    * `'respond'` — the defender's window (skipped straight to `'roll'` when
    * `defenderSeat === 'bandits'`, since there is no player to respond).
    * `'roll'` — the attacker submits `campaign.roll`.
@@ -576,6 +587,27 @@ export function checkInvariants(state: OathState): void {
     // the stored value is the post-Plains/Mountain-modifier pool actually
     // rolled (Law §11.4), which can be one higher (Plains) or lower
     // (Mountain, clamped at 0) than the commitment.
+    // -- Imperial Allies (unit 16a part 2; Law §5.5.2) ---------------------
+    for (const [list, what] of [
+      [c.allies, 'campaign.allies'],
+      [c.allyVolunteers, 'campaign.allyVolunteers'],
+    ] as const) {
+      if (new Set(list).size !== list.length) fail(`${what} contains a duplicate seat`);
+      for (const seat of list) {
+        seatOk(seat, `${what} entry`);
+        if (seat === c.attackerSeat) fail(`${what}: the attacker cannot be an Ally`);
+        if (seat === c.defenderSeat) fail(`${what}: the defender is not their own Ally`);
+        if (players[seat].citizenship === 'exile') fail(`${what}: seat ${seat} is not an Imperial player`);
+      }
+    }
+    if (c.defenderSeat === 'bandits' || players[c.defenderSeat as number]?.citizenship === 'exile') {
+      if (c.allies.length > 0 || c.allyVolunteers.length > 0) {
+        fail('campaign: only an Imperial defender can have Allies (Law §5.5.2)');
+      }
+    }
+    // `allyVolunteers` deliberately outlives the response window as a record
+    // of who offered — the defender's permission is `allies`, not this.
+
     if (c.defenderSeat === 'bandits' && c.phase === 'respond') {
       fail(`campaign: phase 'respond' is unreachable against bandits — no player to respond`);
     }
