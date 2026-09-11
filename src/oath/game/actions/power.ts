@@ -24,14 +24,23 @@
  *         restriction, or power at all — §5.1.4.II — so it structurally
  *         cannot have a power to use, not just an access failure)
  *       - a site itself (§2.8.5's own power), or a denizen/edifice AT a
- *         faceup site — legal if you rule that site (your warbands are
- *         on it) OR your pawn is there
- *     Everything else — a card in hand, a discard pile, the world deck,
- *     a facedown site or facedown relic, the Imperial Reliquary, an
- *     enemy's adviser or held relic/banner — is not a zone this action
- *     can reach; §7.1.1's other named exceptions (the Chancellor's
- *     Reliquary powers, the Oathkeeper's title power) aren't cards with
- *     ids in our database and are out of scope here.
+ *         faceup site — legal if you RULE that site (Law §6.6.3, unit 16
+ *         follow-up: for a purple-warbanded site this means EVERY Imperial
+ *         player, not just whichever seat's slot our bookkeeping credits
+ *         — `rule.ts#rulersOf`) OR your pawn is there
+ *       - an uncovered Imperial Reliquary space, id `reliquary:<modifier>`
+ *         (unit 16 follow-up; Law §2.3, §7.1.1's own named exception) —
+ *         the Chancellor only, no ruling/pawn condition, once that space's
+ *         relic has been taken (`citizenship.accept`). The 4 modifiers
+ *         (Brutal/Decadent/Careless/Greedy) are printed board text with no
+ *         database id, so they're synthetic ids rather than a `byId`
+ *         lookup; what each one actually DOES stays declared, same as
+ *         every other card power in v1 (RULINGS.md has the transcription).
+ *     Everything else — a card in hand, a discard pile, the world deck, a
+ *     facedown site, a facedown Reliquary relic, an enemy's adviser or
+ *     held relic/banner — is not a zone this action can reach; §7.1.1's
+ *     one remaining named exception (the Oathkeeper title's own power)
+ *     isn't a card with an id in our database and is still out of scope.
  *   Effect feasibility — `applyEffects` (unit 3/D34): every effect must
  *     be affordable and present; the whole action is atomic, nothing
  *     partial applies on a rejection.
@@ -57,8 +66,23 @@ import type { ProposedAction } from '../../../engine/types.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, EffectsSchema } from '../effects.js';
 import { lookup } from '../../powers/registry.js';
-import { DARKEST_SECRET_ID, PEOPLES_FAVOR_ID, type OathState } from '../state.js';
+import { rulersOf } from '../rule.js';
+import { DARKEST_SECRET_ID, PEOPLES_FAVOR_ID, type OathState, type ReliquaryModifier } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
+
+/**
+ * Stable ids for the Imperial Reliquary's 4 printed action modifiers
+ * (unit 16 follow-up; Law §2.3, §6.6.2, §7.1.1's "the Chancellor always has
+ * the mandatory powers on the uncovered spaces of the Imperial Reliquary").
+ * Not in the card database — these are board text, not cards — so they get
+ * a synthetic id scheme instead of a `byId` lookup. `hasAccess` grants the
+ * Chancellor access once a space's covering relic is gone; what the
+ * modifier actually DOES stays declared (v1: same as every other card
+ * power, per D9/D28 — see RULINGS.md for the transcribed text).
+ */
+function reliquaryPowerId(modifier: ReliquaryModifier): string {
+  return `reliquary:${modifier}`;
+}
 
 const PowerUsePayloadSchema = z.object({
   cardId: z.string(),
@@ -79,10 +103,20 @@ function hasAccess(state: OathState, actor: number, cardId: string): boolean {
   if (state.players[actor].advisers.some((a) => a.id === cardId && !a.facedown)) {
     return true; // your own FACEUP adviser — facedown ones have no power at all
   }
+  // Law §7.1.1: "the Chancellor always has the mandatory powers on the
+  // uncovered spaces of the Imperial Reliquary" — no ruling/pawn condition,
+  // just citizenship, unlike every other zone this function checks.
+  for (const space of state.reliquary) {
+    if (reliquaryPowerId(space.modifier) !== cardId) continue;
+    return space.relicId === null && state.players[actor].citizenship === 'chancellor';
+  }
   for (const site of state.sites) {
     if (site.facedown) continue;
     if (site.id !== cardId && !site.cards.some((c) => c?.id === cardId)) continue;
-    const rulesSite = site.warbands[actor] > 0;
+    // Law §6.6.3 (unit 16 follow-up): rules a site iff you're AMONG its
+    // rulers — which, for a purple-warbanded site, is every Imperial
+    // player, not just whichever seat's slot our bookkeeping credits.
+    const rulesSite = rulersOf(state, site.id).includes(actor);
     const pawnHere = state.players[actor].pawnSite === site.id;
     return rulesSite || pawnHere;
   }

@@ -212,6 +212,25 @@ export interface CampaignState {
  * `take` moves exile -> offerer, applied together at `accept` (Law "the
  * Grand Scepter's holder and new Citizen exchange what was promised").
  */
+/**
+ * The Imperial Reliquary board's four FIXED, NAMED spaces (unit 16 follow-
+ * up; Law §2.3, §6.6.2's "the Chancellor gains the revealed action
+ * modifier"). These are printed on the physical board itself, not on any
+ * card, so they carry no id in the P1 card database — see RULINGS.md for
+ * the transcription and `powers/reliquary.ts`'s header for what each one
+ * actually says. Setup (Law §1.17) deals 4 randomly-drawn relics one each
+ * onto these 4 spaces; WHICH relic covers WHICH modifier is random, but
+ * the 4 modifiers themselves, and their positions, are fixed board facts.
+ */
+export type ReliquaryModifier = 'brutal' | 'decadent' | 'careless' | 'greedy';
+export const RELIQUARY_MODIFIERS: readonly ReliquaryModifier[] = ['brutal', 'decadent', 'careless', 'greedy'];
+
+export interface ReliquarySpace {
+  modifier: ReliquaryModifier;
+  /** The facedown relic covering this space, or `null` once taken — an uncovered space's modifier becomes usable by the Chancellor (Law §6.6.2, §7.1.1). */
+  relicId: string | null;
+}
+
 export interface CitizenshipOffer {
   scepterSeat: number;
   exile: number;
@@ -239,8 +258,8 @@ export interface OathState {
   /** Index 0 = top. Setup deals from the bottom (Law §1.19–1.20). */
   worldDeck: string[];
   relicDeck: string[];
-  /** The Imperial Reliquary's facedown relics (Law §2.3). */
-  reliquary: string[];
+  /** The Imperial Reliquary's 4 fixed, named spaces (Law §2.3; unit 16 follow-up). */
+  reliquary: ReliquarySpace[];
   /**
    * Seat holding the Grand Scepter (Law §2.4). The Scepter is not in the
    * card database, so only its holder is tracked.
@@ -394,7 +413,9 @@ export function checkInvariants(state: OathState): void {
   }
   state.dispossessed.forEach((id, i) => seen(id, `dispossessed[${i}]`, DRAWABLE));
   state.relicDeck.forEach((id, i) => seen(id, `relicDeck[${i}]`, ['relic:']));
-  state.reliquary.forEach((id, i) => seen(id, `reliquary[${i}]`, ['relic:']));
+  state.reliquary.forEach((space, i) => {
+    if (space.relicId !== null) seen(space.relicId, `reliquary[${i}]`, ['relic:']);
+  });
 
   sites.forEach((s, i) => {
     seen(s.id, `sites[${i}]`, ['site:']);
@@ -433,6 +454,13 @@ export function checkInvariants(state: OathState): void {
   }
   for (const b of state.banners) {
     if (b.holder !== null) seatOk(b.holder, `holder of ${b.id}`);
+  }
+
+  // -- reliquary: exactly the 4 fixed named spaces, once each (Law §2.3) ---
+  const reliquaryModifiers = state.reliquary.map((sp) => sp.modifier).sort();
+  const expectedModifiers = [...RELIQUARY_MODIFIERS].sort();
+  if (JSON.stringify(reliquaryModifiers) !== JSON.stringify(expectedModifiers)) {
+    fail(`reliquary must have exactly the spaces ${expectedModifiers.join(', ')}, got ${reliquaryModifiers.join(', ')}`);
   }
 
   // -- site slots respect capacity (Law §2.8.1) ----------------------------

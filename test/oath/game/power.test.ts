@@ -158,6 +158,65 @@ describe('power.use — access (Law §7.1.1)', () => {
   });
 });
 
+describe('power.use — access via §6.6.3 (every Imperial player rules every purple site; unit 16 follow-up)', () => {
+  it('a Citizen gets access to a card at a site ONLY the Chancellor has direct warbands at', () => {
+    const s = baseState();
+    s.players[2].citizenship = 'citizen'; // now Imperial alongside seat 0
+    // Rebalance purple-24 conservation for the flip: seat 2 contributes 0
+    // (matching what a fresh citizenship.accept would leave them with —
+    // see citizenship.ts's file header), so the Chancellor's existing 24
+    // alone still satisfies the invariant.
+    s.players[2].warbands.bank = 0;
+    s.players[2].warbands.board = 0;
+    s.turn.activeSeat = 2;
+    // seat 0 has direct warbands at sites[0]; seat 2 has none there and its
+    // pawn is elsewhere — only the §6.6.3 extension can grant access.
+    expect(s.sites[0].warbands[2]).toBe(0);
+    expect(s.players[2].pawnSite).not.toBe(s.sites[0].id);
+    const out = act(s, 2, { cardId: s.sites[0].cards[0]!.id, effects: [] });
+    checkInvariants(out);
+  });
+
+  it('an Exile does NOT gain access this way — the extension is Imperial-only', () => {
+    const s = baseState(); // seat 1 stays an Exile
+    expect(() => act(s, 1, { cardId: s.sites[0].cards[0]!.id, effects: [] })).toThrow(IllegalAction);
+  });
+});
+
+describe('power.use — the Imperial Reliquary\'s 4 modifiers (Law §2.3, §6.6.2, §7.1.1; unit 16 follow-up)', () => {
+  it('is illegal for the Chancellor while every space is still covered', () => {
+    const s = baseState();
+    s.turn.activeSeat = 0;
+    expect(() => act(s, 0, { cardId: 'reliquary:brutal', effects: [] })).toThrow(IllegalAction);
+  });
+
+  it('is legal for the Chancellor once a space is uncovered', () => {
+    const s = baseState();
+    s.turn.activeSeat = 0;
+    const space = s.reliquary.find((sp) => sp.modifier === 'brutal')!;
+    space.relicId = null; // e.g. taken by citizenship.accept
+    const out = act(s, 0, { cardId: 'reliquary:brutal', effects: [] });
+    checkInvariants(out);
+  });
+
+  it('is illegal for anyone other than the Chancellor, even once uncovered', () => {
+    const s = baseState();
+    s.reliquary.find((sp) => sp.modifier === 'decadent')!.relicId = null;
+    s.turn.activeSeat = 1;
+    expect(() => act(s, 1, { cardId: 'reliquary:decadent', effects: [] })).toThrow(IllegalAction);
+  });
+
+  it('each of the 4 modifiers is independently gated by its OWN space', () => {
+    const s = baseState();
+    s.turn.activeSeat = 0;
+    s.reliquary.find((sp) => sp.modifier === 'careless')!.relicId = null;
+    const out = act(s, 0, { cardId: 'reliquary:careless', effects: [] });
+    checkInvariants(out);
+    // greedy's own space is still covered — no access yet
+    expect(() => act(out, 0, { cardId: 'reliquary:greedy', effects: [] })).toThrow(IllegalAction);
+  });
+});
+
 describe('power.use — infeasible effects reject the whole action (HLD D34)', () => {
   it('rejects: more favor than the actor has', () => {
     const s = baseState();

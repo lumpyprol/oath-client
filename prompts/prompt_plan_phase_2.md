@@ -1584,6 +1584,41 @@ Commit: "Add citizenship transitions"
   widening this unit's blast radius into files it doesn't otherwise
   touch.
 
+**Follow-up, same day (2026-09-11), on user review — see HLD D42.** Two of
+the items this unit's own header flagged as "deferred, not silently
+dropped" turned out not to be deferrable once a second Imperial seat
+actually exists (which unit 16 itself is what first makes possible) — the
+same "flagged ≠ actually low-priority" correction unit 12 made for relic
+targets:
+
+- **Law §6.6.3** ("every Imperial player rules every site with any purple
+  warbands on it") plus **§5.5.1's Campaign-scoped carve-out** ("a Citizen
+  attacking the Chancellor/another Citizen, or the Chancellor attacking a
+  Citizen, is not an Imperial player during THAT Campaign") are now
+  implemented in a new shared `src/oath/game/rule.ts` (`rulersOf`,
+  `imperialExclusionFor`) — imported by BOTH `campaign.ts` (target/
+  defender legality) and `power.ts` (access), rather than duplicating the
+  extension logic in each. Scope boundary kept explicit: this fixes WHO
+  RULES a site (legality/access), not the defense-total or casualty DICE
+  ARITHMETIC across multiple Imperial seats' combined force — that still
+  needs the Allies opt-in mechanic itself (§5.5.1/§5.5.4/§5.5.6-7) and
+  stays deferred, now for a narrower, correctly-scoped reason.
+- **The Imperial Reliquary's 4 fixed named action-modifier spaces**
+  (Brutal/Decadent/Careless/Greedy — printed on the physical board, not
+  any card; RULINGS.md has the full transcription from the Playbook's
+  component-reference page) are now structural state: `state.reliquary`
+  changed shape from `string[]` to `ReliquarySpace[]` (`{modifier,
+  relicId}`, always length 4, one per modifier). `power.ts#hasAccess`
+  grants the CHANCELLOR a `reliquary:<modifier>` id once that space's
+  relic is gone (Law §7.1.1's own named exception). What the engine does
+  NOT do — deliberately, per the v1/v2 split (HLD D9/D28) every other card
+  power already follows — is enforce what each modifier actually DOES
+  (change Travel cost, add Search cards, etc.); that stays a declared
+  `power.use` payload, same as the other ~230 powers not yet in the v2
+  registry. "Track what power is now available" (the user's own framing)
+  is exactly the ACCESS/visibility half; the EFFECT half is unchanged v1
+  scope, not a new gap this follow-up introduced.
+
 ---
 
 ## Unit 17 — Victory and game end

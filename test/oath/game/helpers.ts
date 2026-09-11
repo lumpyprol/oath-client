@@ -19,6 +19,8 @@ import {
   BOXED_SECRETS,
   PEOPLES_FAVOR_ID,
   DARKEST_SECRET_ID,
+  RELIQUARY_MODIFIERS,
+  type ReliquarySpace,
 } from '../../../src/oath/game/state.js';
 
 export function baseState(overrides: Partial<OathState> = {}): OathState {
@@ -152,7 +154,9 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
     },
     worldDeck,
     relicDeck: relicIds.slice(6),
-    reliquary: relicIds.slice(2, 6),
+    reliquary: RELIQUARY_MODIFIERS.map(
+      (modifier, i): ReliquarySpace => ({ modifier, relicId: relicIds.slice(2, 6)[i] }),
+    ),
     grandScepter: 0,
     discards,
     dispossessed,

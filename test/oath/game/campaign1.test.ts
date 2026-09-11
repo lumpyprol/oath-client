@@ -458,3 +458,55 @@ describe('campaign.roll — prepare() persists dice; replay reuses them (HLD D14
     expect(second).toEqual(first);
   });
 });
+
+describe('campaign.declare — Law §6.6.3 Imperial-site-ruling + §5.5.1 carve-out (unit 16 follow-up)', () => {
+  // Seat 1 (normally an Exile in baseState) is flipped to Citizen, keeping
+  // their existing 2 warbands at sites[5] and 3 on board (now purple) —
+  // rebalanced against the Chancellor's bank to keep the purple-24 total
+  // exactly conserved: seat 0 (2+1+3 placed) + bank0 + seat 1 (2+3 placed)
+  // must sum to 24, so bank0 = 24 - 6 - 5 = 13.
+  function citizenAttacksChancellorState(): OathState {
+    const s = baseState();
+    s.players[1].citizenship = 'citizen';
+    s.players[1].warbands.bank = 0;
+    s.players[0].warbands.bank = 13;
+    s.turn.activeSeat = 1;
+    s.players[0].pawnSite = s.sites[5].id; // the Chancellor's pawn joins seat 1 at their own site
+    return s;
+  }
+
+  it('a Citizen attacking the Chancellor cannot declare pawnFavor alone — the Chancellor (not excluded) jointly rules the attacker\'s own purple site via §6.6.3, triggering the "must target your site" clause', () => {
+    const s = citizenAttacksChancellorState();
+    expect(() =>
+      declare(s, 1, { defender: 0, targets: [{ kind: 'pawnFavor' }], attackDice: 0 }),
+    ).toThrow(IllegalAction);
+  });
+
+  it('...but targeting their own site too is legal — the Chancellor is a valid defender-ruler of it via the Imperial extension, and §5.5.1 excludes only the ATTACKER, not the defender', () => {
+    const s = citizenAttacksChancellorState();
+    const out = declare(s, 1, {
+      defender: 0,
+      targets: [{ kind: 'site', siteId: s.sites[5].id }, { kind: 'pawnFavor' }],
+      attackDice: 0,
+    });
+    checkInvariants(out);
+    expect(out.campaign).not.toBeNull();
+  });
+
+  it('a THIRD seat cannot declare bandits against that site — §6.6.3 makes the Chancellor a co-ruler even though only the Citizen has DIRECT warbands there', () => {
+    const s = citizenAttacksChancellorState();
+    s.turn.activeSeat = 2;
+    s.players[2].pawnSite = s.sites[5].id;
+    expect(() =>
+      declare(s, 2, { defender: 'bandits', targets: [{ kind: 'site', siteId: s.sites[5].id }], attackDice: 0 }),
+    ).toThrow(IllegalAction);
+    // ...but declaring the actual (direct) ruler as defender is legal.
+    const out = declare(s, 2, {
+      defender: 1,
+      targets: [{ kind: 'site', siteId: s.sites[5].id }],
+      attackDice: 0,
+    });
+    checkInvariants(out);
+    expect(out.campaign!.defenderSeat).toBe(1);
+  });
+});

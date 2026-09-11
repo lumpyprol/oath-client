@@ -422,11 +422,10 @@ function cardArray(state: OathState, zone: CardZone, index: number): string[] {
       return state.discards[zone.region];
     case 'dispossessed':
       return state.dispossessed;
-    case 'reliquary':
-      return state.reliquary;
     case 'seatAdvisers':
     case 'seatVision':
     case 'siteSlot':
+    case 'reliquary':
       throw new Error(`cardArray: ${zone.kind} is not array-shaped`);
     default:
       return badZone(index, 'card', zone);
@@ -460,6 +459,14 @@ function placeCardId(state: OathState, zone: CardZone, id: string, index: number
         fail(index, 'card', `site ${zone.siteId} is at capacity (Law §2.8.1)`);
       }
       site.cards[empty] = { id, favor: 0, secrets: 0 };
+      return;
+    }
+    case 'reliquary': {
+      // Not reachable in P2 scope (nothing returns a relic to the
+      // Reliquary), but covers a space correctly if ever used.
+      const space = state.reliquary.find((sp) => sp.relicId === null);
+      if (!space) fail(index, 'card', 'the Imperial Reliquary has no uncovered space to place onto');
+      space.relicId = id;
       return;
     }
     default: {
@@ -499,6 +506,21 @@ function removeCardId(state: OathState, zone: CardZone, id: string | null, index
       }
       const taken = site.cards[i]!.id;
       site.cards[i] = null;
+      return taken;
+    }
+    case 'reliquary': {
+      // Law §6.6.2: a Citizenship offer names a specific relic — find its
+      // space by relic id, not position (position identifies the MODIFIER,
+      // not which relic happens to sit on it).
+      const space =
+        id === null
+          ? state.reliquary.find((sp) => sp.relicId !== null)
+          : state.reliquary.find((sp) => sp.relicId === id);
+      if (!space || space.relicId === null) {
+        fail(index, 'card', `card ${id ?? '(any)'} is not in the Imperial Reliquary`);
+      }
+      const taken = space.relicId;
+      space.relicId = null;
       return taken;
     }
     default:

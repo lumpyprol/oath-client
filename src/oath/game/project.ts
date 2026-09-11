@@ -37,6 +37,7 @@ import {
   type CampaignState,
   type CardInPlay,
   type CitizenshipOffer,
+  type ReliquarySpace,
   type OathState,
   type PlayerState,
   type Region,
@@ -96,7 +97,12 @@ export interface OathView {
   sharedBank: OathState['sharedBank'];
   worldDeck: Record<string, never>; // deliberately no size — see file header
   relicDeck: Redacted;
-  reliquary: Redacted;
+  /**
+   * The 4 fixed named spaces (unit 16 follow-up; Law §2.3) are public board
+   * facts, always visible — only WHICH relic (if any) currently covers a
+   * space is hidden, same as any other facedown relic (Law §9.4).
+   */
+  reliquary: { modifier: ReliquarySpace['modifier']; covered: boolean }[];
   grandScepter: number;
   discards: Record<Region, Redacted>;
   dispossessed: Redacted;
@@ -184,7 +190,7 @@ export function project(state: OathState, seat: number | null): OathView {
     sharedBank: { ...state.sharedBank },
     worldDeck: {},
     relicDeck: { count: state.relicDeck.length },
-    reliquary: { count: state.reliquary.length },
+    reliquary: state.reliquary.map((sp) => ({ modifier: sp.modifier, covered: sp.relicId !== null })),
     grandScepter: state.grandScepter,
     discards,
     dispossessed: { count: state.dispossessed.length },

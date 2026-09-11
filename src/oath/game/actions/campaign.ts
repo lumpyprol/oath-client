@@ -113,24 +113,37 @@
  *     the running shield total — Law §5.5.4: "each roll doubles the
  *     total... multiple rolls stack exponentially, x4, x8, etc.").
  *
+ * IMPLEMENTED AS A UNIT 16 FOLLOW-UP (2026-09-11, same day, once flagged —
+ * not left on the deferred list): Law §6.6.3's "every Imperial player
+ * rules every site with any purple warbands on it" and §5.5.1's carve-out
+ * ("if you are a Citizen attacking the Chancellor or another Citizen, you
+ * are not an Imperial player during this Campaign; if you are the
+ * Chancellor attacking a Citizen, that Citizen is not") — `rule.ts`'s
+ * `rulersOf`/`imperialExclusionFor`, threaded through every ruling check in
+ * `declare` (bandits-eligibility, the defender-must-rule-your-site clause,
+ * and each site target's `ruledByDefender` check). This CORRECTS unit 12's
+ * original reading that the "not an Imperial player" sentence was purely
+ * an Ally-eligibility status change — it also gates ordinary site-ruling
+ * legality, and matters the moment a Citizen exists (unit 16), not only
+ * once Allies themselves are built.
+ *
  * DEFERRED (documented, not silently dropped):
- *   - Imperial Allies (§5.5.1's last two sentences; §5.5.2's Chancellor-
- *     joins/Citizen-may-join; their warband bonuses to the defense TOTAL
- *     in §5.5.4). Meaningless to build or test before Citizenship
- *     (unit 16) gives a Citizen seat a way to exist and to opt in. Read
- *     closely, re-checking against the plan's own speculative "citizenship
- *     restriction" TDD bullet: there is NO such restriction. The "not an
- *     Imperial player during this Campaign" sentences describe a STATUS
- *     CHANGE for the duration of the campaign (relevant only to who may
- *     later join as an Ally), never a legality restriction on WHO may be
- *     declared as attacker or defender. Any seat may campaign against any
- *     other, citizenship notwithstanding.
+ *   - Imperial Allies PROPER: §5.5.1's Chancellor-joins/Citizen-may-join,
+ *     and their warband bonuses to the defense TOTAL (§5.5.4) and the
+ *     casualty consolidation across multiple Imperial seats' forces
+ *     (§5.5.6-7). Ruling a targeted site is now correct for multi-Imperial
+ *     games (above); the DICE ARITHMETIC still only reads the single
+ *     recorded defender seat's own site/board counts — combining several
+ *     Imperial seats' warbands into one "force" (Glossary "Force") needs
+ *     the Allies opt-in mechanic itself (who joins, the Chancellor's
+ *     mandatory join, permission for other Citizens) to do correctly, not
+ *     just a ruling fix.
  *   - Battle plans (§5.5.3, §5.5.8) — card powers; v1 defers all power
  *     text, including "if you're victorious"/"if you're defeated"/"at
  *     end, discard" battle-plan triggers.
  *   - "Imperial warbands at sites move to the Chancellor's board" (§5.5.7)
  *     — an Ally/Imperial-team consolidation rule, same Allies deferral as
- *     unit 12's.
+ *     above.
  */
 
 import { z } from 'zod';
@@ -140,6 +153,7 @@ import { rollDice } from '../../../engine/random.js';
 import { byId } from '../../cards/index.js';
 import type { Relic } from '../../cards/schema.js';
 import { applyEffects, type Effect } from '../effects.js';
+import { imperialExclusionFor, rulersOf } from '../rule.js';
 import {
   DARKEST_SECRET_ID,
   PEOPLES_FAVOR_ID,
@@ -191,13 +205,6 @@ function bannerFullId(short: 'peoples-favor' | 'darkest-secret'): string {
   return short === 'peoples-favor' ? PEOPLES_FAVOR_ID : DARKEST_SECRET_ID;
 }
 
-/** Law §10.21: every seat with a warband on this (faceup) site rules it. */
-function rulersOf(state: OathState, siteId: string): number[] {
-  const site = state.sites.find((s) => s.id === siteId);
-  if (!site || site.facedown) return [];
-  return site.warbands.flatMap((w, seat) => (w > 0 ? [seat] : []));
-}
-
 function declare(state: OathState, action: GameAction): OathState {
   const attackerSeat = requireActiveSeat(state, action);
   const parsed = DeclarePayloadSchema.safeParse(action.payload);
@@ -212,13 +219,19 @@ function declare(state: OathState, action: GameAction): OathState {
   if (defender === attackerSeat) {
     throw new IllegalAction('campaign.declare: cannot declare yourself as defender');
   }
+  if (defender !== 'bandits' && (defender < 0 || defender >= state.seats)) {
+    throw new IllegalAction('campaign.declare: no such seat');
+  }
   if (attackDice > attacker.warbands.board) {
     throw new IllegalAction(
       `campaign.declare: attackDice (${attackDice}) exceeds your board warbands (Law §5.5.2)`,
     );
   }
 
-  const rulers = rulersOf(state, attackerSite);
+  // Law §5.5.1's carve-out (see rule.ts's header): computed once, threaded
+  // through every rulersOf() call below.
+  const excludeImperial = imperialExclusionFor(state, attackerSeat, defender);
+  const rulers = rulersOf(state, attackerSite, excludeImperial);
   if (defender === 'bandits') {
     if (rulers.length > 0) {
       throw new IllegalAction(
@@ -226,9 +239,6 @@ function declare(state: OathState, action: GameAction): OathState {
       );
     }
   } else {
-    if (defender < 0 || defender >= state.seats) {
-      throw new IllegalAction('campaign.declare: no such seat');
-    }
     const pawnHere = state.players[defender].pawnSite === attackerSite;
     if (!rulers.includes(defender) && !pawnHere) {
       throw new IllegalAction(
@@ -270,8 +280,8 @@ function declare(state: OathState, action: GameAction): OathState {
           !!targetSite &&
           !targetSite.facedown &&
           (defender === 'bandits'
-            ? rulersOf(state, t.siteId).length === 0
-            : rulersOf(state, t.siteId).includes(defender));
+            ? rulersOf(state, t.siteId, excludeImperial).length === 0
+            : rulersOf(state, t.siteId, excludeImperial).includes(defender));
         if (!ruledByDefender) {
           throw new IllegalAction(`campaign.declare: the defender does not rule ${t.siteId} (Law §5.5.2)`);
         }

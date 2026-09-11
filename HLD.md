@@ -649,21 +649,22 @@ they go.
   same battle-plan deferral as unit 12's §5.5.3; "Imperial warbands at
   sites move to the Chancellor's board" (§5.5.7) — an Ally/Imperial-team
   consolidation rule, same Allies deferral as unit 12's.
-- **Citizenship (unit 16):** §6.6.3 "every Imperial player rules every
-  site with any purple warbands on it" — a ripple into `campaign.ts#
-  rulersOf` and `power.ts#hasAccess` (both currently "a seat rules a site
-  iff THEIR OWN warband count there is positive," correct for a lone
-  Chancellor but incomplete once a second Imperial seat exists) that
-  unit 16's own scope (the transition actions themselves) didn't require
-  touching. Flagged explicitly here — same as D39's Allies deferral —
-  rather than folded in silently, so it can be prioritized once actually
-  relevant (multiple simultaneous Imperial seats sharing sites). Also:
-  "the Chancellor gains the revealed mandatory action modifier in the
-  Reliquary" (§6.6.2's last sentence) — printed BOARD text, no id in the
-  card database, same out-of-scope category as `power.ts`'s Reliquary/
-  Oathkeeper-title carve-out; and the Peek family (§6.3, §6.4) — not
-  built anywhere in this engine yet, and unnecessary for unit 16 since a
-  pending offer's terms are public to the party deciding on them anyway.
+- **Citizenship (unit 16), RESOLVED same-day (2026-09-11) once flagged —
+  see D42:** §6.6.3's "every Imperial player rules every purple site" and
+  the Imperial Reliquary's 4 action-modifier spaces are no longer
+  deferred; `rule.ts` and `power.ts`'s `reliquary:<modifier>` access gate
+  close both. What's STILL deferred, narrower than originally scoped:
+  Imperial Allies' actual joining mechanic and the defense-total/casualty
+  DICE ARITHMETIC across multiple Imperial seats' combined "force"
+  (§5.5.1's Chancellor-joins/Citizen-may-join, §5.5.4's Ally warband
+  bonus, §5.5.6-7's consolidation) — ruling legality is fixed, the
+  arithmetic still only reads the single recorded defender's own counts.
+  Also still deferred: the 4 reliquary modifiers' actual EFFECTS (Brutal/
+  Decadent/Careless/Greedy — RULINGS.md has the transcription) stay
+  declared, not enforced, same v1/v2 split as every other card power
+  (D9/D28); and the Peek family (§6.3/§6.4), not built anywhere in this
+  engine, still unnecessary since a pending offer's relic is public to
+  the deciding party regardless.
 
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are
@@ -719,6 +720,7 @@ with `reversed by`.
 | D39 | 09-11 | Campaign (unit 12) is one in-progress sub-state (`state.campaign`) with a `phase` enum (`respond`\|`roll`\|`rolled`) walked by three actions (`declare`/`respond`/`roll`); a single central lock (`turn.ts#requireActiveSeat`'s `campaignOk` opt, checked by every OTHER action's existing call site) makes every non-campaign action illegal-state for free, with no per-file edits. Full target vocabulary ships (`site`/`pawnFavor`/`banner`/`relic` — the relic defense-dice P1 gap was closed same-day rather than left deferred, once flagged as a mistake to defer: relics are a common, often game-swinging campaign target, not a minor completeness gap). Imperial Allies (meaningless before Citizenship, unit 16, gives a Citizen seat a way to exist and opt in) are the one thing still deferred, documented in `campaign.ts`'s header, not silently dropped | Keeps the hardest sequence in P2 clean and provably lockable without threading a flag through 6 existing action files; ships a complete, correct 1-attacker-vs-1-defender campaign — with its full target vocabulary — now, rather than a half-built one | active |
 | D40 | 09-11 | Campaign resolution (unit 13) splits into two more phases/actions on the SAME sub-state rather than one big action: `'rolled' -> campaign.resolve -> ('seize' \| cleared)`, `'seize' -> campaign.seize -> cleared`. `resolve` alone handles a loss (nothing left to choose) and applies every MANDATORY win effect (relics, banners); `seize` exists only to gate the win-only CHOICES (placements, banish, burn-favor) behind their own pending decision, so a client can show the outcome before asking for them. One function (`resolveDefeatForSeat`) computes §5.5.6's casualty split for EITHER side by parameterizing which sites count and whether the board does — the attacker is just the `siteIds: []`/`includeBoard: true` case | Keeps each action's payload single-purpose and lets the UI reveal win/loss before demanding seizure choices, without inventing a second sub-state; one casualty function instead of two near-duplicates (attacker/defender) that would drift apart under future edits | active |
 | D41 | 09-11 | Citizenship (unit 16) is five actions: `citizenship.offer`/`accept`/`decline` (Law §6.6, one pending `state.citizenshipOffer` — unlike Campaign, it does NOT lock other actions, so `pending()` appends it rather than preempting), `citizenship.exile` (§6.7, unilateral, no consent step), `citizenship.selfExile` (§6.8). The load-bearing call: our per-seat warband model has only TWO conserved buckets (each Exile's own 14; Chancellor+Citizens' combined 24 purple), never a third "idle reserve" or "unattributed purple" bucket, so §6.6.2's "replace with purple, if not enough the Exile chooses" and §6.7/§6.8's "replace with your own color" are generalized rather than taken as literally scoped (board+map only, silent on bank): joining wipes a seat's ENTIRE current holding (bank+board+every site — always exactly 14, no tracked destination, mirroring how setup hands a new Exile 14 from nowhere); leaving moves the ENTIRE current purple holding to the Chancellor's bank (Glossary "Kill"'s own disposal, reused) and grants a fresh 14 (3 board / 11 bank, Law §1.15's own setup split). Given this, the "capacity" formula for how much purple a joining Exile could keep is computed generally but is PROVABLY always 0 in a state that satisfied the invariant beforehand (Chancellor+Citizens already hold the full 24 between them) — `accept` throws rather than silently mishandling the unreached positive-capacity branch | Matches unit 7 (Muster)'s already-established precedent that the physical purple/own-color distinction is a token detail our invariant-only conservation model doesn't need; avoids inventing new state-shape (a third warband bucket) for a corner the model's own math proves unreachable, while still computing the general formula rather than hardcoding the specific number | active |
+| D42 | 09-11 | Unit 16 follow-up, same day, on user review: (1) Law §6.6.3 "every Imperial player rules every purple site" + §5.5.1's Campaign-scoped carve-out, implemented in a new shared `rule.ts` (`rulersOf`/`imperialExclusionFor`) imported by both `campaign.ts` and `power.ts` rather than duplicated; (2) the Imperial Reliquary's 4 fixed named spaces (Brutal/Decadent/Careless/Greedy — printed board text, RULINGS.md has the transcription) are now structural state: `reliquary: string[]` became `reliquary: ReliquarySpace[]` (`{modifier, relicId}`, always length 4), letting `power.ts#hasAccess` grant the Chancellor a `reliquary:<modifier>` id once its covering relic is gone — the MODIFIER's actual effects stay declared (v1, same as every other card power, D9/D28), only ACCESS is structural. Deliberately NOT done: the Allies mechanic itself (defense-total/casualty arithmetic across multiple Imperial seats' combined force) — ruling legality and access are now correct for any number of Imperial seats, but the DICE math still reads only the single recorded defender's own counts, since combining forces needs the opt-in Ally mechanic (who joins, the Chancellor's mandatory join) to do correctly | The user flagged these as under-scoped in the initial unit 16 pass rather than genuinely low-priority — same pattern as unit 12's relic-targets pushback: a "ripple" that looked deferrable on paper turns out to matter the instant a second Imperial seat exists, which unit 16 itself just made possible for the first time | active |
 
 ---
 

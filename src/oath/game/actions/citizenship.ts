@@ -252,7 +252,7 @@ function offer(state: OathState, action: GameAction): OathState {
   if (state.players[exile].citizenship !== 'exile') {
     throw new IllegalAction('citizenship.offer: the offered seat must currently be an Exile (Law §6.6.1)');
   }
-  if (!state.reliquary.includes(relicId)) {
+  if (!state.reliquary.some((space) => space.relicId === relicId)) {
     throw new IllegalAction(
       `citizenship.offer: ${relicId} is not one of the Imperial Reliquary's relics (Law §6.6.1)`,
     );

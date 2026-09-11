@@ -35,12 +35,14 @@ import {
   LEFTMOST_SUPPLY,
   PEOPLES_FAVOR_ID,
   REGIONS,
+  RELIQUARY_MODIFIERS,
   type BannerState,
   type Citizenship,
   type OathName,
   type OathState,
   type PlayerState,
   type Region,
+  type ReliquarySpace,
   type SiteState,
 } from './state.js';
 
@@ -317,7 +319,14 @@ export function init(setup: OathSetup): OathState {
     sharedBank: { favor: sharedFavor, secrets: sharedSecrets },
     worldDeck: [...setup.worldDeck],
     relicDeck: [...setup.relicDeck],
-    reliquary: [...setup.reliquary],
+    // Law §1.17: 4 randomly-drawn relics, one each onto the board's 4 FIXED
+    // named spaces (§2.3; RULINGS.md) — `setup.reliquary`'s order is
+    // already the shuffle's random order, so zipping it against the fixed
+    // modifier enumeration assigns relics to spaces randomly without a
+    // separate shuffle step.
+    reliquary: RELIQUARY_MODIFIERS.map(
+      (modifier, i): ReliquarySpace => ({ modifier, relicId: setup.reliquary[i] }),
+    ),
     grandScepter: 0, // Law §1.8: the chancellor always starts with it
     discards: {
       cradle: [...setup.discards.cradle],

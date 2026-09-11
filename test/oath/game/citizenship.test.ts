@@ -40,7 +40,7 @@ function offerState(): OathState {
 describe('citizenship.offer (Law §6.6.1)', () => {
   it('a legal offer stores a pending citizenshipOffer and surfaces it in pending()', () => {
     const s = offerState();
-    const relicId = s.reliquary[0];
+    const relicId = s.reliquary[0].relicId!;
     const out = offer(s, 0, { exile: 1, relicId });
     checkInvariants(out);
 
@@ -70,7 +70,7 @@ describe('citizenship.offer (Law §6.6.1)', () => {
     // stub id not needed — offer() doesn't validate feasibility, only accept() does
     const out = offer(s, 0, {
       exile: 1,
-      relicId: s.reliquary[0],
+      relicId: s.reliquary[0].relicId!,
       give: { favor: 2, banners: ['peoples-favor'] },
       take: { relics: ['relic:whatever'] },
     });
@@ -80,12 +80,12 @@ describe('citizenship.offer (Law §6.6.1)', () => {
 
   it('rejects an offer from anyone but the Grand Scepter holder', () => {
     const s = baseState(); // active seat 1, but seat 0 holds the Scepter
-    expect(() => offer(s, 1, { exile: 2, relicId: s.reliquary[0] })).toThrow(IllegalAction);
+    expect(() => offer(s, 1, { exile: 2, relicId: s.reliquary[0].relicId! })).toThrow(IllegalAction);
   });
 
   it("rejects offering to a seat that isn't currently an Exile", () => {
     const s = offerState();
-    expect(() => offer(s, 0, { exile: 0, relicId: s.reliquary[0] })).toThrow(IllegalAction); // seat 0 is the Chancellor
+    expect(() => offer(s, 0, { exile: 0, relicId: s.reliquary[0].relicId! })).toThrow(IllegalAction); // seat 0 is the Chancellor
   });
 
   it('rejects a relicId not currently in the Imperial Reliquary', () => {
@@ -95,21 +95,21 @@ describe('citizenship.offer (Law §6.6.1)', () => {
 
   it('rejects a second offer while one is already pending', () => {
     const s = offerState();
-    const out = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
-    expect(() => offer(out, 0, { exile: 2, relicId: out.reliquary[1] })).toThrow(IllegalAction);
+    const out = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
+    expect(() => offer(out, 0, { exile: 2, relicId: out.reliquary[1].relicId! })).toThrow(IllegalAction);
   });
 
   it('is illegal outside your own turn, mid-Search, or mid-Campaign, like any other action', () => {
     const s = offerState();
     s.turn.activeSeat = 1; // no longer the Scepter holder's turn
-    expect(() => offer(s, 0, { exile: 2, relicId: s.reliquary[0] })).toThrow(IllegalAction);
+    expect(() => offer(s, 0, { exile: 2, relicId: s.reliquary[0].relicId! })).toThrow(IllegalAction);
   });
 });
 
 describe('citizenship.decline (Law §6.6.1)', () => {
   it('clears the pending offer with no other consequence', () => {
     const s = offerState();
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const out = decline(offered, 1);
     checkInvariants(out);
     expect(out.citizenshipOffer).toBeNull();
@@ -118,14 +118,14 @@ describe('citizenship.decline (Law §6.6.1)', () => {
 
   it('only the offered Exile may decline — not the offerer, not a third seat', () => {
     const s = offerState();
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     expect(() => decline(offered, 0)).toThrow(IllegalAction);
     expect(() => decline(offered, 2)).toThrow(IllegalAction);
   });
 
   it('does not require it to be the declining seat\'s own turn', () => {
     const s = offerState(); // activeSeat is 0 (the offerer), not 1
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     expect(offered.turn.activeSeat).toBe(0);
     const out = decline(offered, 1); // seat 1 responds even though it's seat 0's turn
     expect(out.citizenshipOffer).toBeNull();
@@ -140,7 +140,7 @@ describe('citizenship.decline (Law §6.6.1)', () => {
 describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple capacity', () => {
   it('flips to Citizen, zeroes ALL prior warband holdings (bank+board+sites), and keeps every conservation invariant', () => {
     const s = offerState();
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const totalBefore = offered.players[1].warbands.bank + offered.players[1].warbands.board
       + offered.sites.reduce((sum, site) => sum + site.warbands[1], 0);
     expect(totalBefore).toBe(EXILE_WARBANDS); // sanity: the fixture is invariant-valid
@@ -160,11 +160,11 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
 
   it('takes the mandatory Reliquary relic into the new Citizen\'s personal relics', () => {
     const s = offerState();
-    const relicId = s.reliquary[0];
+    const relicId = s.reliquary[0].relicId!;
     const offered = offer(s, 0, { exile: 1, relicId });
     const out = accept(offered, 1);
     checkInvariants(out);
-    expect(out.reliquary).not.toContain(relicId);
+    expect(out.reliquary.some((space) => space.relicId === relicId)).toBe(false);
     expect(out.players[1].relics).toContain(relicId);
   });
 
@@ -175,7 +175,7 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
     s.players[1].secrets.ready = 3;
     const offered = offer(s, 0, {
       exile: 1,
-      relicId: s.reliquary[0],
+      relicId: s.reliquary[0].relicId!,
       give: { favor: 2 },
       take: { secrets: 1 },
     });
@@ -189,7 +189,7 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
   it('exchanges a negotiated banner, checked against whoever currently holds it', () => {
     const s = offerState();
     s.banners[0].holder = 1; // seat 1 (the exile) holds the People's Favor
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0], take: { banners: ['peoples-favor'] } });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId!, take: { banners: ['peoples-favor'] } });
     const out = accept(offered, 1);
     checkInvariants(out);
     expect(out.banners[0].holder).toBe(0);
@@ -198,7 +198,7 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
   it('discards a prior revealed Vision (Glossary "Discard")', () => {
     const s = offerState();
     expect(s.players[1].vision).not.toBeNull();
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const out = accept(offered, 1);
     checkInvariants(out);
     expect(out.players[1].vision).toBeNull();
@@ -209,7 +209,7 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
     const s = offerState();
     s.oathkeeper = 1;
     s.usurper = true;
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const out = accept(offered, 1);
     checkInvariants(out);
     expect(out.usurper).toBe(false);
@@ -219,7 +219,7 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
   it("ends the new Citizen's Act Phase if it is their turn, and always refreshes Supply to leftmost", () => {
     const s = offerState();
     s.turn.activeSeat = 0; // the offerer's turn when offering...
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     // ...but accept happens once it becomes seat 1's turn
     offered.turn.activeSeat = 1;
     offered.turn.round = 3;
@@ -231,14 +231,14 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
 
   it("does not end anyone's turn if it wasn't the new Citizen's turn", () => {
     const s = offerState(); // activeSeat 0
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const out = accept(offered, 1);
     expect(out.turn.activeSeat).toBe(0); // unchanged
   });
 
   it('only the offered Exile may accept', () => {
     const s = offerState();
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     expect(() => accept(offered, 2)).toThrow(IllegalAction);
     expect(() => accept(offered, 0)).toThrow(IllegalAction);
   });
@@ -250,7 +250,7 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
 
   it('does not require it to be the accepting seat\'s own turn', () => {
     const s = offerState(); // activeSeat 0, not 1
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const out = accept(offered, 1);
     checkInvariants(out);
     expect(out.players[1].citizenship).toBe('citizen');
@@ -266,7 +266,7 @@ describe('post-Citizenship: a previously-legal Exile-only act becomes illegal (u
   it('once a Citizen, the seat can be targeted by citizenship.exile (illegal while still an Exile)', () => {
     const s = offerState();
     expect(() => exileCitizen(s, 0, { citizen: 1 })).toThrow(IllegalAction); // seat 1 is an Exile, not a Citizen, yet
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const citizen = accept(offered, 1);
     citizen.turn.activeSeat = 0;
     citizen.sharedBank.favor -= 10; // source it (conservation): give seat 0 enough to pay §6.7's favor
@@ -280,7 +280,7 @@ describe('post-Citizenship: a previously-legal Exile-only act becomes illegal (u
 describe('citizenship.exile (Law §6.7)', () => {
   function citizenState(): OathState {
     const s = offerState();
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const out = accept(offered, 1);
     out.turn.activeSeat = 0;
     out.sharedBank.favor -= 10; // source it (conservation): give seat 0 (the actor) enough to pay §6.7's favor
@@ -341,7 +341,7 @@ describe('citizenship.exile (Law §6.7)', () => {
 describe('citizenship.selfExile (Law §6.8)', () => {
   function citizenState(): OathState {
     const s = offerState();
-    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0] });
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const out = accept(offered, 1);
     out.turn.activeSeat = 1;
     return out;
