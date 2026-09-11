@@ -7,7 +7,7 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | --- | --- |
 | Started | 2026-09-07 |
 | Last updated | 2026-09-11 |
-| Current phase | P2 (in progress, units 1–16, 16a and 16b done; 16c–16d, 17–20 to go) |
+| Current phase | P2 (in progress, units 1–16 and 16a–16c done; 16d, 17–20 to go) |
 | Owner | Ben |
 
 ---
@@ -780,7 +780,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a. 16a and 16b done 09-11; next is 16c |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a. 16a-16c done 09-11; next is 16d |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |

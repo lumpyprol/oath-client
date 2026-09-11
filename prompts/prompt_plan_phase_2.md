@@ -2039,7 +2039,7 @@ is logged and rewindable.
 
 ---
 
-## Unit 16c — Campaign completeness: title dice and the Grand Scepter
+## Unit 16c — Campaign completeness: title dice and the Grand Scepter ✅ (completed 2026-09-11)
 
 **Purpose.** Two campaign facts the Law states card-free, missed by unit 12
 and cheap to close by unit 12's own Plains/Mountain precedent
@@ -2096,6 +2096,45 @@ Commit: "Add mandatory title defense dice; make the Grand Scepter campaign-targe
 
 **Done when.** All four title-dice cases and the Scepter transfer are
 tested and cited.
+
+## What unit 16c established (as built, 2026-09-11)
+
+- **The two §2.11 clauses must not stack, and the Law makes that safe.**
+  A Chancellor defending in their own right is covered by "the Oathkeeper
+  must add one defense die as defender"; the second clause ("always adds
+  its power when any Imperial player is defending") exists for the case
+  the first misses — a *different* Imperial seat defending. Reading them
+  as cumulative would double-count. Related: a Chancellor can never be on
+  the Usurper side, because §4.1.3 only ever flips the title for an
+  Exile, so the +2 branch is unreachable for them.
+- **"Any Imperial player is defending" is 16a's question, not a new one.**
+  It reads through §5.5.1's carve-out via `imperialForce`, so a Citizen
+  suspended by a Chancellor's attack gets no title die — the same
+  Campaign that has no Allies. One test asserts both facts together,
+  since they must never drift apart.
+- **The Grand Scepter is Defense 5** (cards.buriedgiant.com OATH-231),
+  against 1-3 for every ordinary relic — targeting it roughly doubles a
+  typical defense pool, which is presumably the design intent for the
+  game's most powerful relic. Recorded in RULINGS.md.
+- **Looking the card up corroborated unit 16 for free.** Its printed
+  power reads "Action: Offer Citizenship to any Exile, or exile a Citizen
+  except yourself" — independent confirmation of two decisions unit 16
+  had made from the Law text alone: the offer belongs to the SCEPTER
+  HOLDER rather than the Chancellor (§6.6.1), and self-exile is excluded
+  (§6.7). A test now follows the consequence end to end — seize the
+  Scepter and the power to offer Citizenship moves with it, with no
+  change to `citizenship.ts`, because it already read `grandScepter`.
+- **A target kind, not a fake card id.** The plan's instinct was right:
+  inventing a database id for a card the database does not contain would
+  have leaked into `byId`, the invariant checker, and the art manifest.
+- **This unit would have introduced a flake, and the fixture caught it.**
+  16a's end-to-end test rolls real dice and its defender holds the title,
+  so the extra die could demand a sacrifice larger than the attacker's
+  board — it passed on most rolls. It now parks the title off the
+  defender and asserts the affordability bound explicitly. General
+  lesson, worth repeating for unit 17: any test that rolls real dice and
+  then spends a computed amount needs its worst case asserted, not
+  assumed.
 
 ---
 
