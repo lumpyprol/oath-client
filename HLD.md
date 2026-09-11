@@ -7,7 +7,7 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | --- | --- |
 | Started | 2026-09-07 |
 | Last updated | 2026-09-11 |
-| Current phase | P2 (in progress, units 1–16 done; 16a–16d, 17–20 to go) |
+| Current phase | P2 (in progress, units 1–16 and 16a done; 16b–16d, 17–20 to go) |
 | Owner | Ben |
 
 ---
@@ -634,9 +634,10 @@ they go.
   relic/banner (§5.1.4.4).
 - **Rest (unit 5):** §4.3.5 "Use Rest Powers"; the §7.1.2 "pay a cost
   outside your turn" secret-flip nuance.
-- **Campaign (unit 12), Imperial Allies RESOLVED 09-11 (D44):** the five
+- **Campaign (unit 12), Imperial Allies RESOLVED 09-11 (D44) — landed
+  2026-09-11 as unit 16a, both parts:** the five
   Imperial campaign asides below were re-checked against the code on
-  request and are now scheduled as plan unit 16a, not deferred — §5.5.2's
+  request and were scheduled as plan unit 16a, not deferred — §5.5.2's
   join mechanic, §5.5.3's *window* (who may act), §5.5.4's Ally board
   bonus, §5.5.6's Chancellor-chooses casualties, §5.5.7's
   consolidate-to-the-Chancellor. Two of them (§5.5.6, §5.5.7) turned out
@@ -648,17 +649,22 @@ they go.
   themselves (below), §5.5.3's "a specific battle plan cannot be used by
   multiple players" once-each bookkeeping, and §5.5.2's "activate all
   Campaign modifiers ruled by the defender and all Allies" — all three are
-  card-power effects, i.e. ordinary v2 scope.
+  card-power effects, i.e. ordinary v2 scope. One further gap surfaced
+  while building it and is recorded rather than hidden: with a single
+  response window, a Citizen Ally's permission arrives in the action that
+  closes that window, so only the mandatory Chancellor Ally can actually
+  act inside §5.5.3's battle-plan window. The Law wants §5.5.2's join and
+  §5.5.3's plans in that order, which needs P3's two windows — a batching
+  gap, not a missing rule.
 - **Campaign (unit 12):** battle plans (§5.5.3, card powers used mid-
   Campaign — the naive P2 response window just skips straight to roll);
   every OTHER site/card power that adds or removes attack or defense
   dice (Plains/Mountain's own §11.4 modifier is NOT on this list — it's
   identity-only and mandatory, so it's implemented directly in
-  `campaign.ts`, not deferred; see below). Also NOT card text but still
-  deferred, pending Citizenship (unit 16) existing at all: Imperial
-  Allies (§5.5.1's citizenship-status sentences, §5.5.2's Chancellor-
-  joins/Citizen-may-join, and their defense-total warband bonuses in
-  §5.5.4). Two things flagged for this list at first turned out not to
+  `campaign.ts`, not deferred; see below). Imperial Allies were once on
+  this list too ("pending Citizenship existing at all") — they are not
+  any more; see the D44 entry above, landed as unit 16a. Two things
+  flagged for this list at first turned out not to
   belong on it, closed same-day (09-11) instead: relic targets (§5.5.2 —
   P1 had no per-relic defense-dice count, §2.4.2; `data/relic-defense-
   dice.json`, all 20 relics) and Plains/Mountain's attack-die modifier
@@ -666,9 +672,9 @@ they go.
   already has). See `campaign.ts`'s header and D39.
 - **Campaign resolution (unit 13):** battle plans' §5.5.8 triggers ("if
   you're victorious"/"if you're defeated"/"at end, discard [card]") —
-  same battle-plan deferral as unit 12's §5.5.3; "Imperial warbands at
-  sites move to the Chancellor's board" (§5.5.7) — an Ally/Imperial-team
-  consolidation rule, same Allies deferral as unit 12's.
+  same battle-plan deferral as unit 12's §5.5.3. ("Imperial warbands at
+  sites move to the Chancellor's board", §5.5.7, was also on this list;
+  unit 16a part 1 implemented it — `campaign.ts#survivorBoardOf`.)
 - **Citizenship (unit 16), RESOLVED same-day (2026-09-11) once flagged —
   see D42:** §6.6.3's "every Imperial player rules every purple site" and
   the Imperial Reliquary's 4 action-modifier spaces are no longer
@@ -679,8 +685,8 @@ they go.
   (§5.5.1's Chancellor-joins/Citizen-may-join, §5.5.4's Ally warband
   bonus, §5.5.6-7's consolidation) — ruling legality is fixed, the
   arithmetic still only reads the single recorded defender's own counts.
-  **Superseded 09-11 by D44:** that last sentence describes a live bug,
-  not a safe deferral — plan unit 16a closes it.
+  **Superseded 09-11 by D44:** that last sentence described a live bug,
+  not a safe deferral — unit 16a closed it the same day.
   Also still deferred: the 4 reliquary modifiers' actual EFFECTS (Brutal/
   Decadent/Careless/Greedy — RULINGS.md has the transcription) stay
   declared, not enforced, same v1/v2 split as every other card power
@@ -774,7 +780,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a; next is 16a, whose part 1 is a correctness fix |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a. 16a done 09-11 (both parts); next is 16b |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |

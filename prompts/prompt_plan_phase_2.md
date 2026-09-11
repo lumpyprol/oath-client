@@ -1703,7 +1703,7 @@ mechanic.
 
 ---
 
-## Unit 16a — The Imperial defending force and Allies
+## Unit 16a — The Imperial defending force and Allies ✅ (completed 2026-09-11)
 
 **Purpose.** Close the last five Imperial campaign asides (§5.5.2, §5.5.3's
 window half, §5.5.4, §5.5.6, §5.5.7). Part 1 fixes arithmetic that is wrong
@@ -1867,6 +1867,62 @@ describes only where a case genuinely belongs to an existing one):
 **Done when.** All five asides are implemented or (for battle-plan effects
 and the modifier activation) explicitly re-recorded as v2, with the
 Exile/bandits paths proven unchanged.
+
+## What unit 16a established (as built, 2026-09-11)
+
+- **The plan's split held up exactly.** Part 1 landed as a pure
+  correctness fix with no new player-facing mechanic, and all 442
+  pre-existing tests passed unchanged through it — which is the evidence
+  the plan asked for that the Exile and bandits paths were untouched.
+  Explicit regression tests for both were added anyway, since "passed by
+  accident" and "provably unchanged" are different claims.
+- **A `ForceEntry[]` model replaced `resolveDefeatForSeat`'s two
+  positional flags** (`siteIds`, `includeBoard`). This was not
+  refactoring for its own sake: §5.5.6's allocation choice has to be
+  *addressed* — "kill 2 of the Chancellor's warbands at Mine" — and a
+  force that is a list of (where, whose, how many) is precisely that
+  address space. The same list then serves the defense total, the
+  casualty destinations, and the pending decision's payload.
+- **`survivorBoardOf` keys off the piece's physical colour, not the
+  campaign's Imperial status — a distinction the Law makes by omission.**
+  §5.5.2, §5.5.3, §5.5.4 and §5.5.6's asides all open "If an Imperial
+  player is defending"; §5.5.7's does not, and §6.6.3 defines "Imperial
+  warbands" as purple ones. So a Citizen suspended by §5.5.1 is not an
+  Imperial player, yet their site survivors still consolidate onto the
+  Chancellor's board. This also makes `casualtyChooser` non-trivial: the
+  Chancellor chooses when an Imperial player defends, otherwise the
+  defeated player does — and that second branch is reachable, not
+  hypothetical, precisely because of this asymmetry.
+- **The skip condition is a function, not an assumption.** Unit 13's
+  sites-first default was correct because a single-owner force
+  consolidates onto one board either way. `allocationMatters` states that
+  as "the survivors would land in more than one place", which is both the
+  justification for the old shortcut and the trigger for the new phase —
+  so the two can't drift apart.
+- **§5.5.7's mandatory spoils were extracted** so they run *after* the
+  defeat on both the auto-allocated and the `casualties`-phase paths.
+  Cheaper alternatives (spoils in `resolve` either way) would have been
+  observationally identical — relics and warbands are disjoint state —
+  but would have inverted the Law's step order on one path for no gain.
+- **Part 2's one-line prediction was accurate:** §5.5.3's window
+  membership really was a single condition in `power.ts`. The plan's
+  "keeps both consents explicit without adding a phase" also held —
+  `campaign.ally` (the Citizen's offer) plus `respond.allies` (the
+  defender's permission) needed no third phase.
+- **A limit the build surfaced, recorded rather than papered over:** with
+  one response window, a Citizen Ally's permission arrives in the very
+  action that closes it, so only the mandatory Chancellor Ally can
+  actually use the §5.5.3 window. The Law's order is §5.5.2 join *then*
+  §5.5.3 plans, which wants P3's two windows. This is a batching gap, not
+  a missing rule, and it is noted in `campaign.ts`'s header and the HLD
+  deferred list.
+- **Correction to the unit's own TDD list:** "their board warbands join
+  the defense total only under §5.5.4's pawn test — assert both branches"
+  cannot be shown with a *Citizen* Ally, because §5.5.2's join condition
+  and §5.5.4's bonus condition are the same test — a Citizen who fails it
+  cannot volunteer in the first place. The two branches are only
+  separable for the CHANCELLOR, whose join is unconditional but whose
+  bonus is not; that is where they are asserted.
 
 ---
 
