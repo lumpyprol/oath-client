@@ -649,6 +649,21 @@ they go.
   same battle-plan deferral as unit 12's §5.5.3; "Imperial warbands at
   sites move to the Chancellor's board" (§5.5.7) — an Ally/Imperial-team
   consolidation rule, same Allies deferral as unit 12's.
+- **Citizenship (unit 16):** §6.6.3 "every Imperial player rules every
+  site with any purple warbands on it" — a ripple into `campaign.ts#
+  rulersOf` and `power.ts#hasAccess` (both currently "a seat rules a site
+  iff THEIR OWN warband count there is positive," correct for a lone
+  Chancellor but incomplete once a second Imperial seat exists) that
+  unit 16's own scope (the transition actions themselves) didn't require
+  touching. Flagged explicitly here — same as D39's Allies deferral —
+  rather than folded in silently, so it can be prioritized once actually
+  relevant (multiple simultaneous Imperial seats sharing sites). Also:
+  "the Chancellor gains the revealed mandatory action modifier in the
+  Reliquary" (§6.6.2's last sentence) — printed BOARD text, no id in the
+  card database, same out-of-scope category as `power.ts`'s Reliquary/
+  Oathkeeper-title carve-out; and the Peek family (§6.3, §6.4) — not
+  built anywhere in this engine yet, and unnecessary for unit 16 since a
+  pending offer's terms are public to the party deciding on them anyway.
 
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are
@@ -703,6 +718,7 @@ with `reversed by`.
 | D38 | 09-10 | Projection hides the world deck's SIZE entirely (`worldDeck: {}`), not just its contents; every other hidden-count zone (relic deck, reliquary, dispossessed, discards) still shows a count | Law §9.4 singles out "the number of cards in the world deck" as private, distinct from the general rule that counts are public — the P2 plan's own text ("world deck... as counts only") over-revealed against this; caught before it shipped | active |
 | D39 | 09-11 | Campaign (unit 12) is one in-progress sub-state (`state.campaign`) with a `phase` enum (`respond`\|`roll`\|`rolled`) walked by three actions (`declare`/`respond`/`roll`); a single central lock (`turn.ts#requireActiveSeat`'s `campaignOk` opt, checked by every OTHER action's existing call site) makes every non-campaign action illegal-state for free, with no per-file edits. Full target vocabulary ships (`site`/`pawnFavor`/`banner`/`relic` — the relic defense-dice P1 gap was closed same-day rather than left deferred, once flagged as a mistake to defer: relics are a common, often game-swinging campaign target, not a minor completeness gap). Imperial Allies (meaningless before Citizenship, unit 16, gives a Citizen seat a way to exist and opt in) are the one thing still deferred, documented in `campaign.ts`'s header, not silently dropped | Keeps the hardest sequence in P2 clean and provably lockable without threading a flag through 6 existing action files; ships a complete, correct 1-attacker-vs-1-defender campaign — with its full target vocabulary — now, rather than a half-built one | active |
 | D40 | 09-11 | Campaign resolution (unit 13) splits into two more phases/actions on the SAME sub-state rather than one big action: `'rolled' -> campaign.resolve -> ('seize' \| cleared)`, `'seize' -> campaign.seize -> cleared`. `resolve` alone handles a loss (nothing left to choose) and applies every MANDATORY win effect (relics, banners); `seize` exists only to gate the win-only CHOICES (placements, banish, burn-favor) behind their own pending decision, so a client can show the outcome before asking for them. One function (`resolveDefeatForSeat`) computes §5.5.6's casualty split for EITHER side by parameterizing which sites count and whether the board does — the attacker is just the `siteIds: []`/`includeBoard: true` case | Keeps each action's payload single-purpose and lets the UI reveal win/loss before demanding seizure choices, without inventing a second sub-state; one casualty function instead of two near-duplicates (attacker/defender) that would drift apart under future edits | active |
+| D41 | 09-11 | Citizenship (unit 16) is five actions: `citizenship.offer`/`accept`/`decline` (Law §6.6, one pending `state.citizenshipOffer` — unlike Campaign, it does NOT lock other actions, so `pending()` appends it rather than preempting), `citizenship.exile` (§6.7, unilateral, no consent step), `citizenship.selfExile` (§6.8). The load-bearing call: our per-seat warband model has only TWO conserved buckets (each Exile's own 14; Chancellor+Citizens' combined 24 purple), never a third "idle reserve" or "unattributed purple" bucket, so §6.6.2's "replace with purple, if not enough the Exile chooses" and §6.7/§6.8's "replace with your own color" are generalized rather than taken as literally scoped (board+map only, silent on bank): joining wipes a seat's ENTIRE current holding (bank+board+every site — always exactly 14, no tracked destination, mirroring how setup hands a new Exile 14 from nowhere); leaving moves the ENTIRE current purple holding to the Chancellor's bank (Glossary "Kill"'s own disposal, reused) and grants a fresh 14 (3 board / 11 bank, Law §1.15's own setup split). Given this, the "capacity" formula for how much purple a joining Exile could keep is computed generally but is PROVABLY always 0 in a state that satisfied the invariant beforehand (Chancellor+Citizens already hold the full 24 between them) — `accept` throws rather than silently mishandling the unreached positive-capacity branch | Matches unit 7 (Muster)'s already-established precedent that the physical purple/own-color distinction is a token detail our invariant-only conservation model doesn't need; avoids inventing new state-shape (a third warband bucket) for a corner the model's own math proves unreachable, while still computing the general formula rather than hardcoding the specific number | active |
 
 ---
 
@@ -714,7 +730,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–15 done (all six actions + card.play + `power.use` + the (empty) enforcement registry); next is unit 16 (Citizenship) |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); next is unit 17 (Victory and game end) |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |

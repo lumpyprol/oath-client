@@ -26,10 +26,6 @@
  *     pool as a distinct endpoint; that's unit 14/15's problem once
  *     `power.use` is reachable during another seat's turn (the campaign
  *     response window, unit 12+).
- *   - The Imperial Reliquary as a zone. Setup deals into it directly
- *     (bypassing effects entirely, per unit 4/setup.ts), and nothing
- *     inside `reduce` moves a card there or out of it until Citizenship
- *     (unit 16) needs to hand a promised relic to a new Citizen.
  *   - Banner HOLDER transfer. This vocabulary addresses a banner's token
  *     STAKE only (`bannerFavor`/`bannerSecrets`, one currency each per Law
  *     §2.5). Reassigning `BannerState.holder` is structural, not a
@@ -37,6 +33,12 @@
  *     mutate it directly, the same way turn.ts's Rest sweep (unit 5) will
  *     mutate `secrets.flipped -> ready` directly rather than through this
  *     vocabulary.
+ *
+ * The Imperial Reliquary IS now a zone (`{ kind: 'reliquary' }`, unit 16):
+ * setup still deals into it directly (bypassing effects, per setup.ts),
+ * but `citizenship.accept` needs to move a promised relic OUT of it to a
+ * new Citizen, so it joins the RELIC-only zone family alongside
+ * `seatRelics`/`siteRelics`/`relicDeck`.
  *
  * Citations are "Law §x.y" (Buried Giant rules reference, Oath printing
  * p1; see RULINGS.md).
@@ -125,7 +127,8 @@ export type CardZone =
   | { kind: 'worldDeck' } // top only (index 0)
   | { kind: 'relicDeck' } // top only (index 0)
   | { kind: 'discard'; region: Region } // top of pile (index 0)
-  | { kind: 'dispossessed' };
+  | { kind: 'dispossessed' }
+  | { kind: 'reliquary' }; // the Imperial Reliquary (Law §2.3; unit 16)
 
 const CardZoneSchema: z.ZodType<CardZone> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('seatHand'), seat }),
@@ -138,6 +141,7 @@ const CardZoneSchema: z.ZodType<CardZone> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('relicDeck') }),
   z.object({ kind: z.literal('discard'), region: RegionSchema }),
   z.object({ kind: z.literal('dispossessed') }),
+  z.object({ kind: z.literal('reliquary') }),
 ]);
 
 // ---- flip targets ---------------------------------------------------------
@@ -373,6 +377,7 @@ function zoneCardPrefixes(zone: CardZone, index: number): readonly string[] {
     case 'seatRelics':
     case 'siteRelics':
     case 'relicDeck':
+    case 'reliquary':
       return RELIC;
     case 'seatVision':
       return VISION;
@@ -417,6 +422,8 @@ function cardArray(state: OathState, zone: CardZone, index: number): string[] {
       return state.discards[zone.region];
     case 'dispossessed':
       return state.dispossessed;
+    case 'reliquary':
+      return state.reliquary;
     case 'seatAdvisers':
     case 'seatVision':
     case 'siteSlot':

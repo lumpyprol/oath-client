@@ -1472,7 +1472,7 @@ is provably empty.
 
 ---
 
-## Unit 16 — Citizenship
+## Unit 16 — Citizenship ✅ (completed 2026-09-11)
 
 **Purpose.** The Chancellor/Exile/Citizen structure moves: joining the
 Empire and its consequences. The static restrictions were already read from
@@ -1511,6 +1511,78 @@ Commit: "Add citizenship transitions"
 ```
 
 **Done when.** Joining works with cited consequences; restrictions flip.
+
+## What unit 16 established (as built, 2026-09-11)
+
+- **Corrects the plan's own speculative TDD bullet about "a Chancellor
+  consent step."** Read closely (Law §6.6.1), the consent-giver is
+  whoever holds the GRAND SCEPTER, not necessarily the Chancellor — the
+  Scepter is a relic and Law §6.6.1 explicitly allows offering
+  Citizenship "to any Exile (including yourself)," which only makes
+  sense if an Exile can be the Scepter holder. Every action gates on
+  `state.grandScepter`, never `citizenship === 'chancellor'`.
+- **Five actions, not one:** `citizenship.offer`/`accept`/`decline`
+  (§6.6), `citizenship.exile` (§6.7, the Scepter holder unilaterally
+  exiling ANOTHER Citizen — no consent step, matching the Law's own
+  unilateral "you can exile another Citizen by giving them five favor"
+  phrasing), and `citizenship.selfExile` (§6.8). The plan's singular
+  "an action" undersold the chapter — three named sub-rules (§6.6-6.8),
+  each with its own actor, trigger, and consequence list.
+- **The load-bearing design decision — see HLD D41 and the file header's
+  "WARBAND MODEL" section for the full derivation:** our conservation
+  model has exactly two buckets (each Exile's own 14; Chancellor+
+  Citizens' combined 24 purple), never a third "idle reserve" or
+  "unattributed purple" bucket. Taking §6.6.2's "replace with purple, if
+  not enough the Exile chooses" and §6.7/§6.8's "replace with your own
+  color" (silent on site presence) fully literally would need that third
+  bucket. Generalizing instead — join wipes the ENTIRE current holding
+  with no tracked destination; leaving moves the ENTIRE current purple
+  holding to the Chancellor's bank (Glossary "Kill") and grants a FRESH
+  14 (3 board / 11 bank, Law §1.15's own setup split) — turns out to be
+  not just a simplification but an exact match for the physical game:
+  the purple total is a closed, already-fully-allocated system (by the
+  invariant, Chancellor + existing Citizens ALREADY hold all 24 before
+  anyone new joins), so "if there aren't enough" is the NORMAL case, not
+  an edge case. `citizenship.accept` computes the capacity formula
+  generally and throws on the — provably unreached from any invariant-
+  valid state — positive-capacity branch, rather than building unused
+  choice-payload machinery for a case that can't occur.
+- **A pending Citizenship offer does NOT lock other actions**, unlike
+  Campaign. `state.citizenshipOffer` sits alongside the normal turn/play/
+  campaign pending decision rather than replacing it — `index.ts#pending`
+  gained a small append-only prefix (`citizenshipDecision`), prepended to
+  every existing return site, never touching their internal logic. This
+  also means `accept`/`decline`, like `campaign.respond`, don't require
+  it to be the responding seat's own turn — the offer can land on
+  anyone's turn, and the Exile must be able to answer regardless.
+- **A new effect-vocabulary zone:** `{ kind: 'reliquary' }` (`effects.ts`,
+  RELIC-only family), exactly the addition `effects.ts`'s own header
+  predicted back in unit 3 ("nothing moves a card there or out of it
+  until Citizenship needs to hand a promised relic to a new Citizen").
+  D33's growth rule in action: a zone that sat unused for 13 units,
+  added the moment (and only the moment) something needed it.
+  Banner-holder exchange (a negotiated `give`/`take` term) is mutated
+  directly, same precedent as Campaign seizure — the vocabulary
+  addresses a banner's token STAKE, never its holder.
+- **Deferred, flagged rather than silently dropped** (HLD's "Deferred
+  from v1" list, and the file's own header): Law §6.6.3's "every
+  Imperial player rules every site with any purple warbands on it" — a
+  ripple into `campaign.ts#rulersOf` and `power.ts#hasAccess` that this
+  unit's own scope (the transition actions) didn't require touching, but
+  that matters the moment two Imperial seats share a site. Also: the
+  Reliquary's "revealed mandatory action modifier" (printed board text,
+  no card-database id) and the Peek family (§6.3/§6.4, not built
+  anywhere in this engine) — the offer's `relicId` being public in the
+  projected view (Law §9.4: a binding offer's terms are necessarily
+  known to the party deciding) makes a separate peek action unnecessary
+  for this unit's purposes.
+- **The TDD list's "previously-legal exile-only act becomes illegal"
+  bullet** is demonstrated with `citizenship.selfExile`/`citizenship.
+  exile` themselves (Exile-only and Citizen-only respectively, checked
+  symmetrically) rather than reaching into another unit's action (e.g.
+  Campaign) — sufficient to prove the restriction flips, without
+  widening this unit's blast radius into files it doesn't otherwise
+  touch.
 
 ---
 

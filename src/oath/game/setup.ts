@@ -329,6 +329,7 @@ export function init(setup: OathSetup): OathState {
     visionsDrawn: 0,
     turn: { activeSeat: 0, round: 1, turnStartedAt: 0 }, // Law §1.2, §4 (Chancellor goes first)
     campaign: null,
+    citizenshipOffer: null,
     actionCount: 0,
     complete: false,
     winner: null,

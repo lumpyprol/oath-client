@@ -20,6 +20,7 @@ import { SEARCH_HANDLERS } from './actions/search.js';
 import { RECOVER_HANDLERS } from './actions/recover.js';
 import { CAMPAIGN_HANDLERS, prepareCampaign } from './actions/campaign.js';
 import { POWER_HANDLERS, preparePower } from './actions/power.js';
+import { CITIZENSHIP_HANDLERS } from './actions/citizenship.js';
 import { project } from './project.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -34,6 +35,7 @@ const HANDLERS: Record<string, Handler> = {
   ...RECOVER_HANDLERS,
   ...CAMPAIGN_HANDLERS,
   ...POWER_HANDLERS,
+  ...CITIZENSHIP_HANDLERS,
 };
 
 /**
@@ -85,12 +87,28 @@ export const oath: GameDefinition<OathState, OathSetup> = {
 
   pending(state) {
     if (state.complete) return [];
+    // A Citizenship offer (unit 16) does NOT preempt anything — unlike a
+    // Campaign, it doesn't lock other actions, so it's an ADDITIONAL
+    // pending decision alongside whatever else is happening, never a
+    // replacement (append-only, per the plan).
+    const citizenshipDecision = state.citizenshipOffer
+      ? [
+          {
+            id: `citizenshipOffer:${state.citizenshipOffer.exile}:${state.citizenshipOffer.offeredAt}`,
+            seat: state.citizenshipOffer.exile,
+            kind: 'citizenshipOffer',
+            prompt: `Seat ${state.citizenshipOffer.scepterSeat} offered you Citizenship (Law §6.6.1) — accept or decline.`,
+            resolves: ['citizenship.accept', 'citizenship.decline'],
+          },
+        ]
+      : [];
     // A Campaign (unit 12) preempts the normal turn decision entirely —
     // whose move it is depends on the campaign's phase, not activeSeat.
     if (state.campaign) {
       const c = state.campaign;
       if (c.phase === 'respond') {
         return [
+          ...citizenshipDecision,
           {
             id: `campaign:${c.defenderSeat}:${c.declaredAt}`,
             seat: c.defenderSeat as number, // numeric here — bandits skip this phase
@@ -102,6 +120,7 @@ export const oath: GameDefinition<OathState, OathSetup> = {
       }
       if (c.phase === 'roll') {
         return [
+          ...citizenshipDecision,
           {
             id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
             seat: c.attackerSeat,
@@ -113,6 +132,7 @@ export const oath: GameDefinition<OathState, OathSetup> = {
       }
       if (c.phase === 'rolled') {
         return [
+          ...citizenshipDecision,
           {
             id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
             seat: c.attackerSeat,
@@ -124,6 +144,7 @@ export const oath: GameDefinition<OathState, OathSetup> = {
       }
       // phase 'seize': a win — the attacker's remaining choices (Law §5.5.7).
       return [
+        ...citizenshipDecision,
         {
           id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
           seat: c.attackerSeat,
@@ -140,6 +161,7 @@ export const oath: GameDefinition<OathState, OathSetup> = {
       // anything else (Law §5.1.4). Id stamped with the actionCount at
       // the draw, so it's stable across polls and distinct per Search.
       return [
+        ...citizenshipDecision,
         {
           id: `play:${seat}:${player.handDrawnAt}`,
           seat,
@@ -150,6 +172,7 @@ export const oath: GameDefinition<OathState, OathSetup> = {
       ];
     }
     return [
+      ...citizenshipDecision,
       {
         id: turnPendingId(state),
         seat,

@@ -36,6 +36,7 @@ import {
   type BannerState,
   type CampaignState,
   type CardInPlay,
+  type CitizenshipOffer,
   type OathState,
   type PlayerState,
   type Region,
@@ -109,6 +110,13 @@ export interface OathView {
    * verbatim, unlike every hidden-zone field above.
    */
   campaign: CampaignState | null;
+  /**
+   * A pending Citizenship offer (unit 16; Law §6.6.1) is likewise public:
+   * the exile must be told exactly which relic and terms are on the table
+   * to decide, and the offerer already knows the Reliquary's contents
+   * (Law §6.4 — the Grand Scepter lets its holder peek any relic there).
+   */
+  citizenshipOffer: CitizenshipOffer | null;
   complete: boolean;
   winner: number | null;
 }
@@ -184,6 +192,13 @@ export function project(state: OathState, seat: number | null): OathView {
     visionsDrawn: state.visionsDrawn,
     turn: { ...state.turn },
     campaign: state.campaign ? { ...state.campaign, targets: [...state.campaign.targets] } : null,
+    citizenshipOffer: state.citizenshipOffer
+      ? {
+          ...state.citizenshipOffer,
+          give: { ...state.citizenshipOffer.give, relics: [...state.citizenshipOffer.give.relics], banners: [...state.citizenshipOffer.give.banners] },
+          take: { ...state.citizenshipOffer.take, relics: [...state.citizenshipOffer.take.relics], banners: [...state.citizenshipOffer.take.banners] },
+        }
+      : null,
     complete: state.complete,
     winner: state.winner,
   };

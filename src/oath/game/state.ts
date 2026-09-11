@@ -204,6 +204,24 @@ export interface CampaignState {
   declaredAt: number;
 }
 
+/**
+ * A pending Citizenship offer (unit 16; Law §6.6.1), open from
+ * `citizenship.offer` until the exile submits `citizenship.accept` or
+ * `citizenship.decline`. `give`/`take` are the ADDITIONAL negotiated terms
+ * beyond the mandatory Reliquary relic — `give` moves offerer -> exile,
+ * `take` moves exile -> offerer, applied together at `accept` (Law "the
+ * Grand Scepter's holder and new Citizen exchange what was promised").
+ */
+export interface CitizenshipOffer {
+  scepterSeat: number;
+  exile: number;
+  relicId: string;
+  give: { favor: number; secrets: number; relics: string[]; banners: string[] };
+  take: { favor: number; secrets: number; relics: string[]; banners: string[] };
+  /** `actionCount` at offer — the pending-decision id's stable anchor. */
+  offeredAt: number;
+}
+
 export interface OathState {
   /** 2..6 seats; seat 0 is the Chancellor. */
   seats: number;
@@ -247,6 +265,7 @@ export interface OathState {
     turnStartedAt: number;
   };
   campaign: CampaignState | null;
+  citizenshipOffer: CitizenshipOffer | null;
   /** Incremented by every reduce; pending-decision ids derive from it. */
   actionCount: number;
   complete: boolean;
@@ -528,6 +547,28 @@ export function checkInvariants(state: OathState): void {
       }
     } else if (c.attackFaces || c.defenseFaces) {
       fail(`campaign: faces must not be set before phase 'rolled'`);
+    }
+  }
+
+  // -- citizenship offer shape (unit 16; Law §6.6.1) -----------------------
+  if (state.citizenshipOffer) {
+    const o = state.citizenshipOffer;
+    seatOk(o.scepterSeat, 'citizenshipOffer.scepterSeat');
+    seatOk(o.exile, 'citizenshipOffer.exile');
+    if (o.exile === o.scepterSeat && players[o.exile].citizenship !== 'exile') {
+      // "including yourself" (Law §6.6.1) is only sensible if the offerer
+      // is themselves the exile in question — otherwise it's nonsensical.
+      fail('citizenshipOffer: offering to yourself requires you to be an Exile');
+    }
+    if (!findById(o.relicId)) fail(`citizenshipOffer.relicId ${o.relicId} is not in the card database`);
+    for (const bag of [o.give, o.take]) {
+      nonneg(bag.favor, 'citizenshipOffer favor');
+      nonneg(bag.secrets, 'citizenshipOffer secrets');
+      for (const id of bag.relics) if (!findById(id)) fail(`citizenshipOffer relic ${id} is not in the card database`);
+      for (const id of bag.banners) if (!bannerIds.includes(id)) fail(`citizenshipOffer banner ${id} is not a real banner id`);
+    }
+    if (o.offeredAt < 0 || o.offeredAt > state.actionCount) {
+      fail(`citizenshipOffer.offeredAt (${o.offeredAt}) must be between 0 and actionCount`);
     }
   }
 }
