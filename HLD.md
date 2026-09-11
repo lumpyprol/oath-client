@@ -429,8 +429,9 @@ the feasibility milestone: if the state machine is painful here, stop.
 - [x] `power.use` rejects infeasible effects (spending favor you lack, moving
       warbands that aren't there) (unit 14, `power.test.ts`'s "infeasible
       effects reject the whole action" cases)
-- [ ] one card is enforced through the registry in a test, producing the same
-      log shape as a declaration
+- [x] one card is enforced through the registry in a test, producing the same
+      log shape as a declaration (unit 15, `registry.test.ts` — the shipped
+      registry itself stays empty, `registrySize() === 0`)
 - [x] campaign dice come from `prepare()` and survive snapshot wipe + replay
       (unit 12, `campaign1.test.ts`'s "prepare() persists dice" test)
 - [ ] hidden information audit: fuzz `project()` for every seat over a
@@ -713,7 +714,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–14 done (all six actions + card.play + `power.use`); next is unit 15 (powers registry, the enforcement seam) |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–15 done (all six actions + card.play + `power.use` + the (empty) enforcement registry); next is unit 16 (Citizenship) |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |

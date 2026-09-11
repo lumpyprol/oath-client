@@ -1392,7 +1392,7 @@ Commit: "Add declared power.use action"
 
 ---
 
-## Unit 15 — Powers registry and the enforcement seam
+## Unit 15 — Powers registry and the enforcement seam ✅ (completed 2026-09-12)
 
 **Purpose.** Prove D28: enforcement can arrive card by card with no change to
 the log, the reducer, or the action shape. The registry ships empty.
@@ -1437,6 +1437,38 @@ Commit: "Add powers registry; prove the enforcement seam"
 
 **Done when.** The same action shape flows both paths; the shipped registry
 is provably empty.
+
+## What unit 15 established (as built, 2026-09-12)
+
+- **`PowerImpl` deliberately doesn't receive `cardId`.** It's registered
+  AGAINST a cardId (the registry key), but the impl function itself only
+  sees `(state, seat, choices)` — matching the plan's exact signature. In
+  a test, this means the impl closure captures its own card's id (or, more
+  often, doesn't need to reference it at all — the demo impl here reads
+  everything it needs from `choices`).
+  - `power.ts`'s `preparePower` is the ONLY place that calls `lookup`;
+    `use` (the reducer) never imports from `oath/powers/` at all — it just
+    reads whatever `effects` ended up in the persisted payload, exactly
+    like unit 14 already did. This is what "no change to the log, the
+    reducer, or the action shape" (the unit's own purpose statement)
+    concretely means: `git diff` on `use()` between units 14 and 15 is
+    empty.
+  - Payload shape update needed for BOTH paths to share one schema:
+    `effects` went from required (unit 14) to optional-in-the-schema —
+    a registered card's client payload has `choices`, not `effects`, at
+    all. `reduce` is what actually enforces "effects must exist by now,"
+    which is what makes "registry empty -> the same {cardId, choices}
+    payload is rejected" a real test rather than a schema-level given.
+- **The demo impl (registry.test.ts only) reads a card's SUIT** — the one
+  piece of "structure" this unit's mechanically-simple-card exercise
+  needed — via `byId`, never its printed power text (not quoted or
+  paraphrased anywhere in the test). Registered against whichever real
+  denizen `baseState()` happens to deal as seat 1's adviser, flipped
+  faceup; nothing hardcoded to a specific card name, so the test doesn't
+  care which one it is.
+- Nothing changed in `effects.ts`, `state.ts`, or `index.ts` beyond
+  wiring `power.use`'s existing `prepare()` slot to also consult the new
+  registry — the seam really is that thin.
 
 ---
 

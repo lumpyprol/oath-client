@@ -1,11 +1,19 @@
 /**
- * `power.use` (unit 14) — the v1 answer to ~200 cards (HLD D9/D28). Payload
- * `{ cardId, effects: Effect[], note? }`: the player NAMES a card and
- * DECLARES the effects its power produces. The engine never checks that
- * the declared effects match the named card's actual printed text — that
- * is the player's job in v1, and disputes are a rollback, not an
- * adjudication (HLD "Rollback is the rules engine"). What IS checked,
- * structurally, cites the rulebook exactly:
+ * `power.use` (unit 14; enforcement seam wired in unit 15 — HLD D28/D34).
+ * Payload `{ cardId, effects?: Effect[], choices?: unknown, note? }`: the
+ * player NAMES a card. If `cardId` has a registered implementation
+ * (`oath/powers/registry.ts`), `prepare()` IGNORES any declared `effects`
+ * and calls the impl with `choices` instead — enforced REPLACES declared,
+ * per D34, and the persisted payload becomes `{ cardId, effects: <the
+ * impl's output>, choices }`, the SAME shape a declaration has, so `reduce`
+ * (and the log) can't tell which path produced it. If `cardId` has no
+ * impl, `prepare` passes the client's payload through unchanged, and
+ * `reduce` requires `effects` to be present — declare it, or don't submit.
+ * Either way, the engine never checks that the effects match the named
+ * card's actual printed text — that's the player's job (or a registered
+ * impl's) in v1, and disputes are a rollback, not an adjudication (HLD
+ * "Rollback is the rules engine"). What IS checked, structurally, cites
+ * the rulebook exactly:
  *
  *   §7.1.1 Access — you may use a card's power only if you RULE it or
  *     your PAWN is at its site. Concretely, one of:
@@ -48,12 +56,17 @@ import { z } from 'zod';
 import type { ProposedAction } from '../../../engine/types.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, EffectsSchema } from '../effects.js';
+import { lookup } from '../../powers/registry.js';
 import { DARKEST_SECRET_ID, PEOPLES_FAVOR_ID, type OathState } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
 const PowerUsePayloadSchema = z.object({
   cardId: z.string(),
-  effects: EffectsSchema,
+  // Optional at the schema level: a registered card's client payload omits
+  // it entirely (choices drive the impl instead); `reduce` is what actually
+  // requires it to be present by the time an action lands (see `use`).
+  effects: EffectsSchema.optional(),
+  choices: z.unknown().optional(),
   note: z.string().optional(),
 });
 
@@ -93,6 +106,11 @@ function use(state: OathState, action: GameAction): OathState {
   const parsed = PowerUsePayloadSchema.safeParse(action.payload);
   if (!parsed.success) throw new IllegalAction('power.use: malformed payload');
   const { cardId, effects } = parsed.data;
+  if (effects === undefined) {
+    throw new IllegalAction(
+      `power.use: no effects to apply — declare them, or register an enforcement impl for ${cardId}`,
+    );
+  }
 
   if (!hasAccess(state, seat, cardId)) {
     throw new IllegalAction(`power.use: no access to ${cardId} (Law §7.1.1)`);
@@ -105,10 +123,21 @@ export const POWER_HANDLERS: Record<string, Handler> = {
   'power.use': use,
 };
 
-/** Rejects a malformed payload before it is ever written to the log. */
-export function preparePower(_state: OathState, proposed: ProposedAction): unknown {
+/**
+ * Rejects a malformed payload before it is ever written to the log, and
+ * (unit 15) is the enforcement seam itself: a registered `cardId` gets its
+ * effects from the impl, not the client, per D34.
+ */
+export function preparePower(state: OathState, proposed: ProposedAction): unknown {
   if (proposed.type !== 'power.use') return proposed.payload;
   const parsed = PowerUsePayloadSchema.safeParse(proposed.payload);
   if (!parsed.success) throw new IllegalAction('power.use: malformed payload');
-  return proposed.payload;
+  const { cardId, choices } = parsed.data;
+
+  const impl = lookup(cardId);
+  if (!impl) return proposed.payload; // no impl — the declared path, unchanged
+
+  if (proposed.actor === null) throw new IllegalAction('power.use requires a seated actor');
+  const effects = impl(state, proposed.actor, choices);
+  return { cardId, effects, choices };
 }
