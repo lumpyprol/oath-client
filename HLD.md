@@ -416,9 +416,11 @@ the feasibility milestone: if the state machine is painful here, stop.
 **Decisions still open.**
 - ~~The campaign action sequence~~ **Resolved 09-11 (unit 12, D39):** one
   `state.campaign` sub-state, three actions (declare/respond/roll), a
-  central lock via `requireActiveSeat`'s `campaignOk` opt. Relic targets
-  and Imperial Allies deferred (documented, not silent) — see D39 and
-  `campaign.ts`'s header
+  central lock via `requireActiveSeat`'s `campaignOk` opt. Full target
+  vocabulary (site/pawnFavor/banner/relic — the relic defense-dice P1 gap
+  closed same-day, `data/relic-defense-dice.json`). Imperial Allies alone
+  stay deferred (documented, not silent) — see D39 and `campaign.ts`'s
+  header
 
 **Exit criteria.**
 - [ ] a 3-player game plays to completion through the API with powers declared
@@ -628,12 +630,14 @@ they go.
   Campaign — the naive P2 response window just skips straight to roll);
   Plains/Mountain's attack-die modifiers (§11.4); every other site/card
   power that adds or removes attack or defense dice. Also NOT card text
-  but still deferred pending other units: relic targets (§5.5.2 — P1 has
-  no per-relic defense-dice count, §2.4.2) and Imperial Allies (§5.5.1's
-  citizenship-status sentences, §5.5.2's Chancellor-joins/Citizen-may-
-  join, and their defense-total warband bonuses in §5.5.4 — blocked on
-  Citizenship, unit 16, existing at all). See `campaign.ts`'s header and
-  D39.
+  but still deferred, pending Citizenship (unit 16) existing at all:
+  Imperial Allies (§5.5.1's citizenship-status sentences, §5.5.2's
+  Chancellor-joins/Citizen-may-join, and their defense-total warband
+  bonuses in §5.5.4). Relic targets (§5.5.2) were ALSO deferred at first
+  for the identical reason as the recover cost — P1 had no per-relic
+  defense-dice count (§2.4.2) — but closed same-day, 09-11:
+  `data/relic-defense-dice.json`, all 20 relics. See `campaign.ts`'s
+  header and D39.
 
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are
@@ -686,7 +690,7 @@ with `reversed by`.
 | D36 | 09-09 | Conservation invariants cover favor (36 total) and warbands (24 purple pooled across Imperial seats, 14 per exile color) only; secrets are unconstrained | Law §9.3: Oath is component-limited *except secrets and dice* — the planned secret-supply invariant was wrong against the rulebook; purple pooling follows the Kill glossary (purple warbands return to the Chancellor) | active |
 | D37 | 09-09 | `SetupSpec` fixes board structure (sites, starting denizens, relic placements, oath, citizenship, starting pawns) only; the world deck and relic deck pools are shuffled fresh by `oathSetup` on every call, never fixed by the spec, even for `FIRST_GAME` | Real chronicle seeds don't carry player hands/advisers either (checked the vendored `OathGame` interface) — the "draw 3, keep 1" deal is a universal setup step, not first-game-specific; keeping it out of `SetupSpec` is what lets `FIRST_GAME` be a plain constant (D30) while still producing a different game each time | active |
 | D38 | 09-10 | Projection hides the world deck's SIZE entirely (`worldDeck: {}`), not just its contents; every other hidden-count zone (relic deck, reliquary, dispossessed, discards) still shows a count | Law §9.4 singles out "the number of cards in the world deck" as private, distinct from the general rule that counts are public — the P2 plan's own text ("world deck... as counts only") over-revealed against this; caught before it shipped | active |
-| D39 | 09-11 | Campaign (unit 12) is one in-progress sub-state (`state.campaign`) with a `phase` enum (`respond`\|`roll`\|`rolled`) walked by three actions (`declare`/`respond`/`roll`); a single central lock (`turn.ts#requireActiveSeat`'s `campaignOk` opt, checked by every OTHER action's existing call site) makes every non-campaign action illegal-state for free, with no per-file edits. Target vocabulary ships with `site`/`pawnFavor`/`banner` only — relic targets (needs per-relic defense-dice data, a P1 gap) and Imperial Allies (meaningless before Citizenship, unit 16, gives a Citizen seat a way to exist and opt in) are deferred, documented in `campaign.ts`'s header, not silently dropped | Keeps the hardest sequence in P2 clean and provably lockable without threading a flag through 6 existing action files; ships a complete, correct 1-attacker-vs-1-defender campaign now rather than a half-built multiplayer one | active |
+| D39 | 09-11 | Campaign (unit 12) is one in-progress sub-state (`state.campaign`) with a `phase` enum (`respond`\|`roll`\|`rolled`) walked by three actions (`declare`/`respond`/`roll`); a single central lock (`turn.ts#requireActiveSeat`'s `campaignOk` opt, checked by every OTHER action's existing call site) makes every non-campaign action illegal-state for free, with no per-file edits. Full target vocabulary ships (`site`/`pawnFavor`/`banner`/`relic` — the relic defense-dice P1 gap was closed same-day rather than left deferred, once flagged as a mistake to defer: relics are a common, often game-swinging campaign target, not a minor completeness gap). Imperial Allies (meaningless before Citizenship, unit 16, gives a Citizen seat a way to exist and opt in) are the one thing still deferred, documented in `campaign.ts`'s header, not silently dropped | Keeps the hardest sequence in P2 clean and provably lockable without threading a flag through 6 existing action files; ships a complete, correct 1-attacker-vs-1-defender campaign — with its full target vocabulary — now, rather than a half-built one | active |
 
 ---
 

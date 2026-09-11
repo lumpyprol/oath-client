@@ -8,6 +8,7 @@ import {
   type OathState,
 } from '../../../src/oath/game/state.js';
 import { oath } from '../../../src/oath/game/index.js';
+import { cards } from '../../../src/oath/cards/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
 import { baseState } from './helpers.js';
 
@@ -194,6 +195,38 @@ describe('campaign.declare (Law §5.5.1-5.5.2)', () => {
         attackDice: 1,
       }),
     ).toThrow(IllegalAction);
+  });
+
+  describe('relic targets (Law §5.5.2; P1 follow-up, data/relic-defense-dice.json)', () => {
+    // baseState gives seat 2 one held relic already: cards.relics[1] (sorted
+    // by saveId — Cursed Cauldron, defenseDice 3).
+    const heldRelicId = cards.relics[1].id;
+
+    it("adds the relic's printed defense dice when the defender's pawn is at your site", () => {
+      const s = declareState();
+      const out = declare(s, 1, {
+        defender: 2,
+        targets: [{ kind: 'relic', relicId: heldRelicId }],
+        attackDice: 1,
+      });
+      expect(out.campaign).toMatchObject({ defenseDice: 3 });
+      checkInvariants(out);
+    });
+
+    it('is illegal: a relic the defender does not hold', () => {
+      const s = declareState();
+      const unheldRelicId = cards.relics[0].id; // Sticky Fire — sits facedown at sites[1]
+      expect(() =>
+        declare(s, 1, { defender: 2, targets: [{ kind: 'relic', relicId: unheldRelicId }], attackDice: 1 }),
+      ).toThrow(IllegalAction);
+    });
+
+    it("is illegal: the defender's pawn is not at your site", () => {
+      const s = baseState(); // seat 2's pawn stays at sites[2], not moved here
+      expect(() =>
+        declare(s, 1, { defender: 2, targets: [{ kind: 'relic', relicId: heldRelicId }], attackDice: 1 }),
+      ).toThrow(IllegalAction);
+    });
   });
 });
 

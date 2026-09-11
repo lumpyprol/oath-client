@@ -1,0 +1,25 @@
+{
+  "_provenance": "Relic defense-dice counts (Law §2.4.2, printed in the top-right corner), keyed by saveId. The vendored cards.lua carries none of this. Read directly off the Buried Giant Studios card library's per-card detail pages (https://cards.buriedgiant.com/card/OATH-211 through OATH-230, sequential and in cards.lua saveId order — see HLD.md 'Reference sources'), which state it as literal text: 'Defense: N'. Names below are the CURRENT printing's names (matching overrides.json's renames — Ring of Devotion was 'Banner of Devotion', Ivory Eye was 'Proof of Nobility' in cards.lua/the 2020 TTS mod); this file is keyed by saveId so no further rename bookkeeping is needed here.",
+  "bySaveId": {
+    "218": { "defenseDice": 2, "_name": "Sticky Fire" },
+    "219": { "defenseDice": 3, "_name": "Cursed Cauldron" },
+    "220": { "defenseDice": 2, "_name": "Brass Horse" },
+    "221": { "defenseDice": 2, "_name": "Truthful Harp" },
+    "222": { "defenseDice": 2, "_name": "Grand Mask" },
+    "223": { "defenseDice": 2, "_name": "Horned Mask" },
+    "224": { "defenseDice": 2, "_name": "Cup of Plenty" },
+    "225": { "defenseDice": 2, "_name": "Whistle" },
+    "226": { "defenseDice": 3, "_name": "Dowsing Sticks" },
+    "227": { "defenseDice": 2, "_name": "Cracked Horn" },
+    "228": { "defenseDice": 3, "_name": "Bandit Crown" },
+    "229": { "defenseDice": 3, "_name": "Ring of Devotion" },
+    "230": { "defenseDice": 3, "_name": "Skeleton Key" },
+    "231": { "defenseDice": 2, "_name": "Oracular Pig" },
+    "232": { "defenseDice": 1, "_name": "Circlet of Command" },
+    "233": { "defenseDice": 2, "_name": "Ivory Eye" },
+    "234": { "defenseDice": 3, "_name": "Map" },
+    "235": { "defenseDice": 2, "_name": "Obsidian Cage" },
+    "236": { "defenseDice": 2, "_name": "Book of Records" },
+    "237": { "defenseDice": 2, "_name": "Dragonskin Drum" }
+  }
+}

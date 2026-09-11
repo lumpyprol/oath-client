@@ -24,12 +24,14 @@ export const MOD_BANNER_CARDTYPE = 'SuperRelic';
 
 /**
  * Turn the mod's raw records into a validated, typed CardDatabase.
- * `siteReveals` supplies each site's reveal-prompt data (Law §2.8.2) —
- * hand-transcribed, keyed by saveId — since `cards.lua` has none.
+ * `siteReveals` supplies each site's reveal-prompt data (Law §2.8.2) and
+ * `relicDefenseDice` each relic's defense-dice count (Law §2.4.2) — both
+ * hand-transcribed, keyed by saveId — since `cards.lua` has neither.
  */
 export function buildDatabase(
   records: RawRecord[],
   siteReveals: Record<number, SiteReveal>,
+  relicDefenseDice: Record<number, number>,
 ): CardDatabase {
   const db: CardDatabase = {
     denizens: [],
@@ -53,7 +55,7 @@ export function buildDatabase(
         db.denizens.push(buildDenizen(record));
         break;
       case 'Relic':
-        db.relics.push(buildRelic(record));
+        db.relics.push(buildRelic(record, relicDefenseDice));
         break;
       case 'Vision':
         db.visions.push(buildVision(record));
@@ -136,12 +138,18 @@ function buildDenizen(record: RawRecord): Denizen {
   };
 }
 
-function buildRelic(record: RawRecord): Relic {
+function buildRelic(record: RawRecord, defenseDice: Record<number, number>): Relic {
+  const saveId = num(record, 'saveid');
+  const dice = defenseDice[saveId];
+  if (dice === undefined) {
+    throw new Error(`buildRelic: no defense-dice data for relic saveId ${saveId} (${record.name})`);
+  }
   return {
     id: cardId('relic', record.name),
     name: record.name,
     set: 'base',
-    saveId: num(record, 'saveid'),
+    saveId,
+    defenseDice: dice,
   };
 }
 

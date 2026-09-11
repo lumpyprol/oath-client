@@ -98,10 +98,16 @@ export const SiteSchema = baseCard
   })
   .refine(idPrefix('site').check, idPrefix('site').opts);
 
-export const RelicSchema = baseCard.refine(
-  idPrefix('relic').check,
-  idPrefix('relic').opts,
-);
+export const RelicSchema = baseCard
+  .extend({
+    /**
+     * Defense dice added when this relic is targeted in a Campaign (Law
+     * §2.4.2, printed top-right corner). Hand-transcribed — see
+     * data/relic-defense-dice.json.
+     */
+    defenseDice: z.number().int().min(0),
+  })
+  .refine(idPrefix('relic').check, idPrefix('relic').opts);
 
 export const VisionSchema = baseCard.refine(
   idPrefix('vision').check,

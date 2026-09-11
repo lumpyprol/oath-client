@@ -34,6 +34,7 @@ const relic = (over: Record<string, unknown> = {}) => ({
   name: 'Fake Relic',
   set: 'base',
   saveId: 20,
+  defenseDice: 2,
   ...over,
 });
 

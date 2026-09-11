@@ -9,25 +9,27 @@
  *     rules it (Glossary §10.21: bandits rule a faceup site with zero
  *     warbands on it — a site the attacker themself rules is never a
  *     bandits site). §5.5.2: declare any number of targets (site /
- *     pawnFavor / banner — see DEFERRED below) and choose how many attack
- *     dice to commit, 0..the attacker's board warbands. This is a REAL
- *     choice, not automatic ("up to the number of warbands on your
- *     board") — every attack die risks a self-kill skull (§5.5.5), so an
- *     attacker may rationally commit fewer than their full board. At
- *     least one target must be "at your site": a site target for the
- *     attacker's own `pawnSite`, or a pawnFavor/banner target (both of
- *     which already imply the defender's pawn is there). If the defender
- *     (or bandits) rules the attacker's site, a site target for it
- *     SPECIFICALLY is mandatory — pawnFavor/banner don't satisfy that
- *     stronger clause. Defense dice total = 1 per site target (§2.8.3:
- *     every site prints exactly one defense die, no per-site variation)
- *     + 2 for pawnFavor (§5.5.2's fixed "two dice, as shown by the shield
- *     on their board") + a targeted banner's current `tokens` (§2.5.2).
- *     No card powers apply to any of this yet (v1: power.use, unit 14;
- *     e.g. Plains/Mountain's site-power attack-die modifiers are exactly
- *     the kind of thing HLD's v2 section already tracks as deferred).
- *     Opens a response window UNLESS the defender is bandits (no player
- *     to respond, so `declare` skips straight to phase `'roll'`).
+ *     pawnFavor / banner / relic) and choose how many attack dice to
+ *     commit, 0..the attacker's board warbands. This is a REAL choice,
+ *     not automatic ("up to the number of warbands on your board") —
+ *     every attack die risks a self-kill skull (§5.5.5), so an attacker
+ *     may rationally commit fewer than their full board. At least one
+ *     target must be "at your site": a site target for the attacker's
+ *     own `pawnSite`, or a pawnFavor/banner/relic target (all three
+ *     already imply the defender's pawn is there). If the defender (or
+ *     bandits) rules the attacker's site, a site target for it
+ *     SPECIFICALLY is mandatory — the other three kinds don't satisfy
+ *     that stronger clause. Defense dice total = 1 per site target
+ *     (§2.8.3: every site prints exactly one defense die, no per-site
+ *     variation) + 2 for pawnFavor (§5.5.2's fixed "two dice, as shown by
+ *     the shield on their board") + a targeted banner's current `tokens`
+ *     (§2.5.2) + a targeted relic's printed `defenseDice` (§2.4.2 — P1
+ *     follow-up landed 2026-09-11, data/relic-defense-dice.json). No card
+ *     powers apply to any of this yet (v1: power.use, unit 14; e.g.
+ *     Plains/Mountain's site-power attack-die modifiers are exactly the
+ *     kind of thing HLD's v2 section already tracks as deferred). Opens
+ *     a response window UNLESS the defender is bandits (no player to
+ *     respond, so `declare` skips straight to phase `'roll'`).
  *
  *   campaign.respond — the defender ONLY (not necessarily the active
  *     seat — turn order doesn't pass during a campaign). Closes the
@@ -60,11 +62,6 @@
  *     total... multiple rolls stack exponentially, x4, x8, etc.").
  *
  * DEFERRED (documented, not silently dropped):
- *   - Relic targets (§5.5.2's second bullet). P1's card data has no
- *     per-relic defense-dice count (§2.4.2's top-right corner) — same
- *     category of gap as the site recover cost was. Only site/pawnFavor/
- *     banner targets are legal for now; a relic-shaped target is a
- *     malformed payload.
  *   - Imperial Allies (§5.5.1's last two sentences; §5.5.2's Chancellor-
  *     joins/Citizen-may-join; their warband bonuses to the defense TOTAL
  *     in §5.5.4). Meaningless to build or test before Citizenship
@@ -83,6 +80,8 @@ import { z } from 'zod';
 import type { ProposedAction } from '../../../engine/types.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { rollDice } from '../../../engine/random.js';
+import { byId } from '../../cards/index.js';
+import type { Relic } from '../../cards/schema.js';
 import {
   DARKEST_SECRET_ID,
   PEOPLES_FAVOR_ID,
@@ -118,6 +117,7 @@ const TargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('site'), siteId: z.string() }),
   z.object({ kind: z.literal('pawnFavor') }),
   z.object({ kind: z.literal('banner'), bannerId: z.enum(['peoples-favor', 'darkest-secret']) }),
+  z.object({ kind: z.literal('relic'), relicId: z.string() }),
 ]);
 
 const DeclarePayloadSchema = z.object({
@@ -183,7 +183,14 @@ function declare(state: OathState, action: GameAction): OathState {
   let targetsYourSiteSpecifically = false; // satisfies the stronger "must target it" clause
 
   for (const t of targets) {
-    const key = t.kind === 'site' ? `site:${t.siteId}` : t.kind === 'banner' ? `banner:${t.bannerId}` : 'pawnFavor';
+    const key =
+      t.kind === 'site'
+        ? `site:${t.siteId}`
+        : t.kind === 'banner'
+          ? `banner:${t.bannerId}`
+          : t.kind === 'relic'
+            ? `relic:${t.relicId}`
+            : 'pawnFavor';
     if (seen.has(key)) throw new IllegalAction(`campaign.declare: duplicate target (${key})`);
     seen.add(key);
 
@@ -209,7 +216,7 @@ function declare(state: OathState, action: GameAction): OathState {
       }
       defenseDice += PAWN_FAVOR_DICE;
       targetsYourSite = true;
-    } else {
+    } else if (t.kind === 'banner') {
       if (!defenderPawnHere) {
         throw new IllegalAction(
           "campaign.declare: banners require the defender's pawn at your site (Law §5.5.2)",
@@ -221,6 +228,17 @@ function declare(state: OathState, action: GameAction): OathState {
         throw new IllegalAction(`campaign.declare: the defender does not hold ${bannerId} (Law §5.5.2)`);
       }
       defenseDice += banner.tokens;
+      targetsYourSite = true;
+    } else {
+      if (!defenderPawnHere) {
+        throw new IllegalAction(
+          "campaign.declare: relics can only be targeted if the defender's pawn is at your site (Law §5.5.2)",
+        );
+      }
+      if (!state.players[defender as number].relics.includes(t.relicId)) {
+        throw new IllegalAction(`campaign.declare: the defender does not hold ${t.relicId} (Law §5.5.2)`);
+      }
+      defenseDice += (byId(t.relicId) as Relic).defenseDice;
       targetsYourSite = true;
     }
   }

@@ -11,6 +11,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const CARDS_LUA = join(here, '../../../vendor/oathparser/cards.lua');
 export const OVERRIDES_JSON = join(here, 'data/overrides.json');
 export const SITE_REVEALS_JSON = join(here, 'data/site-reveals.json');
+export const RELIC_DEFENSE_DICE_JSON = join(here, 'data/relic-defense-dice.json');
 export const DATA_DIR = join(here, 'data');
 
 /**
@@ -25,6 +26,16 @@ export function loadSiteReveals(): Record<number, SiteReveal> {
   for (const [id, v] of Object.entries(raw.bySaveId)) {
     out[Number(id)] = { favor: v.favor, secrets: v.secrets, relics: v.relics, recoverCost: v.recoverCost };
   }
+  return out;
+}
+
+/** Hand-transcribed relic defense-dice counts (Law §2.4.2), keyed by saveId. */
+export function loadRelicDefenseDice(): Record<number, number> {
+  const raw = JSON.parse(readFileSync(RELIC_DEFENSE_DICE_JSON, 'utf8')) as {
+    bySaveId: Record<string, { defenseDice: number; _name?: string }>;
+  };
+  const out: Record<number, number> = {};
+  for (const [id, v] of Object.entries(raw.bySaveId)) out[Number(id)] = v.defenseDice;
   return out;
 }
 
@@ -48,7 +59,7 @@ export function generate(): CardDatabase {
   const source = readFileSync(CARDS_LUA, 'utf8');
   const overrides: Override[] = JSON.parse(readFileSync(OVERRIDES_JSON, 'utf8'));
   return applyOverrides(
-    buildDatabase(parseCardsLua(source), loadSiteReveals()),
+    buildDatabase(parseCardsLua(source), loadSiteReveals(), loadRelicDefenseDice()),
     overrides,
   );
 }

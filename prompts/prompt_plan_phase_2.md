@@ -1128,14 +1128,27 @@ replay reuses persisted dice.
 - **`campaign.declare`** (Law §5.5.1-2): defender is a seat or `'bandits'`
   (legal only if literally nobody — attacker included — rules the
   attacker's site); targets are `site` (defender must rule it) /
-  `pawnFavor` / `banner` (both require the defender's pawn at the
-  attacker's site); `attackDice` is a REAL choice, 0..the attacker's board
-  warbands, not automatic (every die risks a self-kill skull, §5.5.5).
-  Defense-dice total: 1 per site + 2 for pawnFavor (both fixed, no P1 data
-  needed) + a banner's live `tokens`. The "at least one target at your
-  site" and "must target it if the defender rules it" clauses are two
-  DIFFERENT strengths, checked separately — pawnFavor/banner satisfy the
-  first but never the second.
+  `pawnFavor` / `banner` / `relic` (the latter three all require the
+  defender's pawn at the attacker's site); `attackDice` is a REAL choice,
+  0..the attacker's board warbands, not automatic (every die risks a
+  self-kill skull, §5.5.5). Defense-dice total: 1 per site + 2 for
+  pawnFavor (both fixed) + a banner's live `tokens` + a relic's printed
+  `defenseDice`. The "at least one target at your site" and "must target
+  it if the defender rules it" clauses are two DIFFERENT strengths,
+  checked separately — pawnFavor/banner/relic satisfy the first but never
+  the second.
+- **Relic targets weren't actually deferrable — closed same-day.** First
+  pass shipped without them (P1 had no per-relic defense-dice count,
+  §2.4.2 — same category of gap as the recover cost). Ben caught this:
+  relics are a common, often game-swinging campaign target, not a minor
+  completeness gap, so leaving them out isn't a reasonable v1 scope cut
+  the way Imperial Allies is. Transcribed all 20 relics' defense dice from
+  the card library's per-card detail pages (literal "Defense: N" text —
+  more reliable than the recover-cost icon-counting) into
+  `data/relic-defense-dice.json`; `RelicSchema` gained a `defenseDice`
+  field; `campaign.declare` now supports `{kind:'relic', relicId}`
+  targets, requiring the defender to hold it and their pawn at the
+  attacker's site. See RULINGS.md 2026-09-11.
 - **Corrected the plan's own speculation.** This unit's TDD list above
   guessed a "citizenship restriction" illegal-declare case. Re-reading
   §5.5.1 closely: there isn't one. The "not an Imperial player during
@@ -1163,9 +1176,6 @@ replay reuses persisted dice.
   included.
 - **Deferred, documented (not silently dropped) — see D39 and the v2
   section's running list:**
-  - Relic targets (§5.5.2) — needs a per-relic defense-dice count P1's
-    data doesn't have (§2.4.2), same category of gap as the recover cost
-    was before its own follow-up.
   - Imperial Allies (§5.5.1's citizenship-status sentences, §5.5.2's
     Chancellor-joins/Citizen-may-join, their defense-total warband bonus
     in §5.5.4) — meaningless to build or test before Citizenship (unit 16)

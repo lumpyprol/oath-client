@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCardsLua } from '../../../src/oath/cards/lua.js';
 import { buildDatabase, MOD_BANNER_CARDTYPE } from '../../../src/oath/cards/build.js';
-import { loadSiteReveals } from '../../../src/oath/cards/generate.js';
+import { loadSiteReveals, loadRelicDefenseDice } from '../../../src/oath/cards/generate.js';
 import { CardDatabaseSchema, SUITS, type SiteRecoverCost } from '../../../src/oath/cards/schema.js';
 import type { RawRecord } from '../../../src/oath/cards/lua.js';
 import type { SiteReveal } from '../../../src/oath/cards/build.js';
@@ -25,6 +25,12 @@ const reveals = (
     get: (_t, key) => ({ favor: 0, secrets: 0, relics: 0, recoverCost: null, ...over[Number(key)] }),
   });
 
+/** A relic defense-dice map that answers any saveId, overridable per id. */
+const defenseDice = (over: Record<number, number> = {}) =>
+  new Proxy({} as Record<number, number>, {
+    get: (_t, key) => over[Number(key)] ?? 2,
+  });
+
 describe('buildDatabase — per-cardtype mapping', () => {
   it('maps each cardtype to the right kind with the right fields', () => {
     const db = buildDatabase(
@@ -38,6 +44,7 @@ describe('buildDatabase — per-cardtype mapping', () => {
         rec('Fake Lone Banner', { saveid: 120, cardtype: MOD_BANNER_CARDTYPE }),
       ],
       reveals({ 1: { favor: 1, secrets: 0, relics: 2, recoverCost: { kind: 'burnFavor' } } }),
+      defenseDice({ 100: 3 }),
     );
 
     expect(db.sites[0]).toMatchObject({
@@ -50,7 +57,7 @@ describe('buildDatabase — per-cardtype mapping', () => {
       recoverCost: { kind: 'burnFavor' },
     });
     expect(db.denizens[0]).toMatchObject({ id: 'denizen:fake-denizen', suit: 'hearth', saveId: 5 });
-    expect(db.relics[0]).toMatchObject({ id: 'relic:fake-relic', saveId: 100 });
+    expect(db.relics[0]).toMatchObject({ id: 'relic:fake-relic', saveId: 100, defenseDice: 3 });
     expect(db.visions[0]).toMatchObject({ id: 'vision:fake-vision', saveId: 101 });
     expect(db.edifices[0]).toMatchObject({
       id: 'edifice:fake-edifice',
@@ -79,20 +86,25 @@ describe('buildDatabase — per-cardtype mapping', () => {
         rec('Fake Site', { saveid: 1, cardtype: 'Site', capacity: 1 }),
       ],
       reveals(),
+      defenseDice(),
     );
     expect(db.sites).toHaveLength(1);
     expect(db.sites[0].name).toBe('Fake Site');
   });
 
   it('throws on an unknown cardtype', () => {
-    expect(() => buildDatabase([rec('X', { saveid: 1, cardtype: 'Wormhole' })], reveals())).toThrow(
-      /Wormhole/,
-    );
+    expect(() =>
+      buildDatabase([rec('X', { saveid: 1, cardtype: 'Wormhole' })], reveals(), defenseDice()),
+    ).toThrow(/Wormhole/);
   });
 
   it('throws on an edifice/ruin name without " / "', () => {
     expect(() =>
-      buildDatabase([rec('Just One Name', { saveid: 4, cardtype: 'EdificeRuin', suit: 'Order' })], reveals()),
+      buildDatabase(
+        [rec('Just One Name', { saveid: 4, cardtype: 'EdificeRuin', suit: 'Order' })],
+        reveals(),
+        defenseDice(),
+      ),
     ).toThrow(/ \/ /);
   });
 });
@@ -100,7 +112,7 @@ describe('buildDatabase — per-cardtype mapping', () => {
 describe('buildDatabase — real vendored file', () => {
   const here = dirname(fileURLToPath(import.meta.url));
   const source = readFileSync(join(here, '../../../vendor/oathparser/cards.lua'), 'utf8');
-  const db = buildDatabase(parseCardsLua(source), loadSiteReveals());
+  const db = buildDatabase(parseCardsLua(source), loadSiteReveals(), loadRelicDefenseDice());
 
   it('has the expected counts', () => {
     expect(db.denizens).toHaveLength(198);

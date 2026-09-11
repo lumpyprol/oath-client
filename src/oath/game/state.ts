@@ -159,15 +159,12 @@ export interface BannerState {
   mob?: boolean;
 }
 
-/**
- * One target of a declared Campaign (Law §5.5.2). `'relic'` is deliberately
- * absent — P1's card data has no per-relic defense-dice count (§2.4.2), so
- * relics cannot be targeted yet (see `campaign.ts`'s header).
- */
+/** One target of a declared Campaign (Law §5.5.2). */
 export type CampaignTarget =
   | { kind: 'site'; siteId: string }
   | { kind: 'pawnFavor' }
-  | { kind: 'banner'; bannerId: string };
+  | { kind: 'banner'; bannerId: string }
+  | { kind: 'relic'; relicId: string };
 
 /** A face of the attack die (Law §5.5.5; faces per the Playbook's "Dice Faces" reference, p.15). */
 export type AttackFace = 'sword' | 'hollowSword' | 'skull';
@@ -513,6 +510,9 @@ export function checkInvariants(state: OathState): void {
       }
       if (t.kind === 'banner' && !bannerIds.includes(t.bannerId)) {
         fail(`campaign target banner ${t.bannerId} is not a real banner id`);
+      }
+      if (t.kind === 'relic' && !findById(t.relicId)) {
+        fail(`campaign target relic ${t.relicId} is not in the card database`);
       }
     }
     if (c.phase === 'rolled') {

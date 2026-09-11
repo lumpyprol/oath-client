@@ -3,67 +3,78 @@
     "id": "relic:sticky-fire",
     "name": "Sticky Fire",
     "set": "base",
-    "saveId": 218
+    "saveId": 218,
+    "defenseDice": 2
   },
   {
     "id": "relic:cursed-cauldron",
     "name": "Cursed Cauldron",
     "set": "base",
-    "saveId": 219
+    "saveId": 219,
+    "defenseDice": 3
   },
   {
     "id": "relic:brass-horse",
     "name": "Brass Horse",
     "set": "base",
-    "saveId": 220
+    "saveId": 220,
+    "defenseDice": 2
   },
   {
     "id": "relic:truthful-harp",
     "name": "Truthful Harp",
     "set": "base",
-    "saveId": 221
+    "saveId": 221,
+    "defenseDice": 2
   },
   {
     "id": "relic:grand-mask",
     "name": "Grand Mask",
     "set": "base",
-    "saveId": 222
+    "saveId": 222,
+    "defenseDice": 2
   },
   {
     "id": "relic:horned-mask",
     "name": "Horned Mask",
     "set": "base",
-    "saveId": 223
+    "saveId": 223,
+    "defenseDice": 2
   },
   {
     "id": "relic:cup-of-plenty",
     "name": "Cup of Plenty",
     "set": "base",
-    "saveId": 224
+    "saveId": 224,
+    "defenseDice": 2
   },
   {
     "id": "relic:whistle",
     "name": "Whistle",
     "set": "base",
-    "saveId": 225
+    "saveId": 225,
+    "defenseDice": 2
   },
   {
     "id": "relic:dowsing-sticks",
     "name": "Dowsing Sticks",
     "set": "base",
-    "saveId": 226
+    "saveId": 226,
+    "defenseDice": 3
   },
   {
     "id": "relic:cracked-horn",
     "name": "Cracked Horn",
     "set": "base",
-    "saveId": 227
+    "saveId": 227,
+    "defenseDice": 2
   },
   {
     "id": "relic:bandit-crown",
     "name": "Bandit Crown",
     "set": "base",
-    "saveId": 228
+    "saveId": 228,
+    "defenseDice": 3
   },
   {
     "id": "relic:ring-of-devotion",
@@ -72,25 +83,29 @@
     "saveId": 229,
     "aliases": [
       "Banner of Devotion"
-    ]
+    ],
+    "defenseDice": 3
   },
   {
     "id": "relic:skeleton-key",
     "name": "Skeleton Key",
     "set": "base",
-    "saveId": 230
+    "saveId": 230,
+    "defenseDice": 3
   },
   {
     "id": "relic:oracular-pig",
     "name": "Oracular Pig",
     "set": "base",
-    "saveId": 231
+    "saveId": 231,
+    "defenseDice": 2
   },
   {
     "id": "relic:circlet-of-command",
     "name": "Circlet of Command",
     "set": "base",
-    "saveId": 232
+    "saveId": 232,
+    "defenseDice": 1
   },
   {
     "id": "relic:ivory-eye",
@@ -99,30 +114,35 @@
     "saveId": 233,
     "aliases": [
       "Proof of Nobility"
-    ]
+    ],
+    "defenseDice": 2
   },
   {
     "id": "relic:map",
     "name": "Map",
     "set": "base",
-    "saveId": 234
+    "saveId": 234,
+    "defenseDice": 3
   },
   {
     "id": "relic:obsidian-cage",
     "name": "Obsidian Cage",
     "set": "base",
-    "saveId": 235
+    "saveId": 235,
+    "defenseDice": 2
   },
   {
     "id": "relic:book-of-records",
     "name": "Book of Records",
     "set": "base",
-    "saveId": 236
+    "saveId": 236,
+    "defenseDice": 2
   },
   {
     "id": "relic:dragonskin-drum",
     "name": "Dragonskin Drum",
     "set": "base",
-    "saveId": 237
+    "saveId": 237,
+    "defenseDice": 2
   }
 ]
