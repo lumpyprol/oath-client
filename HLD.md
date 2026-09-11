@@ -262,7 +262,8 @@ the edition):
 - World deck, relic deck, dispossessed as ordered id lists; **one discard
   pile per region** (Law §2.1.2), not a single pile.
 - Round and Visions Drawn track counters; turn bookkeeping; `actionCount`
-  for pending-decision ids; campaign placeholder (unit 12).
+  for pending-decision ids; the in-progress Campaign sub-state (unit 12,
+  D39) — attacker/defender, targets, dice-pool sizes, phase, rolled faces.
 
 Conservation laws enforced by `checkInvariants`: favor totals 36 across all
 zones (Law §1.4 — burns return tokens to the shared bank); warbands total 24
@@ -413,8 +414,11 @@ the feasibility milestone: if the state machine is painful here, stop.
   discards, Reliquary, Grand Scepter holder, banner stakes) — see §5
 
 **Decisions still open.**
-- The campaign action sequence — designed in unit 12, the hardest call
-  in the phase
+- ~~The campaign action sequence~~ **Resolved 09-11 (unit 12, D39):** one
+  `state.campaign` sub-state, three actions (declare/respond/roll), a
+  central lock via `requireActiveSeat`'s `campaignOk` opt. Relic targets
+  and Imperial Allies deferred (documented, not silent) — see D39 and
+  `campaign.ts`'s header
 
 **Exit criteria.**
 - [ ] a 3-player game plays to completion through the API with powers declared
@@ -423,7 +427,8 @@ the feasibility milestone: if the state machine is painful here, stop.
       warbands that aren't there)
 - [ ] one card is enforced through the registry in a test, producing the same
       log shape as a declaration
-- [ ] campaign dice come from `prepare()` and survive snapshot wipe + replay
+- [x] campaign dice come from `prepare()` and survive snapshot wipe + replay
+      (unit 12, `campaign1.test.ts`'s "prepare() persists dice" test)
 - [ ] hidden information audit: fuzz `project()` for every seat over a
       played game; no other seat's hand or deck order leaks
 - [ ] `cradle` deleted
@@ -619,6 +624,16 @@ they go.
   relic/banner (§5.1.4.4).
 - **Rest (unit 5):** §4.3.5 "Use Rest Powers"; the §7.1.2 "pay a cost
   outside your turn" secret-flip nuance.
+- **Campaign (unit 12):** battle plans (§5.5.3, card powers used mid-
+  Campaign — the naive P2 response window just skips straight to roll);
+  Plains/Mountain's attack-die modifiers (§11.4); every other site/card
+  power that adds or removes attack or defense dice. Also NOT card text
+  but still deferred pending other units: relic targets (§5.5.2 — P1 has
+  no per-relic defense-dice count, §2.4.2) and Imperial Allies (§5.5.1's
+  citizenship-status sentences, §5.5.2's Chancellor-joins/Citizen-may-
+  join, and their defense-total warband bonuses in §5.5.4 — blocked on
+  Citizenship, unit 16, existing at all). See `campaign.ts`'s header and
+  D39.
 
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are
@@ -671,6 +686,7 @@ with `reversed by`.
 | D36 | 09-09 | Conservation invariants cover favor (36 total) and warbands (24 purple pooled across Imperial seats, 14 per exile color) only; secrets are unconstrained | Law §9.3: Oath is component-limited *except secrets and dice* — the planned secret-supply invariant was wrong against the rulebook; purple pooling follows the Kill glossary (purple warbands return to the Chancellor) | active |
 | D37 | 09-09 | `SetupSpec` fixes board structure (sites, starting denizens, relic placements, oath, citizenship, starting pawns) only; the world deck and relic deck pools are shuffled fresh by `oathSetup` on every call, never fixed by the spec, even for `FIRST_GAME` | Real chronicle seeds don't carry player hands/advisers either (checked the vendored `OathGame` interface) — the "draw 3, keep 1" deal is a universal setup step, not first-game-specific; keeping it out of `SetupSpec` is what lets `FIRST_GAME` be a plain constant (D30) while still producing a different game each time | active |
 | D38 | 09-10 | Projection hides the world deck's SIZE entirely (`worldDeck: {}`), not just its contents; every other hidden-count zone (relic deck, reliquary, dispossessed, discards) still shows a count | Law §9.4 singles out "the number of cards in the world deck" as private, distinct from the general rule that counts are public — the P2 plan's own text ("world deck... as counts only") over-revealed against this; caught before it shipped | active |
+| D39 | 09-11 | Campaign (unit 12) is one in-progress sub-state (`state.campaign`) with a `phase` enum (`respond`\|`roll`\|`rolled`) walked by three actions (`declare`/`respond`/`roll`); a single central lock (`turn.ts#requireActiveSeat`'s `campaignOk` opt, checked by every OTHER action's existing call site) makes every non-campaign action illegal-state for free, with no per-file edits. Target vocabulary ships with `site`/`pawnFavor`/`banner` only — relic targets (needs per-relic defense-dice data, a P1 gap) and Imperial Allies (meaningless before Citizenship, unit 16, gives a Citizen seat a way to exist and opt in) are deferred, documented in `campaign.ts`'s header, not silently dropped | Keeps the hardest sequence in P2 clean and provably lockable without threading a flag through 6 existing action files; ships a complete, correct 1-attacker-vs-1-defender campaign now rather than a half-built multiplayer one | active |
 
 ---
 
@@ -682,7 +698,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–11 done (six actions + card.play; only Campaign left of the actions); next is unit 12 (Campaign I) |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–12 done (all six actions + card.play; Campaign declared through roll); next is unit 13 (Campaign II: resolution) |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |

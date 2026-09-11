@@ -7,7 +7,7 @@
  * convention).
  */
 
-import type { GameDefinition } from '../../engine/types.js';
+import type { GameDefinition, ProposedAction } from '../../engine/types.js';
 import { IllegalAction } from '../../engine/types.js';
 import { FIRST_GAME, init, oathSetup, type OathSetup } from './setup.js';
 import type { OathState } from './state.js';
@@ -18,6 +18,7 @@ import { TRADE_HANDLERS } from './actions/trade.js';
 import { TRAVEL_HANDLERS } from './actions/travel.js';
 import { SEARCH_HANDLERS } from './actions/search.js';
 import { RECOVER_HANDLERS } from './actions/recover.js';
+import { CAMPAIGN_HANDLERS, prepareCampaign } from './actions/campaign.js';
 import { project } from './project.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -30,6 +31,16 @@ const HANDLERS: Record<string, Handler> = {
   ...TRAVEL_HANDLERS,
   ...SEARCH_HANDLERS,
   ...RECOVER_HANDLERS,
+  ...CAMPAIGN_HANDLERS,
+};
+
+/**
+ * Additive, same pattern as `HANDLERS`: any action type needing `prepare()`
+ * (HLD D14 — dice roll here, at append time, never in `reduce`) registers a
+ * function here. Only `campaign.roll` needs one so far.
+ */
+const PREPARE: Record<string, (state: OathState, proposed: ProposedAction) => unknown> = {
+  'campaign.roll': prepareCampaign,
 };
 
 /** Action types a client may actually submit — 'game.created' is a marker, never one of them. */
@@ -46,6 +57,11 @@ export const oath: GameDefinition<OathState, OathSetup> = {
 
   init(setup) {
     return init(setup);
+  },
+
+  prepare(state, proposed) {
+    const fn = PREPARE[proposed.type];
+    return fn ? fn(state, proposed) : proposed.payload;
   },
 
   reduce(state, action) {
@@ -65,6 +81,44 @@ export const oath: GameDefinition<OathState, OathSetup> = {
 
   pending(state) {
     if (state.complete) return [];
+    // A Campaign (unit 12) preempts the normal turn decision entirely —
+    // whose move it is depends on the campaign's phase, not activeSeat.
+    if (state.campaign) {
+      const c = state.campaign;
+      if (c.phase === 'respond') {
+        return [
+          {
+            id: `campaign:${c.defenderSeat}:${c.declaredAt}`,
+            seat: c.defenderSeat as number, // numeric here — bandits skip this phase
+            kind: 'campaign',
+            prompt: `Seat ${c.attackerSeat} declared a Campaign against you — respond to close the window (Law §5.5.3).`,
+            resolves: ['campaign.respond'],
+          },
+        ];
+      }
+      if (c.phase === 'roll') {
+        return [
+          {
+            id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
+            seat: c.attackerSeat,
+            kind: 'campaign',
+            prompt: `Roll your Campaign's dice: ${c.attackDice} attack, ${c.defenseDice} defense (Law §5.5.4-5.5.5).`,
+            resolves: ['campaign.roll'],
+          },
+        ];
+      }
+      // phase 'rolled': awaits unit 13's resolution actions, which don't
+      // exist yet — nothing currently resolves this.
+      return [
+        {
+          id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
+          seat: c.attackerSeat,
+          kind: 'campaign',
+          prompt: `Your Campaign has been rolled and awaits resolution.`,
+          resolves: [],
+        },
+      ];
+    }
     const seat = state.turn.activeSeat;
     const player = state.players[seat];
     if (player.hand.length > 0) {

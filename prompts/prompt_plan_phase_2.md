@@ -1059,7 +1059,7 @@ Commit: "Add Recover action"
 
 ---
 
-## Unit 12 — Campaign I: declare, respond, roll
+## Unit 12 — Campaign I: declare, respond, roll ✅ (completed 2026-09-11)
 
 **Purpose.** The campaign's action sequence — the hardest design in P2 and
 the foundation P3 builds interrupts on. Dice roll in `prepare()` and land in
@@ -1112,6 +1112,67 @@ Commit: "Add campaign declaration, response window, and dice"
 
 **Done when.** The sequence is documented and tested through the roll, and
 replay reuses persisted dice.
+
+## What unit 12 established (as built, 2026-09-11)
+
+- **One sub-state, three actions, one central lock (D39).** `state.campaign`
+  is non-null from `declare` through unit 13's eventual resolve, walking a
+  `phase` enum (`'respond' -> 'roll' -> 'rolled'`). The lock isn't a
+  separate guard bolted onto `index.ts` — it's one line added to
+  `turn.ts#requireActiveSeat` (`campaignOk`, mirroring the existing
+  `midSearchOk` precedent), so every OTHER action already calling that
+  helper (muster/trade/travel/search/recover/play/rest) is automatically
+  illegal-state during a campaign, with zero edits to those six files.
+  `campaign.respond` never calls `requireActiveSeat` at all (the defender
+  usually isn't the active seat), so it's exempt by construction.
+- **`campaign.declare`** (Law §5.5.1-2): defender is a seat or `'bandits'`
+  (legal only if literally nobody — attacker included — rules the
+  attacker's site); targets are `site` (defender must rule it) /
+  `pawnFavor` / `banner` (both require the defender's pawn at the
+  attacker's site); `attackDice` is a REAL choice, 0..the attacker's board
+  warbands, not automatic (every die risks a self-kill skull, §5.5.5).
+  Defense-dice total: 1 per site + 2 for pawnFavor (both fixed, no P1 data
+  needed) + a banner's live `tokens`. The "at least one target at your
+  site" and "must target it if the defender rules it" clauses are two
+  DIFFERENT strengths, checked separately — pawnFavor/banner satisfy the
+  first but never the second.
+- **Corrected the plan's own speculation.** This unit's TDD list above
+  guessed a "citizenship restriction" illegal-declare case. Re-reading
+  §5.5.1 closely: there isn't one. The "not an Imperial player during
+  this Campaign" sentences are a STATUS change for Ally purposes, never a
+  legality restriction on who may attack whom — any seat may campaign
+  against any other regardless of citizenship. Corrected in the header
+  rather than silently dropped.
+- **Dice faces are Playbook data, not Law data** (RULINGS.md 2026-09-11):
+  the Law describes what sword/skull/shield/etc. symbols DO, never which
+  faces exist on the physical dice — that's read off the Playbook's "Dice
+  Faces" component reference (p.15, image-only, doesn't survive
+  `pdftotext`). Attack die: 3x hollowSword, 2x sword, 1x skull. Defense
+  die: 2x blank, 2x shield, 1x doubleShield (+2, not a multiplier), 1x
+  shieldX2 (0 base, doubles the running shield total — stacks
+  exponentially per multiple, §5.5.4).
+- **`campaign.roll`** rolls both pools in `prepare()` (HLD D14) and
+  persists only the faces; `reduce` never rolls anything, just validates
+  shape and stores them. Turning faces into an attack/defense TOTAL and a
+  winner is entirely unit 13's job (§5.5.6-8) — this unit stops exactly at
+  "faces exist and are persisted," per the plan.
+- **`project()`'s campaign placeholder is filled in, not left null.**
+  Law §9.4 names nothing about a declared Campaign as private (targets,
+  committed dice, rolled faces are all things every seat already sees at
+  the table), so it's passed through verbatim to every viewer, spectators
+  included.
+- **Deferred, documented (not silently dropped) — see D39 and the v2
+  section's running list:**
+  - Relic targets (§5.5.2) — needs a per-relic defense-dice count P1's
+    data doesn't have (§2.4.2), same category of gap as the recover cost
+    was before its own follow-up.
+  - Imperial Allies (§5.5.1's citizenship-status sentences, §5.5.2's
+    Chancellor-joins/Citizen-may-join, their defense-total warband bonus
+    in §5.5.4) — meaningless to build or test before Citizenship (unit 16)
+    gives a Citizen seat a way to exist and opt in.
+  - Battle plans (§5.5.3) and every site/card power that adds or removes
+    dice (e.g. Plains/Mountain, §11.4) — v1 card-text deferral, same as
+    every other unit's site powers.
 
 ---
 

@@ -34,6 +34,7 @@ import {
   REGIONS,
   type Adviser,
   type BannerState,
+  type CampaignState,
   type CardInPlay,
   type OathState,
   type PlayerState,
@@ -101,7 +102,13 @@ export interface OathView {
   banners: BannerState[];
   visionsDrawn: number;
   turn: OathState['turn'];
-  campaign: null; // unit 12 will define this sub-state's own redaction
+  /**
+   * A declared Campaign is entirely public (Law §9.4 lists nothing of it as
+   * private: targets, committed dice counts, and rolled faces are all
+   * things every player at the table can already see) — passed through
+   * verbatim, unlike every hidden-zone field above.
+   */
+  campaign: CampaignState | null;
   complete: boolean;
   winner: number | null;
 }
@@ -176,7 +183,7 @@ export function project(state: OathState, seat: number | null): OathView {
     banners: state.banners.map((b) => ({ ...b })),
     visionsDrawn: state.visionsDrawn,
     turn: { ...state.turn },
-    campaign: null,
+    campaign: state.campaign ? { ...state.campaign, targets: [...state.campaign.targets] } : null,
     complete: state.complete,
     winner: state.winner,
   };

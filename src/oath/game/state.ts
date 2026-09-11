@@ -159,8 +159,48 @@ export interface BannerState {
   mob?: boolean;
 }
 
-/** Placeholder — unit 12 defines the campaign sub-state. Null until then. */
-export type CampaignState = never;
+/**
+ * One target of a declared Campaign (Law §5.5.2). `'relic'` is deliberately
+ * absent — P1's card data has no per-relic defense-dice count (§2.4.2), so
+ * relics cannot be targeted yet (see `campaign.ts`'s header).
+ */
+export type CampaignTarget =
+  | { kind: 'site'; siteId: string }
+  | { kind: 'pawnFavor' }
+  | { kind: 'banner'; bannerId: string };
+
+/** A face of the attack die (Law §5.5.5; faces per the Playbook's "Dice Faces" reference, p.15). */
+export type AttackFace = 'sword' | 'hollowSword' | 'skull';
+/** A face of the defense die (Law §5.5.4; faces per the Playbook's "Dice Faces" reference, p.15). */
+export type DefenseFace = 'blank' | 'shield' | 'doubleShield' | 'shieldX2';
+
+/**
+ * The in-progress Campaign (unit 12; Law §5.5). Non-null from `declare`
+ * through resolution (unit 13 clears it). While non-null, every action
+ * other than the phase's own resolving action is illegal-state
+ * (`turn.ts#requireActiveSeat`, `index.ts#reduce`).
+ */
+export interface CampaignState {
+  attackerSeat: number;
+  /** `'bandits'` when no player rules the attacker's site (Law §5.5.1). */
+  defenderSeat: number | 'bandits';
+  targets: CampaignTarget[];
+  /** The attacker's chosen dice-pool size, 0..their board warbands at declare (Law §5.5.2). */
+  attackDice: number;
+  /** Sum of each target's printed defense dice, fixed at declare (Law §5.5.2). */
+  defenseDice: number;
+  /**
+   * `'respond'` — the defender's window (skipped straight to `'roll'` when
+   * `defenderSeat === 'bandits'`, since there is no player to respond).
+   * `'roll'` — the attacker submits `campaign.roll`.
+   * `'rolled'` — faces are persisted; awaits unit 13's resolution actions.
+   */
+  phase: 'respond' | 'roll' | 'rolled';
+  attackFaces?: AttackFace[];
+  defenseFaces?: DefenseFace[];
+  /** `actionCount` at declare — the pending-decision id's stable anchor. */
+  declaredAt: number;
+}
 
 export interface OathState {
   /** 2..6 seats; seat 0 is the Chancellor. */
@@ -398,7 +438,9 @@ export function checkInvariants(state: OathState): void {
   });
 
   // -- warband conservation (Law §1.8, §1.9, §1.15; Glossary "Kill") -------
-  // (+ campaign-committed warbands once unit 12 adds them)
+  // Committed attack dice (unit 12) are NOT a separate pool — they stay on
+  // `warbands.board` until unit 13's resolution actually moves/kills them —
+  // so no adjustment is needed here.
   const onMap = (seat: number) =>
     sites.reduce((sum, s) => sum + s.warbands[seat], 0);
   const held = (seat: number) =>
@@ -447,4 +489,41 @@ export function checkInvariants(state: OathState): void {
   }
   // Secrets are deliberately not conserved: Law §9.3 exempts them from
   // component limits, so their total may exceed BOXED_SECRETS.
+
+  // -- campaign shape (unit 12; Law §5.5) ----------------------------------
+  if (state.campaign) {
+    const c = state.campaign;
+    seatOk(c.attackerSeat, 'campaign.attackerSeat');
+    if (c.defenderSeat !== 'bandits') seatOk(c.defenderSeat, 'campaign.defenderSeat');
+    if (c.defenderSeat === c.attackerSeat) fail('campaign: attacker cannot be the defender');
+    nonneg(c.attackDice, 'campaign.attackDice');
+    nonneg(c.defenseDice, 'campaign.defenseDice');
+    if (c.attackDice > players[c.attackerSeat].warbands.board) {
+      fail(
+        `campaign.attackDice (${c.attackDice}) exceeds the attacker's board warbands ` +
+          `(${players[c.attackerSeat].warbands.board}) (Law §5.5.2)`,
+      );
+    }
+    if (c.defenderSeat === 'bandits' && c.phase === 'respond') {
+      fail(`campaign: phase 'respond' is unreachable against bandits — no player to respond`);
+    }
+    for (const t of c.targets) {
+      if (t.kind === 'site' && !siteIds.has(t.siteId)) {
+        fail(`campaign target site ${t.siteId} is not a site on the map`);
+      }
+      if (t.kind === 'banner' && !bannerIds.includes(t.bannerId)) {
+        fail(`campaign target banner ${t.bannerId} is not a real banner id`);
+      }
+    }
+    if (c.phase === 'rolled') {
+      if (!c.attackFaces || c.attackFaces.length !== c.attackDice) {
+        fail(`campaign: phase 'rolled' must carry exactly attackDice attack faces`);
+      }
+      if (!c.defenseFaces || c.defenseFaces.length !== c.defenseDice) {
+        fail(`campaign: phase 'rolled' must carry exactly defenseDice defense faces`);
+      }
+    } else if (c.attackFaces || c.defenseFaces) {
+      fail(`campaign: faces must not be set before phase 'rolled'`);
+    }
+  }
 }

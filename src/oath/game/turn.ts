@@ -60,17 +60,22 @@ export type Handler = (state: OathState, action: GameAction) => OathState;
  * seat has cards in hand — a Search awaiting its play step (§5.1.4) — the
  * only legal action is `card.play`, so everything else passes
  * `midSearchOk: false` (the default) and is rejected. `card.play` itself
- * passes `midSearchOk: true`.
+ * passes `midSearchOk: true`. Likewise, while a Campaign (unit 12) is in
+ * progress, everything is illegal-state except its own three actions;
+ * `campaign.roll` (the attacker's move) passes `campaignOk: true`.
  */
 export function requireActiveSeat(
   state: OathState,
   action: GameAction,
-  opts: { midSearchOk?: boolean } = {},
+  opts: { midSearchOk?: boolean; campaignOk?: boolean } = {},
 ): number {
   if (state.complete) throw new IllegalAction(`${action.type}: the game is already complete`);
   if (action.actor === null) throw new IllegalAction(`${action.type} requires a seated actor`);
   if (action.actor !== state.turn.activeSeat) {
     throw new IllegalAction(`${action.type}: it is not seat ${action.actor}'s turn`);
+  }
+  if (!opts.campaignOk && state.campaign) {
+    throw new IllegalAction(`${action.type}: a Campaign is in progress (Law §5.5)`);
   }
   if (!opts.midSearchOk && state.players[action.actor].hand.length > 0) {
     throw new IllegalAction(
