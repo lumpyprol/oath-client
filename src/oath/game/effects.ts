@@ -40,6 +40,21 @@
  * new Citizen, so it joins the RELIC-only zone family alongside
  * `seatRelics`/`siteRelics`/`relicDeck`.
  *
+ * SUPPLY (`{ kind: 'supply', seat, delta }`, unit 16d) is the one effect
+ * here that exists for the DEFERRED powers rather than for a built action.
+ * The v1 deferral list promises that unenforced card text can still be
+ * DECLARED through `power.use` — and for a whole class of cards that was
+ * simply false: Coast's 1-Supply travel (§11.3), Charming Valley's +1
+ * (§11.6), Shrouded Wood's fixed 2 (§11.7), every "spend no Supply" power
+ * (§7.6.2), and the denizens that grant Supply outright had no way to say
+ * what they do. `travel` charged the base cost and nothing could give it
+ * back. So a Coast-to-Coast trip is now declared as an ordinary `travel`
+ * at the base cost plus a `power.use` naming the Coast site with a
+ * `supply` effect for the difference. The engine still never checks that
+ * declaration against the card's real text — that is D9/D28's whole
+ * bargain, unchanged. It just no longer makes the bargain impossible to
+ * keep.
+ *
  * Citations are "Law §x.y" (Buried Giant rules reference, Oath printing
  * p1; see RULINGS.md).
  */
@@ -50,6 +65,7 @@ import { SUITS, type Suit } from '../cards/schema.js';
 import {
   ADVISER_LIMIT,
   DARKEST_SECRET_ID,
+  LEFTMOST_SUPPLY,
   PEOPLES_FAVOR_ID,
   type OathState,
   type Region,
@@ -173,7 +189,14 @@ export type Effect =
   | { kind: 'card'; id: string; from: CardZone; to: CardZone }
   /** Top-of-source moves to `to`; the caller can't name a hidden id. */
   | { kind: 'draw'; from: CardZone; to: CardZone }
-  | { kind: 'flip'; target: FlipTarget };
+  | { kind: 'flip'; target: FlipTarget }
+  /**
+   * Move a seat's Supply marker (Law §4.2). A non-mover, like `flip`:
+   * Supply is a POSITION ON A TRACK, not a conserved token — it comes from
+   * nowhere and goes nowhere, so there is no zone pair to address. See the
+   * file header for why this exists (unit 16d).
+   */
+  | { kind: 'supply'; seat: number; delta: number };
 
 export const EffectSchema: z.ZodType<Effect> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('favor'), from: FavorZoneSchema, to: FavorZoneSchema, amount }),
@@ -182,6 +205,11 @@ export const EffectSchema: z.ZodType<Effect> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('card'), id: z.string(), from: CardZoneSchema, to: CardZoneSchema }),
   z.object({ kind: z.literal('draw'), from: CardZoneSchema, to: CardZoneSchema }),
   z.object({ kind: z.literal('flip'), target: FlipTargetSchema }),
+  z.object({
+    kind: z.literal('supply'),
+    seat,
+    delta: z.number().int().refine((n) => n !== 0, 'supply delta must move the marker'),
+  }),
 ]);
 
 export const EffectsSchema = z.array(EffectSchema);
@@ -550,6 +578,52 @@ function applyFlip(state: OathState, target: FlipTarget, index: number): void {
   }
 }
 
+// ---- §7.1.2: the occupied-card rule --------------------------------------
+
+/**
+ * Law §7.1.2: "You cannot place favor or secrets on a card that has favor or
+ * secrets on it already." A feasibility rule, not an action rule — Muster
+ * (§5.2.1) and Trade (§5.3.2) already check it for themselves, but a
+ * DECLARED power could otherwise place a cost onto an occupied card, which
+ * no rule in the game allows (unit 16d).
+ *
+ * Applies to destinations only: taking tokens OFF a card (Rest's §4.3.1
+ * sweep) is untouched, and so is every non-card zone.
+ *
+ * Note the granularity this implies, which matches the Law's wording
+ * literally: ONE mover placing 2 favor on an empty card is legal (that is
+ * Trade's own §5.3.2.II shape), but TWO 1-favor movers at the same card in
+ * one action are not — the second sees what the first placed. A power that
+ * genuinely places two at once should say so as a single effect.
+ */
+function checkPlaceable(
+  state: OathState,
+  zone: FavorZone | SecretZone,
+  index: number,
+  kind: string,
+): void {
+  let card: { favor: number; secrets: number };
+  switch (zone.kind) {
+    case 'siteCardFavor':
+    case 'siteCardSecrets':
+      card = findSiteCard(state, zone.siteId, zone.cardId, index, kind);
+      break;
+    case 'adviserFavor':
+    case 'adviserSecrets':
+      card = findAdviser(state, zone.seat, zone.cardId, index, kind);
+      break;
+    default:
+      return; // not a card — §7.1.2 has nothing to say
+  }
+  if (card.favor > 0 || card.secrets > 0) {
+    fail(
+      index,
+      kind,
+      `${zone.cardId} already has favor or secrets on it, so nothing may be placed there (Law §7.1.2)`,
+    );
+  }
+}
+
 // ---- applyEffects -------------------------------------------------------
 
 /**
@@ -574,6 +648,7 @@ export function applyEffects(state: OathState, actor: number, effects: Effect[])
         if (have < effect.amount) {
           fail(index, 'favor', `${effect.from.kind} has ${have}, need ${effect.amount}`);
         }
+        checkPlaceable(working, effect.to, index, 'favor'); // Law §7.1.2
         writeFavor(working, effect.from, have - effect.amount, index);
         writeFavor(working, effect.to, readFavor(working, effect.to, index) + effect.amount, index);
         return;
@@ -587,6 +662,7 @@ export function applyEffects(state: OathState, actor: number, effects: Effect[])
         if (effect.from.kind !== 'sharedSecrets' && have < effect.amount) {
           fail(index, 'secret', `${effect.from.kind} has ${have}, need ${effect.amount}`);
         }
+        checkPlaceable(working, effect.to, index, 'secret'); // Law §7.1.2
         writeSecrets(working, effect.from, have - effect.amount, index);
         writeSecrets(working, effect.to, readSecrets(working, effect.to, index) + effect.amount, index);
         return;
@@ -616,6 +692,25 @@ export function applyEffects(state: OathState, actor: number, effects: Effect[])
       }
       case 'flip': {
         applyFlip(working, effect.target, index);
+        return;
+      }
+      case 'supply': {
+        const player = working.players[effect.seat];
+        if (!player) fail(index, 'supply', `no seat ${effect.seat}`);
+        const next = player.supply + effect.delta;
+        if (next < 0) {
+          // Law §4.2: the marker moves right as you spend, and there is no
+          // space past the depleted end — you simply cannot afford it.
+          fail(
+            index,
+            'supply',
+            `seat ${effect.seat} has ${player.supply} Supply, cannot spend ${-effect.delta}`,
+          );
+        }
+        // Law §4.3.4: "You cannot refresh Supply beyond its leftmost space."
+        // A gain clamps rather than failing — the Law caps it, it doesn't
+        // forbid it, exactly as turn.ts's Rest already does.
+        player.supply = Math.min(LEFTMOST_SUPPLY, next);
         return;
       }
     }

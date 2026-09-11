@@ -1,7 +1,22 @@
-import { describe, it, expect } from 'vitest';
-import { checkInvariants } from '../../../src/oath/game/state.js';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { checkInvariants, LEFTMOST_SUPPLY, type OathState } from '../../../src/oath/game/state.js';
 import { cards } from '../../../src/oath/cards/index.js';
+import { oath } from '../../../src/oath/game/index.js';
 import { baseState } from './helpers.js';
+
+// A separate DB per test file (store.test.ts's own convention), needed only
+// by the end-to-end declared-Supply test at the bottom.
+process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-effects-')), 'test.db');
+let store: typeof import('../../../src/actionlog.js');
+let db: typeof import('../../../src/db.js')['db'];
+
+beforeAll(async () => {
+  store = await import('../../../src/actionlog.js');
+  ({ db } = await import('../../../src/db.js'));
+});
 import {
   applyEffects,
   EffectSchema,
@@ -321,5 +336,176 @@ describe('EffectSchema', () => {
       amount: 0,
     };
     expect(EffectSchema.safeParse(effect).success).toBe(false);
+  });
+});
+
+describe('supply (Law §4.2; unit 16d)', () => {
+  it('spends within range', () => {
+    const s = baseState(); // every seat starts this fixture on 4
+    const out = applyEffects(s, 1, [{ kind: 'supply', seat: 1, delta: -3 }]);
+    expect(out.players[1].supply).toBe(1);
+    checkInvariants(out);
+  });
+
+  it('is infeasible past the depleted end, naming the effect index', () => {
+    const s = baseState();
+    expect(() => applyEffects(s, 1, [{ kind: 'supply', seat: 1, delta: -5 }])).toThrow(
+      /effect 0 \(supply\).*has 4 Supply, cannot spend 5/,
+    );
+    // ...and nothing partial is left behind (applyEffects is atomic).
+    expect(s.players[1].supply).toBe(4);
+  });
+
+  it('clamps a gain at the leftmost space rather than rejecting it (Law §4.3.4)', () => {
+    const s = baseState();
+    const out = applyEffects(s, 1, [{ kind: 'supply', seat: 1, delta: 99 }]);
+    expect(out.players[1].supply).toBe(LEFTMOST_SUPPLY);
+    checkInvariants(out);
+  });
+
+  it('is not conserved: moving Supply disturbs no conservation law', () => {
+    const s = baseState();
+    const before = s.players[1].supply;
+    const out = applyEffects(s, 1, [{ kind: 'supply', seat: 1, delta: 2 }]);
+    // Favor and warbands are conserved and untouched; Supply simply moved.
+    expect(out.players[1].supply).toBe(before + 2);
+    expect(out.sharedBank).toEqual(s.sharedBank);
+    expect(out.favorBanks).toEqual(s.favorBanks);
+    expect(out.players.map((p) => p.warbands)).toEqual(s.players.map((p) => p.warbands));
+    checkInvariants(out);
+  });
+
+  it('rejects a zero delta and a non-existent seat', () => {
+    const s = baseState();
+    expect(EffectSchema.safeParse({ kind: 'supply', seat: 0, delta: 0 }).success).toBe(false);
+    expect(EffectSchema.safeParse({ kind: 'supply', seat: 0, delta: -1 }).success).toBe(true);
+    expect(() => applyEffects(s, 0, [{ kind: 'supply', seat: 9, delta: 1 }])).toThrow(/no seat 9/);
+  });
+});
+
+describe('§7.1.2 — nothing may be placed on an occupied card (unit 16d)', () => {
+  it('rejects favor onto a card that already holds a secret', () => {
+    const s = baseState();
+    const siteId = s.sites[0].id;
+    const cardId = s.sites[0].cards.find((c) => c !== null)!.id;
+    s.sites[0].cards.find((c) => c !== null)!.secrets = 1;
+    expect(() =>
+      applyEffects(s, 0, [
+        { kind: 'favor', from: { kind: 'seatFavor', seat: 0 }, to: { kind: 'siteCardFavor', siteId, cardId }, amount: 1 },
+      ]),
+    ).toThrow(/already has favor or secrets on it.*§7\.1\.2/);
+  });
+
+  it('rejects a secret onto a card that already holds favor, and onto an adviser likewise', () => {
+    const s = baseState();
+    const siteId = s.sites[0].id;
+    const card = s.sites[0].cards.find((c) => c !== null)!;
+    card.favor = 1;
+    s.sharedBank.favor -= 1; // source it (conservation)
+    expect(() =>
+      applyEffects(s, 0, [
+        {
+          kind: 'secret',
+          from: { kind: 'seatSecrets', seat: 0 },
+          to: { kind: 'siteCardSecrets', siteId, cardId: card.id },
+          amount: 1,
+        },
+      ]),
+    ).toThrow(/§7\.1\.2/);
+
+    const a = baseState();
+    a.players[0].advisers[0].favor = 1;
+    a.sharedBank.favor -= 1;
+    expect(() =>
+      applyEffects(a, 0, [
+        {
+          kind: 'secret',
+          from: { kind: 'seatSecrets', seat: 0 },
+          to: { kind: 'adviserSecrets', seat: 0, cardId: a.players[0].advisers[0].id },
+          amount: 1,
+        },
+      ]),
+    ).toThrow(/§7\.1\.2/);
+  });
+
+  it('allows a single mover placing TWO favor on an empty card — Trade\'s own shape (§5.3.2.II)', () => {
+    const s = baseState();
+    const siteId = s.sites[0].id;
+    const cardId = s.sites[0].cards.find((c) => c !== null)!.id;
+    expect(s.players[0].favor).toBe(2); // the fixture already gives seat 0 two favor
+    const out = applyEffects(s, 0, [
+      { kind: 'favor', from: { kind: 'seatFavor', seat: 0 }, to: { kind: 'siteCardFavor', siteId, cardId }, amount: 2 },
+    ]);
+    expect(out.sites[0].cards.find((c) => c !== null)!.favor).toBe(2);
+    checkInvariants(out);
+  });
+
+  it('but rejects the same two favor split across two movers — the second sees the first', () => {
+    const s = baseState();
+    const siteId = s.sites[0].id;
+    const cardId = s.sites[0].cards.find((c) => c !== null)!.id;
+    const one = {
+      kind: 'favor' as const,
+      from: { kind: 'seatFavor' as const, seat: 0 },
+      to: { kind: 'siteCardFavor' as const, siteId, cardId },
+      amount: 1,
+    };
+    expect(() => applyEffects(s, 0, [one, one])).toThrow(/effect 1 \(favor\).*§7\.1\.2/);
+  });
+
+  it('does not touch REMOVALS from a card, nor any non-card destination', () => {
+    const s = baseState();
+    const card = s.sites[0].cards.find((c) => c !== null)!;
+    card.favor = 1;
+    s.sharedBank.favor -= 1;
+    // Taking the favor back off an occupied card is exactly Rest's §4.3.1
+    // sweep, and must stay legal.
+    const out = applyEffects(s, 0, [
+      {
+        kind: 'favor',
+        from: { kind: 'siteCardFavor', siteId: s.sites[0].id, cardId: card.id },
+        to: { kind: 'favorBank', suit: 'hearth' },
+        amount: 1,
+      },
+    ]);
+    expect(out.sites[0].cards.find((c) => c !== null)!.favor).toBe(0);
+    checkInvariants(out);
+  });
+});
+
+describe('a declared Supply power, end to end through the store (unit 16d)', () => {
+  it('lands through power.use and moves the marker — the deferral workaround, proven', () => {
+    // The deferred Travel-cost powers (§11.3/§11.6/§11.7/§7.6.2) are
+    // declared as an ordinary action plus a power.use refunding or charging
+    // the difference. This is that shape, end to end.
+    const opening = baseState();
+    opening.turn.activeSeat = 1;
+    const cardId = opening.sites[5].cards[0]!.id; // seat 1 rules sites[5], so they have access (§7.1.1)
+    const supplyBefore = opening.players[1].supply;
+
+    const { gameId } = store.createGame(oath, ['Chancellor', 'Red', 'Blue', 'Yellow']);
+    db.prepare('INSERT OR REPLACE INTO snapshots (game_id, seq, state) VALUES (?, ?, ?)').run(
+      gameId,
+      0,
+      JSON.stringify(opening),
+    );
+
+    const r = store.appendAction(oath, gameId, store.headSeq(gameId), {
+      type: 'power.use',
+      actor: 1,
+      payload: {
+        cardId,
+        effects: [{ kind: 'supply', seat: 1, delta: 1 }],
+        note: 'Coast travel refund (Law §11.3)',
+      },
+    });
+    const out = r.state as OathState;
+    expect(out.players[1].supply).toBe(supplyBefore + 1);
+    checkInvariants(out);
+
+    // ...and it survives a refold from the log alone.
+    const first = store.loadState(oath, gameId).state;
+    db.prepare('DELETE FROM snapshots WHERE game_id = ? AND seq > 0').run(gameId);
+    expect(store.loadState(oath, gameId).state).toEqual(first);
   });
 });
