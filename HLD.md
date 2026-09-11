@@ -424,7 +424,9 @@ the feasibility milestone: if the state machine is painful here, stop.
 
 **Exit criteria.**
 - [ ] a 3-player game plays to completion through the API with powers declared
-- [ ] every action has reducer tests for legal, illegal-actor, illegal-state
+- [x] every action has reducer tests for legal, illegal-actor, illegal-state
+      (all six — Muster..Campaign — as of unit 13; `power.use`, unit 14,
+      still to come)
 - [ ] `power.use` rejects infeasible effects (spending favor you lack, moving
       warbands that aren't there)
 - [ ] one card is enforced through the registry in a test, producing the same
@@ -641,6 +643,11 @@ they go.
   dice.json`, all 20 relics) and Plains/Mountain's attack-die modifier
   itself (§11.4 — no new data needed, just the site's name, which P1
   already has). See `campaign.ts`'s header and D39.
+- **Campaign resolution (unit 13):** battle plans' §5.5.8 triggers ("if
+  you're victorious"/"if you're defeated"/"at end, discard [card]") —
+  same battle-plan deferral as unit 12's §5.5.3; "Imperial warbands at
+  sites move to the Chancellor's board" (§5.5.7) — an Ally/Imperial-team
+  consolidation rule, same Allies deferral as unit 12's.
 
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are
@@ -694,6 +701,7 @@ with `reversed by`.
 | D37 | 09-09 | `SetupSpec` fixes board structure (sites, starting denizens, relic placements, oath, citizenship, starting pawns) only; the world deck and relic deck pools are shuffled fresh by `oathSetup` on every call, never fixed by the spec, even for `FIRST_GAME` | Real chronicle seeds don't carry player hands/advisers either (checked the vendored `OathGame` interface) — the "draw 3, keep 1" deal is a universal setup step, not first-game-specific; keeping it out of `SetupSpec` is what lets `FIRST_GAME` be a plain constant (D30) while still producing a different game each time | active |
 | D38 | 09-10 | Projection hides the world deck's SIZE entirely (`worldDeck: {}`), not just its contents; every other hidden-count zone (relic deck, reliquary, dispossessed, discards) still shows a count | Law §9.4 singles out "the number of cards in the world deck" as private, distinct from the general rule that counts are public — the P2 plan's own text ("world deck... as counts only") over-revealed against this; caught before it shipped | active |
 | D39 | 09-11 | Campaign (unit 12) is one in-progress sub-state (`state.campaign`) with a `phase` enum (`respond`\|`roll`\|`rolled`) walked by three actions (`declare`/`respond`/`roll`); a single central lock (`turn.ts#requireActiveSeat`'s `campaignOk` opt, checked by every OTHER action's existing call site) makes every non-campaign action illegal-state for free, with no per-file edits. Full target vocabulary ships (`site`/`pawnFavor`/`banner`/`relic` — the relic defense-dice P1 gap was closed same-day rather than left deferred, once flagged as a mistake to defer: relics are a common, often game-swinging campaign target, not a minor completeness gap). Imperial Allies (meaningless before Citizenship, unit 16, gives a Citizen seat a way to exist and opt in) are the one thing still deferred, documented in `campaign.ts`'s header, not silently dropped | Keeps the hardest sequence in P2 clean and provably lockable without threading a flag through 6 existing action files; ships a complete, correct 1-attacker-vs-1-defender campaign — with its full target vocabulary — now, rather than a half-built one | active |
+| D40 | 09-11 | Campaign resolution (unit 13) splits into two more phases/actions on the SAME sub-state rather than one big action: `'rolled' -> campaign.resolve -> ('seize' \| cleared)`, `'seize' -> campaign.seize -> cleared`. `resolve` alone handles a loss (nothing left to choose) and applies every MANDATORY win effect (relics, banners); `seize` exists only to gate the win-only CHOICES (placements, banish, burn-favor) behind their own pending decision, so a client can show the outcome before asking for them. One function (`resolveDefeatForSeat`) computes §5.5.6's casualty split for EITHER side by parameterizing which sites count and whether the board does — the attacker is just the `siteIds: []`/`includeBoard: true` case | Keeps each action's payload single-purpose and lets the UI reveal win/loss before demanding seizure choices, without inventing a second sub-state; one casualty function instead of two near-duplicates (attacker/defender) that would drift apart under future edits | active |
 
 ---
 
@@ -705,7 +713,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–12 done (all six actions + card.play; Campaign declared through roll); next is unit 13 (Campaign II: resolution) |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–13 done (all six actions + card.play; Campaign declare through resolution/seizure); next is unit 14 (`power.use`) |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |

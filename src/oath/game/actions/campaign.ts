@@ -58,7 +58,46 @@
  *     and `defenseDice` defense dice in `prepare()` (HLD D14) and persists
  *     the FACES, so replay reuses them instead of re-rolling. `reduce`
  *     only stores what `prepare` rolled — turning faces into an attack/
- *     defense TOTAL and declaring a winner is unit 13's job (§5.5.6-8).
+ *     defense TOTAL and declaring a winner is `campaign.resolve`'s job
+ *     (unit 13, §5.5.6-8).
+ *
+ *   campaign.resolve — the attacker ONLY (`phase === 'rolled'`). §5.5.4's
+ *     defense total = shields (doubled once per shieldX2 face rolled,
+ *     stacking exponentially) + warbands at each targeted site (or, vs.
+ *     bandits, 1 per targeted site — bandits aren't warband-counted) +
+ *     the defender's OWN board warbands, but ONLY if their pawn is at the
+ *     attacker's site or at any targeted site. §5.5.5's attack total =
+ *     swords + floor(hollowSwords / 2) (a lone hollow sword counts 0).
+ *     Skulls kill that many of the attacker's own board warbands
+ *     IMMEDIATELY, win or lose. If the roll alone doesn't exceed defense,
+ *     the payload's `sacrifice` may raise it — Law §9.5 ("no unprompted
+ *     losses") makes this exact, not "at least": `sacrifice` must be 0 or
+ *     precisely `defense - swords + 1`, and the attacker must have that
+ *     many board warbands left (post-skull) to spend; sacrificing IS
+ *     killing (Glossary "Sacrifice"). §5.5.6 Resolve Defeat then applies
+ *     to whichever side lost (bandits are exempt — "cannot be killed,
+ *     they just go into hiding"): half (rounded down) of "the warbands
+ *     that added to their defense" die, the rest consolidate onto their
+ *     board — for the attacker that "force" is simply their board; for
+ *     the defender it's their warbands at every targeted site plus,
+ *     conditionally, their board (the SAME condition as the defense-total
+ *     bonus above, evaluated from the pre-battle state). On a loss, the
+ *     campaign clears here — nothing left to choose. On a win, §5.5.7's
+ *     MANDATORY parts happen here too (no choice involved): every
+ *     targeted relic and banner is taken — a seized banner burns 2 favor/
+ *     secrets (minimum 1 left) and, if it's the People's Favor, flips to
+ *     Mob (§2.5.3) — then phase advances to `'seize'` for the CHOICE-
+ *     bearing rest.
+ *
+ *   campaign.seize — the attacker ONLY (`phase === 'seize'`, so only
+ *     reachable after a win). §5.5.7's remaining choices, all optional:
+ *     `placements` — any number (even 0) of the attacker's board warbands
+ *     onto any targeted sites; `banishTo` — travel the defender's pawn to
+ *     a site of the attacker's choice, spending no Supply (only legal if
+ *     pawnFavor was targeted); `burnFavor` — burn half (rounded down) of
+ *     the defender's favor (same condition). Clears the campaign.
+ *     Oathkeeper/victory-goal consequences of any of this are unit 17's
+ *     check, not this action's — it only moves the objects.
  *
  * Dice faces — the Playbook's "Dice Faces" component reference (p.15),
  * NOT the Law text itself (the Law only describes what the symbols DO;
@@ -86,7 +125,12 @@
  *     later join as an Ally), never a legality restriction on WHO may be
  *     declared as attacker or defender. Any seat may campaign against any
  *     other, citizenship notwithstanding.
- *   - Battle plans (§5.5.3) — card powers; v1 defers all power text.
+ *   - Battle plans (§5.5.3, §5.5.8) — card powers; v1 defers all power
+ *     text, including "if you're victorious"/"if you're defeated"/"at
+ *     end, discard" battle-plan triggers.
+ *   - "Imperial warbands at sites move to the Chancellor's board" (§5.5.7)
+ *     — an Ally/Imperial-team consolidation rule, same Allies deferral as
+ *     unit 12's.
  */
 
 import { z } from 'zod';
@@ -95,10 +139,12 @@ import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { rollDice } from '../../../engine/random.js';
 import { byId } from '../../cards/index.js';
 import type { Relic } from '../../cards/schema.js';
+import { applyEffects, type Effect } from '../effects.js';
 import {
   DARKEST_SECRET_ID,
   PEOPLES_FAVOR_ID,
   type AttackFace,
+  type CampaignState,
   type DefenseFace,
   type OathState,
 } from '../state.js';
@@ -107,6 +153,8 @@ import { requireActiveSeat, type Handler } from '../turn.js';
 const CAMPAIGN_COST = 2; // Supply (Law §5.5.1)
 const PAWN_FAVOR_DICE = 2; // Law §5.5.2 (fixed, "as shown by the shield on their board")
 const SITE_DEFENSE_DICE = 1; // Law §2.8.3 ("a defense die" — every site prints exactly one)
+const SEIZE_BANNER_BURN = 2; // Law §2.5.3
+const SEIZE_BANNER_MINIMUM = 1; // Law §2.5.3 ("to a minimum of one")
 
 /** Playbook "Dice Faces" (p.15) — see file header. */
 export const ATTACK_DIE: readonly AttackFace[] = [
@@ -350,10 +398,292 @@ function roll(state: OathState, action: GameAction): OathState {
   return state;
 }
 
+// ---- resolution (unit 13) -------------------------------------------------
+
+function chancellorSeatOf(state: OathState): number {
+  return state.players.findIndex((p) => p.citizenship === 'chancellor');
+}
+
+/** Law §5.5.5: a sword counts 1; two hollowSwords count as 1 (a lone one, 0). */
+function attackTotal(faces: AttackFace[]): { swords: number; skulls: number } {
+  const swords = faces.filter((f) => f === 'sword').length;
+  const hollow = faces.filter((f) => f === 'hollowSword').length;
+  const skulls = faces.filter((f) => f === 'skull').length;
+  return { swords: swords + Math.floor(hollow / 2), skulls };
+}
+
+/**
+ * Law §5.5.4: does the defender's OWN board warbands count toward
+ * defense? Only if their pawn is at the attacker's site or at any
+ * targeted site. Read from the ORIGINAL (pre-battle) state — nothing
+ * about pawn location changes between roll and resolve.
+ */
+function defenderBoardBonusApplies(state: OathState, c: CampaignState): boolean {
+  if (c.defenderSeat === 'bandits') return false;
+  const defenderPawnSite = state.players[c.defenderSeat].pawnSite;
+  const attackerSite = state.players[c.attackerSeat].pawnSite;
+  if (defenderPawnSite === attackerSite) return true;
+  return c.targets.some((t) => t.kind === 'site' && t.siteId === defenderPawnSite);
+}
+
+/** Law §5.5.4's full defense-total arithmetic, from the persisted faces + current state. */
+function defenseTotal(state: OathState, c: CampaignState): number {
+  const shields = c.defenseFaces!.filter((f) => f === 'shield').length;
+  const doubleShields = c.defenseFaces!.filter((f) => f === 'doubleShield').length;
+  const doublings = c.defenseFaces!.filter((f) => f === 'shieldX2').length;
+  const shieldTotal = (shields * 1 + doubleShields * 2) * 2 ** doublings;
+
+  const siteTargets = c.targets.filter((t) => t.kind === 'site');
+  const siteBonus =
+    c.defenderSeat === 'bandits'
+      ? siteTargets.length // "bandits add one per site" — not warband-counted
+      : siteTargets.reduce(
+          (sum, t) => sum + state.sites.find((s) => s.id === t.siteId)!.warbands[c.defenderSeat as number],
+          0,
+        );
+
+  const boardBonus =
+    c.defenderSeat !== 'bandits' && defenderBoardBonusApplies(state, c)
+      ? state.players[c.defenderSeat].warbands.board
+      : 0;
+
+  return shieldTotal + siteBonus + boardBonus;
+}
+
+/** Glossary "Kill": to the personal bank of the matching color (purple -> the Chancellor). */
+function killFromBoard(state: OathState, seat: number, count: number): OathState {
+  if (count <= 0) return applyEffects(state, seat, []);
+  const bankSeat = state.players[seat].citizenship === 'citizen' ? chancellorSeatOf(state) : seat;
+  return applyEffects(state, seat, [
+    { kind: 'warbands', from: { kind: 'seatWarbandBoard', seat }, to: { kind: 'seatWarbandBank', seat: bankSeat }, amount: count },
+  ]);
+}
+
+/**
+ * Law §5.5.6, generalized over both sides via `siteIds`/`includeBoard`:
+ * the attacker's force is just their board (`siteIds: []`, `includeBoard:
+ * true`); the defender's is their warbands at every targeted site plus,
+ * conditionally, their board (the same condition as the defense bonus).
+ * Half (rounded down) of the total dies; the rest consolidates onto the
+ * seat's board — kill quota is drained from sites first, then the board,
+ * which is equivalent to the rulebook's "kill half of the WHOLE force"
+ * (warbands of one color are fungible; only the final counts matter).
+ */
+function resolveDefeatForSeat(
+  state: OathState,
+  seat: number,
+  siteIds: string[],
+  includeBoard: boolean,
+): OathState {
+  const siteCounts = siteIds.map((siteId) => ({
+    siteId,
+    count: state.sites.find((s) => s.id === siteId)!.warbands[seat],
+  }));
+  const siteTotal = siteCounts.reduce((sum, s) => sum + s.count, 0);
+  const boardCount = state.players[seat].warbands.board;
+  const total = siteTotal + (includeBoard ? boardCount : 0);
+  let killRemaining = Math.floor(total / 2);
+
+  const bankSeat = state.players[seat].citizenship === 'citizen' ? chancellorSeatOf(state) : seat;
+  const effects: Effect[] = [];
+  for (const { siteId, count } of siteCounts) {
+    if (count === 0) continue;
+    const killHere = Math.min(killRemaining, count);
+    killRemaining -= killHere;
+    if (killHere > 0) {
+      effects.push({
+        kind: 'warbands',
+        from: { kind: 'siteWarbands', siteId, seat },
+        to: { kind: 'seatWarbandBank', seat: bankSeat },
+        amount: killHere,
+      });
+    }
+    const moveHere = count - killHere;
+    if (moveHere > 0) {
+      effects.push({
+        kind: 'warbands',
+        from: { kind: 'siteWarbands', siteId, seat },
+        to: { kind: 'seatWarbandBoard', seat },
+        amount: moveHere,
+      });
+    }
+  }
+  if (includeBoard && killRemaining > 0) {
+    effects.push({
+      kind: 'warbands',
+      from: { kind: 'seatWarbandBoard', seat },
+      to: { kind: 'seatWarbandBank', seat: bankSeat },
+      amount: killRemaining,
+    });
+  }
+  return applyEffects(state, seat, effects);
+}
+
+const ResolvePayloadSchema = z.object({ sacrifice: z.number().int().min(0).default(0) });
+
+function resolve(state: OathState, action: GameAction): OathState {
+  const seat = requireActiveSeat(state, action, { campaignOk: true });
+  const c = state.campaign;
+  if (!c || c.phase !== 'rolled') {
+    throw new IllegalAction('campaign.resolve: no campaign is awaiting resolution');
+  }
+  if (seat !== c.attackerSeat) {
+    throw new IllegalAction("campaign.resolve: only the campaign's attacker may resolve");
+  }
+  const parsed = ResolvePayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('campaign.resolve: malformed payload');
+
+  const { swords, skulls } = attackTotal(c.attackFaces!);
+  const defense = defenseTotal(state, c);
+
+  // §5.5.5: skulls kill the attacker's OWN board warbands immediately, win or lose.
+  let working = killFromBoard(state, c.attackerSeat, Math.min(skulls, state.players[c.attackerSeat].warbands.board));
+
+  const { sacrifice } = parsed.data;
+  const needed = Math.max(0, defense - swords + 1);
+  if (sacrifice !== 0) {
+    if (sacrifice !== needed) {
+      throw new IllegalAction(
+        `campaign.resolve: sacrifice must be exactly ${needed} to become victorious, or 0 (Law §5.5.5, §9.5)`,
+      );
+    }
+    if (sacrifice > working.players[c.attackerSeat].warbands.board) {
+      throw new IllegalAction('campaign.resolve: not enough board warbands left to sacrifice that many');
+    }
+    working = killFromBoard(working, c.attackerSeat, sacrifice); // Glossary "Sacrifice": choosing to kill your own
+  }
+
+  const victorious = swords + sacrifice > defense;
+
+  if (!victorious) {
+    // §5.5.6: the attacker is the defeated party; their force is their board.
+    working = resolveDefeatForSeat(working, c.attackerSeat, [], true);
+    working.campaign = null;
+    return working;
+  }
+
+  if (c.defenderSeat !== 'bandits') {
+    // §5.5.6, computed from the ORIGINAL state (site/board counts haven't
+    // changed since declare — only the attacker's board has, above).
+    const siteIds = c.targets.filter((t) => t.kind === 'site').map((t) => t.siteId);
+    working = resolveDefeatForSeat(working, c.defenderSeat, siteIds, defenderBoardBonusApplies(state, c));
+  }
+
+  // §5.5.7, mandatory parts only (no choice): take every targeted relic...
+  const relicEffects: Effect[] = c.targets
+    .filter((t): t is Extract<typeof t, { kind: 'relic' }> => t.kind === 'relic')
+    .map((t) => ({
+      kind: 'card' as const,
+      id: t.relicId,
+      from: { kind: 'seatRelics' as const, seat: c.defenderSeat as number },
+      to: { kind: 'seatRelics' as const, seat: c.attackerSeat },
+    }));
+  if (relicEffects.length > 0) working = applyEffects(working, c.attackerSeat, relicEffects);
+
+  // ...and banner (Law §2.5.3's Seize Penalty: burn 2, minimum 1 left; flip
+  // the People's Favor to Mob). Holder/tokens/mob are mutated directly, same
+  // as Recover (unit 11) — not currency moves the effect vocabulary owns.
+  for (const t of c.targets) {
+    if (t.kind !== 'banner') continue;
+    const isFavor = t.bannerId === PEOPLES_FAVOR_ID;
+    const before = working.banners.find((b) => b.id === t.bannerId)!;
+    const after = Math.max(SEIZE_BANNER_MINIMUM, before.tokens - SEIZE_BANNER_BURN);
+    const burned = before.tokens - after;
+    if (burned > 0) {
+      working = applyEffects(working, c.attackerSeat, [
+        isFavor
+          ? { kind: 'favor', from: { kind: 'bannerFavor' }, to: { kind: 'sharedFavor' }, amount: burned }
+          : { kind: 'secret', from: { kind: 'bannerSecrets' }, to: { kind: 'sharedSecrets' }, amount: burned },
+      ]);
+    }
+    const banner = working.banners.find((b) => b.id === t.bannerId)!;
+    banner.tokens = after;
+    banner.holder = c.attackerSeat;
+    if (isFavor) banner.mob = true;
+  }
+
+  working.campaign!.phase = 'seize';
+  return working;
+}
+
+const SeizePayloadSchema = z.object({
+  placements: z.array(z.object({ siteId: z.string(), warbands: z.number().int().min(0) })).default([]),
+  banishTo: z.string().optional(),
+  burnFavor: z.boolean().default(false),
+});
+
+function seize(state: OathState, action: GameAction): OathState {
+  const seat = requireActiveSeat(state, action, { campaignOk: true });
+  const c = state.campaign;
+  if (!c || c.phase !== 'seize') {
+    throw new IllegalAction('campaign.seize: no campaign is awaiting seizure');
+  }
+  if (seat !== c.attackerSeat) {
+    throw new IllegalAction("campaign.seize: only the campaign's attacker may seize");
+  }
+  const parsed = SeizePayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('campaign.seize: malformed payload');
+  const { placements, banishTo, burnFavor } = parsed.data;
+
+  const siteTargetIds = new Set(c.targets.filter((t) => t.kind === 'site').map((t) => t.siteId));
+  const seenSites = new Set<string>();
+  let totalPlaced = 0;
+  const effects: Effect[] = [];
+  for (const p of placements) {
+    if (!siteTargetIds.has(p.siteId)) {
+      throw new IllegalAction(`campaign.seize: ${p.siteId} was not targeted (Law §5.5.7)`);
+    }
+    if (seenSites.has(p.siteId)) throw new IllegalAction(`campaign.seize: duplicate placement for ${p.siteId}`);
+    seenSites.add(p.siteId);
+    totalPlaced += p.warbands;
+    if (p.warbands > 0) {
+      effects.push({
+        kind: 'warbands',
+        from: { kind: 'seatWarbandBoard', seat },
+        to: { kind: 'siteWarbands', siteId: p.siteId, seat },
+        amount: p.warbands,
+      });
+    }
+  }
+  if (totalPlaced > state.players[seat].warbands.board) {
+    throw new IllegalAction('campaign.seize: not enough board warbands to place');
+  }
+
+  const pawnFavorTargeted = c.targets.some((t) => t.kind === 'pawnFavor');
+  if ((banishTo !== undefined || burnFavor) && !pawnFavorTargeted) {
+    throw new IllegalAction(
+      'campaign.seize: banishing the pawn or burning favor requires a pawnFavor target (Law §5.5.7)',
+    );
+  }
+  if (banishTo !== undefined && !state.sites.find((s) => s.id === banishTo)) {
+    throw new IllegalAction(`campaign.seize: ${banishTo} is not a real site`);
+  }
+
+  let working = applyEffects(state, seat, effects);
+  const defenderSeat = c.defenderSeat as number; // pawnFavorTargeted => a real seat (never bandits)
+
+  if (burnFavor) {
+    const amount = Math.floor(working.players[defenderSeat].favor / 2);
+    if (amount > 0) {
+      working = applyEffects(working, seat, [
+        { kind: 'favor', from: { kind: 'seatFavor', seat: defenderSeat }, to: { kind: 'sharedFavor' }, amount },
+      ]);
+    }
+  }
+  if (banishTo !== undefined) {
+    working.players[defenderSeat].pawnSite = banishTo;
+  }
+
+  working.campaign = null;
+  return working;
+}
+
 export const CAMPAIGN_HANDLERS: Record<string, Handler> = {
   'campaign.declare': declare,
   'campaign.respond': respond,
   'campaign.roll': roll,
+  'campaign.resolve': resolve,
+  'campaign.seize': seize,
 };
 
 /**

@@ -107,15 +107,25 @@ export const oath: GameDefinition<OathState, OathSetup> = {
           },
         ];
       }
-      // phase 'rolled': awaits unit 13's resolution actions, which don't
-      // exist yet — nothing currently resolves this.
+      if (c.phase === 'rolled') {
+        return [
+          {
+            id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
+            seat: c.attackerSeat,
+            kind: 'campaign',
+            prompt: `Resolve your Campaign's outcome (Law §5.5.5-5.5.6).`,
+            resolves: ['campaign.resolve'],
+          },
+        ];
+      }
+      // phase 'seize': a win — the attacker's remaining choices (Law §5.5.7).
       return [
         {
           id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
           seat: c.attackerSeat,
           kind: 'campaign',
-          prompt: `Your Campaign has been rolled and awaits resolution.`,
-          resolves: [],
+          prompt: `You are victorious — place warbands, and banish/burn if you targeted their pawn (Law §5.5.7).`,
+          resolves: ['campaign.seize'],
         },
       ];
     }

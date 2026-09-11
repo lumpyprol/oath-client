@@ -1208,7 +1208,7 @@ replay reuses persisted dice.
 
 ---
 
-## Unit 13 — Campaign II: resolution
+## Unit 13 — Campaign II: resolution ✅ (completed 2026-09-11)
 
 **Purpose.** Campaigns finish: winner, casualties, sacrifice, seizure.
 
@@ -1250,6 +1250,58 @@ Commit: "Add campaign resolution"
 
 **Done when.** Scripted campaigns resolve to hand-computed outcomes and
 survive replay.
+
+## What unit 13 established (as built, 2026-09-11)
+
+- **Two more actions on the same `state.campaign`, two more phases**
+  (`'rolled' -> 'resolve' -> ('seize' | cleared)`): `campaign.resolve`
+  (attacker only) computes the outcome and — on a loss — clears the
+  campaign there and then; on a win, applies every MANDATORY §5.5.7
+  effect (relics, banners) immediately and moves to `'seize'` for the
+  attacker's remaining CHOICES (`campaign.seize`: placements, banish,
+  burn-favor), which clears the campaign when submitted.
+- **The arithmetic, exactly:** attack = swords + floor(hollowSwords/2)
+  (Law §5.5.5); defense = shields (with doubleShield=2, shieldX2=0-but-
+  doubles-the-running-total, stacking exponentially per multiple) +
+  warbands at every targeted site (or 1/site vs. bandits — untracked as
+  warbands) + the defender's own board warbands, but only if their pawn
+  is at the attacker's site or any targeted site (Law §5.5.4) — the SAME
+  condition gates both this bonus and whether their board is part of
+  "their force" for §5.5.6's casualty count below.
+- **Sacrifice is exact, not "at least"** (Law §9.5, "no unprompted
+  losses" — a small but real rules subtlety easy to get wrong): the
+  payload's `sacrifice` must be 0 or precisely `defense - swords + 1`;
+  anything else — too few, too many, or nonzero when already winning —
+  is illegal-state, not silently clamped.
+- **One function resolves defeat for EITHER side** (`resolveDefeatForSeat`,
+  Law §5.5.6): pass `siteIds: []`/`includeBoard: true` for the attacker
+  (their force is just their board) or the defender's targeted-site ids
+  and the SAME board-bonus condition as the defense total for the
+  defender — half (rounded down) of the total dies, the rest
+  consolidates onto that seat's board. Kill quota drains from sites
+  first, then the board; warbands of one color are fungible, so this is
+  equivalent to (and much simpler than) tracking which specific token
+  falls, and it naturally handles purple-to-the-Chancellor (Glossary
+  "Kill") via a `citizenship`-aware bank lookup.
+- **Bandits are exempt from §5.5.6** ("cannot be killed... just go into
+  hiding") — `resolveDefeatForSeat` is simply never called for them.
+- **Reused the existing effect vocabulary** (`applyEffects`) for every
+  warband/favor/secret/relic move in this unit — no new zone kinds were
+  needed. Banner holder/tokens/mob are mutated directly, per the
+  precedent effects.ts's own header already named for Recover (unit 11):
+  banner HOLDER transfer isn't a currency the vocabulary owns.
+- **Deferred, documented (not silently dropped) — see `campaign.ts`'s
+  header and the v2 running list:** battle plans (§5.5.3, §5.5.8, and
+  their "if you're victorious"/"if you're defeated"/"at end, discard"
+  triggers) and "Imperial warbands at sites move to the Chancellor's
+  board" (§5.5.7 — an Ally/Imperial-team rule, same Allies deferral as
+  unit 12's).
+- **Scope note on the exit criterion's HTTP round-trip:** tested through
+  `campaign.resolve` with REAL random dice (via the store's `prepare()`),
+  not forced to a particular win/loss — `sacrifice: 0` is legal either
+  way, so the replay-determinism property doesn't need a scripted
+  outcome. `campaign.seize` is exercised separately, with scripted faces,
+  since it's only reachable after a win and real dice can't be forced.
 
 ---
 

@@ -190,9 +190,14 @@ export interface CampaignState {
    * `'respond'` — the defender's window (skipped straight to `'roll'` when
    * `defenderSeat === 'bandits'`, since there is no player to respond).
    * `'roll'` — the attacker submits `campaign.roll`.
-   * `'rolled'` — faces are persisted; awaits unit 13's resolution actions.
+   * `'rolled'` — faces are persisted; the attacker submits `campaign.resolve`
+   * (Law §5.5.5-6; sacrifice, casualties, defeat) — if it's a loss, this
+   * clears the campaign; if a win, moves to `'seize'`.
+   * `'seize'` — the attacker submits `campaign.seize` (Law §5.5.7's
+   * CHOICE-bearing parts only — placements, banish, burn-favor; taking
+   * relics/banners is mandatory and already happened in `resolve`).
    */
-  phase: 'respond' | 'roll' | 'rolled';
+  phase: 'respond' | 'roll' | 'rolled' | 'seize';
   attackFaces?: AttackFace[];
   defenseFaces?: DefenseFace[];
   /** `actionCount` at declare — the pending-decision id's stable anchor. */
@@ -514,12 +519,12 @@ export function checkInvariants(state: OathState): void {
         fail(`campaign target relic ${t.relicId} is not in the card database`);
       }
     }
-    if (c.phase === 'rolled') {
+    if (c.phase === 'rolled' || c.phase === 'seize') {
       if (!c.attackFaces || c.attackFaces.length !== c.attackDice) {
-        fail(`campaign: phase 'rolled' must carry exactly attackDice attack faces`);
+        fail(`campaign: phase '${c.phase}' must carry exactly attackDice attack faces`);
       }
       if (!c.defenseFaces || c.defenseFaces.length !== c.defenseDice) {
-        fail(`campaign: phase 'rolled' must carry exactly defenseDice defense faces`);
+        fail(`campaign: phase '${c.phase}' must carry exactly defenseDice defense faces`);
       }
     } else if (c.attackFaces || c.defenseFaces) {
       fail(`campaign: faces must not be set before phase 'rolled'`);

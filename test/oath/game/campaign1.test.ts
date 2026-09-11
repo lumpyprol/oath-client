@@ -375,7 +375,7 @@ describe('campaign.roll (Law §5.5.4-5.5.5)', () => {
       defenseFaces: ['shield', 'blank'],
     });
     const pending = oath.pending(out);
-    expect(pending[0]).toMatchObject({ seat: 1, kind: 'campaign', resolves: [] });
+    expect(pending[0]).toMatchObject({ seat: 1, kind: 'campaign', resolves: ['campaign.resolve'] });
     checkInvariants(out);
   });
 
