@@ -137,6 +137,7 @@ import { z } from 'zod';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import { discardRegion } from '../map.js';
+import { chancellorSeatOf } from '../rule.js';
 import {
   CHANCELLOR_WARBANDS,
   DARKEST_SECRET_ID,
@@ -162,10 +163,6 @@ const BagSchema = z.object({
 });
 
 // ---- shared helpers (both directions of citizenship transition) ----------
-
-function chancellorSeatOf(state: OathState): number {
-  return state.players.findIndex((p) => p.citizenship === 'chancellor');
-}
 
 function totalWarbands(state: OathState, seat: number): number {
   const onMap = state.sites.reduce((sum, s) => sum + s.warbands[seat], 0);

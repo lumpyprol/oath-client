@@ -18,7 +18,7 @@ import { TRADE_HANDLERS } from './actions/trade.js';
 import { TRAVEL_HANDLERS } from './actions/travel.js';
 import { SEARCH_HANDLERS } from './actions/search.js';
 import { RECOVER_HANDLERS } from './actions/recover.js';
-import { CAMPAIGN_HANDLERS, prepareCampaign } from './actions/campaign.js';
+import { CAMPAIGN_HANDLERS, casualtyChooser, prepareCampaign } from './actions/campaign.js';
 import { POWER_HANDLERS, preparePower } from './actions/power.js';
 import { CITIZENSHIP_HANDLERS } from './actions/citizenship.js';
 import { project } from './project.js';
@@ -139,6 +139,21 @@ export const oath: GameDefinition<OathState, OathSetup> = {
             kind: 'campaign',
             prompt: `Resolve your Campaign's outcome (Law §5.5.5-5.5.6).`,
             resolves: ['campaign.resolve'],
+          },
+        ];
+      }
+      if (c.phase === 'casualties') {
+        // Law §5.5.6's aside (unit 16a) — usually the Chancellor, but the
+        // defeated player themselves when they are not an Imperial player.
+        const chooser = casualtyChooser(state, c);
+        return [
+          ...citizenshipDecision,
+          {
+            id: `campaign:${chooser}:${c.declaredAt}`,
+            seat: chooser,
+            kind: 'campaign',
+            prompt: `Choose which ${c.casualties!.quota} warbands of the defeated force are killed (Law §5.5.6).`,
+            resolves: ['campaign.casualties'],
           },
         ];
       }

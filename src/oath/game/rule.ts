@@ -33,6 +33,23 @@
 
 import type { OathState } from './state.js';
 
+export function chancellorSeatOf(state: OathState): number {
+  return state.players.findIndex((p) => p.citizenship === 'chancellor');
+}
+
+/**
+ * Every Imperial seat (Chancellor + every Citizen) not named in
+ * `excludeImperial` (unit 16a) — the same set `rulersOf` grants ruling
+ * to, exported directly since `campaign.ts`'s defense-total/casualty
+ * arithmetic and unit 16c's title-defense dice need the SET itself
+ * ("who's in the force"), not "does seat X rule site Y".
+ */
+export function imperialForce(state: OathState, excludeImperial: readonly number[] = []): number[] {
+  return state.players
+    .map((_, seat) => seat)
+    .filter((seat) => state.players[seat].citizenship !== 'exile' && !excludeImperial.includes(seat));
+}
+
 export function rulersOf(
   state: OathState,
   siteId: string,
@@ -44,11 +61,8 @@ export function rulersOf(
   const hasImperialPresence = direct.some((seat) => state.players[seat].citizenship !== 'exile');
   if (!hasImperialPresence) return direct; // Law §10.21's base rule only
 
-  const imperialRulers = state.players
-    .map((_, seat) => seat)
-    .filter((seat) => state.players[seat].citizenship !== 'exile' && !excludeImperial.includes(seat));
   const exileRulers = direct.filter((seat) => state.players[seat].citizenship === 'exile');
-  return [...new Set([...imperialRulers, ...exileRulers])];
+  return [...new Set([...imperialForce(state, excludeImperial), ...exileRulers])];
 }
 
 /**

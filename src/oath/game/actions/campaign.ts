@@ -76,18 +76,28 @@
  *     many board warbands left (post-skull) to spend; sacrificing IS
  *     killing (Glossary "Sacrifice"). §5.5.6 Resolve Defeat then applies
  *     to whichever side lost (bandits are exempt — "cannot be killed,
- *     they just go into hiding"): half (rounded down) of "the warbands
- *     that added to their defense" die, the rest consolidate onto their
- *     board — for the attacker that "force" is simply their board; for
- *     the defender it's their warbands at every targeted site plus,
- *     conditionally, their board (the SAME condition as the defense-total
- *     bonus above, evaluated from the pre-battle state). On a loss, the
- *     campaign clears here — nothing left to choose. On a win, §5.5.7's
- *     MANDATORY parts happen here too (no choice involved): every
- *     targeted relic and banner is taken — a seized banner burns 2 favor/
- *     secrets (minimum 1 left) and, if it's the People's Favor, flips to
- *     Mob (§2.5.3) — then phase advances to `'seize'` for the CHOICE-
- *     bearing rest.
+ *     they just go into hiding"): half (rounded down) of the force dies,
+ *     the rest consolidates (see `defendingForce`/`survivorBoardOf` for
+ *     what a force is and where its survivors land). On a loss, the
+ *     campaign clears here — nothing left to choose. On a win, either the
+ *     phase advances to `'casualties'` (the allocation is a real choice)
+ *     or the defeat is applied with the default allocation and §5.5.7's
+ *     MANDATORY spoils follow immediately: every targeted relic and banner
+ *     is taken — a seized banner burns 2 favor/secrets (minimum 1 left)
+ *     and, if it's the People's Favor, flips to Mob (§2.5.3) — then phase
+ *     advances to `'seize'` for the CHOICE-bearing rest.
+ *
+ *   campaign.casualties — the Chancellor ONLY, or the defeated player when
+ *     they are not an Imperial player (`casualtyChooser`; `phase ===
+ *     'casualties'`, unit 16a). §5.5.6's aside: "If an Imperial player is
+ *     defending, the Chancellor chooses which warbands in the defending
+ *     force are killed." Allocates the engine-computed kill quota across
+ *     the force's (site, seat) and (board, seat) locations; the quota
+ *     itself is never taken from the payload. Then applies §5.5.7's spoils
+ *     and advances to `'seize'`, so the Law's step order holds on this
+ *     path exactly as it does on the auto-allocated one. The phase is
+ *     raised ONLY when the allocation can change the final position —
+ *     see `allocationMatters`.
  *
  *   campaign.seize — the attacker ONLY (`phase === 'seize'`, so only
  *     reachable after a win). §5.5.7's remaining choices, all optional:
@@ -127,23 +137,27 @@
  * legality, and matters the moment a Citizen exists (unit 16), not only
  * once Allies themselves are built.
  *
+ * UNIT 16a PART 1 (2026-09-11) closed the Imperial force itself, which was
+ * reachable with ONE Citizen and no Allies whatsoever: §5.5.4's site bonus
+ * now sums every Imperial seat's warbands at a targeted site (the seam D42
+ * opened — see `defendingForce`), §5.5.7's purple aside now routes site
+ * survivors to the Chancellor's board (`survivorBoardOf`), and because
+ * those two give site-kills and board-kills different outcomes, §5.5.6's
+ * "the Chancellor chooses which warbands are killed" became a real choice
+ * and got its own phase (`campaign.casualties`).
+ *
  * DEFERRED (documented, not silently dropped):
- *   - Imperial Allies PROPER: §5.5.1's Chancellor-joins/Citizen-may-join,
- *     and their warband bonuses to the defense TOTAL (§5.5.4) and the
- *     casualty consolidation across multiple Imperial seats' forces
- *     (§5.5.6-7). Ruling a targeted site is now correct for multi-Imperial
- *     games (above); the DICE ARITHMETIC still only reads the single
- *     recorded defender seat's own site/board counts — combining several
- *     Imperial seats' warbands into one "force" (Glossary "Force") needs
- *     the Allies opt-in mechanic itself (who joins, the Chancellor's
- *     mandatory join, permission for other Citizens) to do correctly, not
- *     just a ruling fix.
+ *   - Imperial Allies' OPT-IN: §5.5.2's Chancellor-joins/Citizen-may-join
+ *     and §5.5.4's per-Ally board bonus. Part 1 above fixed the SITE half
+ *     of the force (which needs no Allies, since site pieces are purple
+ *     regardless of who joined); the BOARD half still contributes only the
+ *     recorded defender's own warbands. Unit 16a part 2.
  *   - Battle plans (§5.5.3, §5.5.8) — card powers; v1 defers all power
  *     text, including "if you're victorious"/"if you're defeated"/"at
- *     end, discard" battle-plan triggers.
- *   - "Imperial warbands at sites move to the Chancellor's board" (§5.5.7)
- *     — an Ally/Imperial-team consolidation rule, same Allies deferral as
- *     above.
+ *     end, discard" battle-plan triggers, §5.5.3's "a specific battle plan
+ *     cannot be used by multiple players" bookkeeping, and §5.5.2's
+ *     "activate all Campaign modifiers ruled by the defender and all
+ *     Allies".
  */
 
 import { z } from 'zod';
@@ -153,13 +167,14 @@ import { rollDice } from '../../../engine/random.js';
 import { byId } from '../../cards/index.js';
 import type { Relic } from '../../cards/schema.js';
 import { applyEffects, type Effect } from '../effects.js';
-import { imperialExclusionFor, rulersOf } from '../rule.js';
+import { chancellorSeatOf, imperialExclusionFor, imperialForce, rulersOf } from '../rule.js';
 import {
   DARKEST_SECRET_ID,
   PEOPLES_FAVOR_ID,
   type AttackFace,
   type CampaignState,
   type DefenseFace,
+  type ForceEntry,
   type OathState,
 } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
@@ -410,10 +425,6 @@ function roll(state: OathState, action: GameAction): OathState {
 
 // ---- resolution (unit 13) -------------------------------------------------
 
-function chancellorSeatOf(state: OathState): number {
-  return state.players.findIndex((p) => p.citizenship === 'chancellor');
-}
-
 /** Law §5.5.5: a sword counts 1; two hollowSwords count as 1 (a lone one, 0). */
 function attackTotal(faces: AttackFace[]): { swords: number; skulls: number } {
   const swords = faces.filter((f) => f === 'sword').length;
@@ -423,165 +434,244 @@ function attackTotal(faces: AttackFace[]): { swords: number; skulls: number } {
 }
 
 /**
- * Law §5.5.4: does the defender's OWN board warbands count toward
- * defense? Only if their pawn is at the attacker's site or at any
- * targeted site. Read from the ORIGINAL (pre-battle) state — nothing
- * about pawn location changes between roll and resolve.
+ * Law §5.5.4: do `seat`'s BOARD warbands count toward the defense? Only if
+ * their pawn is at the attacker's site or at any targeted site. Read from
+ * the ORIGINAL (pre-battle) state — nothing about pawn location changes
+ * between roll and resolve. Generalized over `seat` in unit 16a: §5.5.4's
+ * Ally aside applies the identical pawn test to each Ally, so this is one
+ * function rather than two near-copies.
  */
-function defenderBoardBonusApplies(state: OathState, c: CampaignState): boolean {
-  if (c.defenderSeat === 'bandits') return false;
-  const defenderPawnSite = state.players[c.defenderSeat].pawnSite;
-  const attackerSite = state.players[c.attackerSeat].pawnSite;
-  if (defenderPawnSite === attackerSite) return true;
-  return c.targets.some((t) => t.kind === 'site' && t.siteId === defenderPawnSite);
+function boardBonusApplies(state: OathState, c: CampaignState, seat: number): boolean {
+  const pawnSite = state.players[seat].pawnSite;
+  if (pawnSite === state.players[c.attackerSeat].pawnSite) return true;
+  return c.targets.some((t) => t.kind === 'site' && t.siteId === pawnSite);
 }
 
-/** Law §5.5.4's full defense-total arithmetic, from the persisted faces + current state. */
-function defenseTotal(state: OathState, c: CampaignState): number {
+/**
+ * Whose BOARD warbands are in the defending force. Part 1 of unit 16a: the
+ * defender alone, exactly as before. (Part 2 adds the permitted Allies
+ * here. §5.5.4's Ally aside is about board warbands ONLY — which is why
+ * `defendingForce`'s SITE warbands below deliberately do not consult this
+ * list.)
+ */
+function boardContributors(state: OathState, c: CampaignState): number[] {
+  if (c.defenderSeat === 'bandits') return [];
+  return [c.defenderSeat].filter((seat) => boardBonusApplies(state, c, seat));
+}
+
+/**
+ * The defending force (Glossary §10.9 "Force"; Law §5.5.4's list of what
+ * "added to their defense"), as a list of (where, whose, how many).
+ *
+ * The load-bearing reading, the same one `rule.ts`'s header makes for
+ * ruling: warbands at a site are physically just pieces, and for Imperial
+ * seats they are all purple, so our per-seat `site.warbands[seat]`
+ * attribution is bookkeeping, never an ownership mark. §5.5.4's "warbands
+ * at targeted sites" therefore means EVERY Imperial seat's credited
+ * warbands there when an Imperial player defends — independent of who
+ * joined as an Ally, since the Ally aside governs BOARD warbands only.
+ *
+ * This is the seam D42 opened and unit 16a closes: making every Imperial
+ * seat rule a purple site (correct) let a Citizen with nothing of their own
+ * anywhere be declared defender of a Chancellor-garrisoned site, and then
+ * defend it with zero site warbands counted.
+ *
+ * The attacker is never in this list: whenever the defender is Imperial,
+ * §5.5.1 has either suspended the attacker (Citizen-vs-Empire) or the
+ * attacker is an Exile. The `filter` states that rather than relying on it.
+ */
+function defendingForce(state: OathState, c: CampaignState): ForceEntry[] {
+  if (c.defenderSeat === 'bandits') return []; // Glossary §10.3: bandits are not warbands
+  const exclusion = imperialExclusionFor(state, c.attackerSeat, c.defenderSeat);
+  const imperial = imperialForce(state, exclusion);
+  const defenderIsImperial = imperial.includes(c.defenderSeat);
+  const siteSeats = defenderIsImperial
+    ? imperial.filter((seat) => seat !== c.attackerSeat)
+    : [c.defenderSeat];
+
+  const entries: ForceEntry[] = [];
+  for (const t of c.targets) {
+    if (t.kind !== 'site') continue;
+    const site = state.sites.find((s) => s.id === t.siteId)!;
+    for (const seat of siteSeats) {
+      const count = site.warbands[seat];
+      if (count > 0) entries.push({ kind: 'site', siteId: t.siteId, seat, count });
+    }
+  }
+  for (const seat of boardContributors(state, c)) {
+    const count = state.players[seat].warbands.board;
+    if (count > 0) entries.push({ kind: 'board', seat, count });
+  }
+  return entries;
+}
+
+/** The attacker's force is just their board (Glossary §10.9). */
+function attackingForce(state: OathState, c: CampaignState): ForceEntry[] {
+  const count = state.players[c.attackerSeat].warbands.board;
+  return count > 0 ? [{ kind: 'board', seat: c.attackerSeat, count }] : [];
+}
+
+function forceTotal(force: ForceEntry[]): number {
+  return force.reduce((sum, e) => sum + e.count, 0);
+}
+
+/** Law §5.5.4's full defense-total arithmetic, from the persisted faces + the force. */
+function defenseTotal(state: OathState, c: CampaignState, force: ForceEntry[]): number {
   const shields = c.defenseFaces!.filter((f) => f === 'shield').length;
   const doubleShields = c.defenseFaces!.filter((f) => f === 'doubleShield').length;
   const doublings = c.defenseFaces!.filter((f) => f === 'shieldX2').length;
   const shieldTotal = (shields * 1 + doubleShields * 2) * 2 ** doublings;
 
-  const siteTargets = c.targets.filter((t) => t.kind === 'site');
-  const siteBonus =
+  // Bandits add one per targeted site instead of a warband count — Glossary
+  // §10.3 ("Bandits are not warbands!"), so they never form a force at all.
+  const forceBonus =
     c.defenderSeat === 'bandits'
-      ? siteTargets.length // "bandits add one per site" — not warband-counted
-      : siteTargets.reduce(
-          (sum, t) => sum + state.sites.find((s) => s.id === t.siteId)!.warbands[c.defenderSeat as number],
-          0,
-        );
+      ? c.targets.filter((t) => t.kind === 'site').length
+      : forceTotal(force);
 
-  const boardBonus =
-    c.defenderSeat !== 'bandits' && defenderBoardBonusApplies(state, c)
-      ? state.players[c.defenderSeat].warbands.board
-      : 0;
-
-  return shieldTotal + siteBonus + boardBonus;
+  return shieldTotal + forceBonus;
 }
 
-/** Glossary "Kill": to the personal bank of the matching color (purple -> the Chancellor). */
+/** Glossary "Kill": to the personal bank of the matching colour (purple -> the Chancellor). */
+function killBankOf(state: OathState, seat: number): number {
+  return state.players[seat].citizenship === 'citizen' ? chancellorSeatOf(state) : seat;
+}
+
+/** Glossary "Kill", for the attacker's own skulls and sacrifices (Law §5.5.5). */
 function killFromBoard(state: OathState, seat: number, count: number): OathState {
   if (count <= 0) return applyEffects(state, seat, []);
-  const bankSeat = state.players[seat].citizenship === 'citizen' ? chancellorSeatOf(state) : seat;
   return applyEffects(state, seat, [
-    { kind: 'warbands', from: { kind: 'seatWarbandBoard', seat }, to: { kind: 'seatWarbandBank', seat: bankSeat }, amount: count },
+    {
+      kind: 'warbands',
+      from: { kind: 'seatWarbandBoard', seat },
+      to: { kind: 'seatWarbandBank', seat: killBankOf(state, seat) },
+      amount: count,
+    },
   ]);
 }
 
 /**
- * Law §5.5.6, generalized over both sides via `siteIds`/`includeBoard`:
- * the attacker's force is just their board (`siteIds: []`, `includeBoard:
- * true`); the defender's is their warbands at every targeted site plus,
- * conditionally, their board (the same condition as the defense bonus).
- * Half (rounded down) of the total dies; the rest consolidates onto the
- * seat's board — kill quota is drained from sites first, then the board,
- * which is equivalent to the rulebook's "kill half of the WHOLE force"
- * (warbands of one color are fungible; only the final counts matter).
+ * Where a SURVIVING warband from this force entry ends up — Law §5.5.6's
+ * "they move all the other warbands in their force to their board", as
+ * modified by §5.5.7's purple aside: "Imperial warbands at sites move to
+ * the Chancellor's board. Any warbands still on Citizens' boards stay
+ * there." (The aside is PRINTED under §5.5.7 step 1, but what it modifies
+ * is §5.5.6's consolidation — "their board" is ambiguous the moment a force
+ * spans several Imperial seats, and this is the Law resolving it.)
+ *
+ * Note which question this asks: the physical COLOUR of the piece, not
+ * whether its owner is an Imperial player *in this Campaign*. Unlike
+ * §5.5.2/.3/.4/.6's asides, §5.5.7's carries no "If an Imperial player is
+ * defending" prefix, and §6.6.3 defines "Imperial warbands" as purple ones
+ * — so a Citizen suspended by §5.5.1's carve-out still has purple pieces,
+ * and their site survivors still consolidate onto the Chancellor's board.
+ * Glossary "Kill" already keys the destination of a KILLED warband off the
+ * same physical colour, so the two rules agree.
  */
-function resolveDefeatForSeat(
-  state: OathState,
-  seat: number,
-  siteIds: string[],
-  includeBoard: boolean,
-): OathState {
-  const siteCounts = siteIds.map((siteId) => ({
-    siteId,
-    count: state.sites.find((s) => s.id === siteId)!.warbands[seat],
-  }));
-  const siteTotal = siteCounts.reduce((sum, s) => sum + s.count, 0);
-  const boardCount = state.players[seat].warbands.board;
-  const total = siteTotal + (includeBoard ? boardCount : 0);
-  let killRemaining = Math.floor(total / 2);
-
-  const bankSeat = state.players[seat].citizenship === 'citizen' ? chancellorSeatOf(state) : seat;
-  const effects: Effect[] = [];
-  for (const { siteId, count } of siteCounts) {
-    if (count === 0) continue;
-    const killHere = Math.min(killRemaining, count);
-    killRemaining -= killHere;
-    if (killHere > 0) {
-      effects.push({
-        kind: 'warbands',
-        from: { kind: 'siteWarbands', siteId, seat },
-        to: { kind: 'seatWarbandBank', seat: bankSeat },
-        amount: killHere,
-      });
-    }
-    const moveHere = count - killHere;
-    if (moveHere > 0) {
-      effects.push({
-        kind: 'warbands',
-        from: { kind: 'siteWarbands', siteId, seat },
-        to: { kind: 'seatWarbandBoard', seat },
-        amount: moveHere,
-      });
-    }
-  }
-  if (includeBoard && killRemaining > 0) {
-    effects.push({
-      kind: 'warbands',
-      from: { kind: 'seatWarbandBoard', seat },
-      to: { kind: 'seatWarbandBank', seat: bankSeat },
-      amount: killRemaining,
-    });
-  }
-  return applyEffects(state, seat, effects);
+function survivorBoardOf(state: OathState, entry: ForceEntry): number {
+  if (entry.kind === 'board') return entry.seat; // already on a board — it stays there
+  return state.players[entry.seat].citizenship === 'exile' ? entry.seat : chancellorSeatOf(state);
 }
 
-const ResolvePayloadSchema = z.object({ sacrifice: z.number().int().min(0).default(0) });
+/**
+ * Does it matter WHICH warbands of this force die (Law §5.5.6's aside)?
+ * Only if survivors would land in more than one place — otherwise every
+ * allocation produces the same final position and there is nothing to ask.
+ * That is unit 13's original shortcut, stated as a condition instead of
+ * assumed: a single-colour, single-owner force consolidates onto one board
+ * either way.
+ */
+function allocationMatters(state: OathState, force: ForceEntry[], quota: number): boolean {
+  if (quota <= 0) return false;
+  return new Set(force.map((e) => survivorBoardOf(state, e))).size > 1;
+}
 
-function resolve(state: OathState, action: GameAction): OathState {
-  const seat = requireActiveSeat(state, action, { campaignOk: true });
-  const c = state.campaign;
-  if (!c || c.phase !== 'rolled') {
-    throw new IllegalAction('campaign.resolve: no campaign is awaiting resolution');
+/**
+ * Law §5.5.6's default allocation, used only where `allocationMatters` is
+ * false: drain sites first, then boards. Safe precisely because every
+ * survivor lands in the same place in that case.
+ */
+function autoAllocate(force: ForceEntry[], quota: number): number[] {
+  const kills = force.map(() => 0);
+  let remaining = quota;
+  const indices = force
+    .map((_, i) => i)
+    .sort((a, b) => Number(force[a].kind === 'board') - Number(force[b].kind === 'board'));
+  for (const i of indices) {
+    const take = Math.min(remaining, force[i].count);
+    kills[i] = take;
+    remaining -= take;
   }
-  if (seat !== c.attackerSeat) {
-    throw new IllegalAction("campaign.resolve: only the campaign's attacker may resolve");
-  }
-  const parsed = ResolvePayloadSchema.safeParse(action.payload);
-  if (!parsed.success) throw new IllegalAction('campaign.resolve: malformed payload');
+  return kills;
+}
 
-  const { swords, skulls } = attackTotal(c.attackFaces!);
-  const defense = defenseTotal(state, c);
-
-  // §5.5.5: skulls kill the attacker's OWN board warbands immediately, win or lose.
-  let working = killFromBoard(state, c.attackerSeat, Math.min(skulls, state.players[c.attackerSeat].warbands.board));
-
-  const { sacrifice } = parsed.data;
-  const needed = Math.max(0, defense - swords + 1);
-  if (sacrifice !== 0) {
-    if (sacrifice !== needed) {
-      throw new IllegalAction(
-        `campaign.resolve: sacrifice must be exactly ${needed} to become victorious, or 0 (Law §5.5.5, §9.5)`,
-      );
+/**
+ * Law §5.5.6: `kills[i]` of `force[i]` die (to the matching bank); every
+ * other warband in the force moves to its survivor board. Warbands already
+ * on a board that survive do not move at all.
+ */
+function applyDefeat(
+  state: OathState,
+  actor: number,
+  force: ForceEntry[],
+  kills: number[],
+): OathState {
+  const effects: Effect[] = [];
+  force.forEach((entry, i) => {
+    const from =
+      entry.kind === 'site'
+        ? ({ kind: 'siteWarbands', siteId: entry.siteId, seat: entry.seat } as const)
+        : ({ kind: 'seatWarbandBoard', seat: entry.seat } as const);
+    if (kills[i] > 0) {
+      effects.push({
+        kind: 'warbands',
+        from,
+        to: { kind: 'seatWarbandBank', seat: killBankOf(state, entry.seat) },
+        amount: kills[i],
+      });
     }
-    if (sacrifice > working.players[c.attackerSeat].warbands.board) {
-      throw new IllegalAction('campaign.resolve: not enough board warbands left to sacrifice that many');
+    const survivors = entry.count - kills[i];
+    if (survivors > 0 && entry.kind === 'site') {
+      effects.push({
+        kind: 'warbands',
+        from,
+        to: { kind: 'seatWarbandBoard', seat: survivorBoardOf(state, entry) },
+        amount: survivors,
+      });
     }
-    working = killFromBoard(working, c.attackerSeat, sacrifice); // Glossary "Sacrifice": choosing to kill your own
-  }
+  });
+  return applyEffects(state, actor, effects);
+}
 
-  const victorious = swords + sacrifice > defense;
+/**
+ * Law §5.5.6's aside: "If an Imperial player is defending, the Chancellor
+ * chooses which warbands in the defending force are killed." Otherwise the
+ * base text's "the defeated player kills half" leaves the choice with the
+ * defeated player themselves — which is reachable, since a Citizen
+ * suspended by §5.5.1 is not an Imperial player but still has purple
+ * warbands whose site survivors go elsewhere than their board
+ * (`survivorBoardOf`), so their allocation can matter too.
+ */
+export function casualtyChooser(state: OathState, c: CampaignState): number {
+  const defenderSeat = c.defenderSeat as number; // a casualties phase is never reached vs bandits
+  const exclusion = imperialExclusionFor(state, c.attackerSeat, c.defenderSeat);
+  return imperialForce(state, exclusion).includes(defenderSeat)
+    ? chancellorSeatOf(state)
+    : defenderSeat;
+}
 
-  if (!victorious) {
-    // §5.5.6: the attacker is the defeated party; their force is their board.
-    working = resolveDefeatForSeat(working, c.attackerSeat, [], true);
-    working.campaign = null;
-    return working;
-  }
+/**
+ * Law §5.5.7's MANDATORY spoils — no choice involved, so they are applied
+ * by whichever action finishes the resolution rather than being offered.
+ * Always runs AFTER §5.5.6's defeat, in both the auto-allocated and the
+ * `casualties`-phase paths, so the Law's step order holds either way.
+ */
+function applyVictorySpoils(state: OathState, c: CampaignState): OathState {
+  let working = state;
 
-  if (c.defenderSeat !== 'bandits') {
-    // §5.5.6, computed from the ORIGINAL state (site/board counts haven't
-    // changed since declare — only the attacker's board has, above).
-    const siteIds = c.targets.filter((t) => t.kind === 'site').map((t) => t.siteId);
-    working = resolveDefeatForSeat(working, c.defenderSeat, siteIds, defenderBoardBonusApplies(state, c));
-  }
-
-  // §5.5.7, mandatory parts only (no choice): take every targeted relic...
+  // ...take every targeted relic...
   const relicEffects: Effect[] = c.targets
-    .filter((t): t is Extract<typeof t, { kind: 'relic' }> => t.kind === 'relic')
+    .filter((t): t is Extract<CampaignState['targets'][number], { kind: 'relic' }> => t.kind === 'relic')
     .map((t) => ({
       kind: 'card' as const,
       id: t.relicId,
@@ -612,7 +702,137 @@ function resolve(state: OathState, action: GameAction): OathState {
     if (isFavor) banner.mob = true;
   }
 
+  return working;
+}
+
+const ResolvePayloadSchema = z.object({ sacrifice: z.number().int().min(0).default(0) });
+
+function resolve(state: OathState, action: GameAction): OathState {
+  const seat = requireActiveSeat(state, action, { campaignOk: true });
+  const c = state.campaign;
+  if (!c || c.phase !== 'rolled') {
+    throw new IllegalAction('campaign.resolve: no campaign is awaiting resolution');
+  }
+  if (seat !== c.attackerSeat) {
+    throw new IllegalAction("campaign.resolve: only the campaign's attacker may resolve");
+  }
+  const parsed = ResolvePayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('campaign.resolve: malformed payload');
+
+  const { swords, skulls } = attackTotal(c.attackFaces!);
+  // Both computed from the ORIGINAL (pre-battle) state: the defending force
+  // is untouched by anything below, which only moves the ATTACKER's board.
+  const force = defendingForce(state, c);
+  const defense = defenseTotal(state, c, force);
+
+  // §5.5.5: skulls kill the attacker's OWN board warbands immediately, win or lose.
+  let working = killFromBoard(state, c.attackerSeat, Math.min(skulls, state.players[c.attackerSeat].warbands.board));
+
+  const { sacrifice } = parsed.data;
+  const needed = Math.max(0, defense - swords + 1);
+  if (sacrifice !== 0) {
+    if (sacrifice !== needed) {
+      throw new IllegalAction(
+        `campaign.resolve: sacrifice must be exactly ${needed} to become victorious, or 0 (Law §5.5.5, §9.5)`,
+      );
+    }
+    if (sacrifice > working.players[c.attackerSeat].warbands.board) {
+      throw new IllegalAction('campaign.resolve: not enough board warbands left to sacrifice that many');
+    }
+    working = killFromBoard(working, c.attackerSeat, sacrifice); // Glossary "Sacrifice": choosing to kill your own
+  }
+
+  const victorious = swords + sacrifice > defense;
+
+  if (!victorious) {
+    // §5.5.6: the attacker is the defeated party, and their force is just
+    // their board — one destination, so the allocation can never matter.
+    const own = attackingForce(working, c);
+    working = applyDefeat(working, c.attackerSeat, own, autoAllocate(own, Math.floor(forceTotal(own) / 2)));
+    working.campaign = null;
+    return working;
+  }
+
+  const quota = Math.floor(forceTotal(force) / 2);
+  if (allocationMatters(state, force, quota)) {
+    // §5.5.6's aside: hand the choice over before doing anything else, so
+    // the Law's step order (defeat, then §5.5.7's spoils) still holds.
+    working.campaign!.phase = 'casualties';
+    working.campaign!.casualties = { force, quota };
+    return working;
+  }
+
+  working = applyDefeat(working, c.attackerSeat, force, autoAllocate(force, quota));
+  working = applyVictorySpoils(working, c);
   working.campaign!.phase = 'seize';
+  return working;
+}
+
+const CasualtiesPayloadSchema = z.object({
+  kills: z
+    .array(
+      z.discriminatedUnion('kind', [
+        z.object({
+          kind: z.literal('site'),
+          siteId: z.string(),
+          seat: z.number().int().min(0),
+          count: z.number().int().positive(),
+        }),
+        z.object({
+          kind: z.literal('board'),
+          seat: z.number().int().min(0),
+          count: z.number().int().positive(),
+        }),
+      ]),
+    )
+    .default([]),
+});
+
+function casualties(state: OathState, action: GameAction): OathState {
+  if (state.complete) throw new IllegalAction('campaign.casualties: the game is already complete');
+  const c = state.campaign;
+  if (!c || c.phase !== 'casualties' || !c.casualties) {
+    throw new IllegalAction('campaign.casualties: no campaign is awaiting a casualty allocation');
+  }
+  const chooser = casualtyChooser(state, c);
+  if (action.actor !== chooser) {
+    throw new IllegalAction(
+      `campaign.casualties: only seat ${chooser} allocates this force's casualties (Law §5.5.6)`,
+    );
+  }
+  const parsed = CasualtiesPayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('campaign.casualties: malformed payload');
+
+  const { force, quota } = c.casualties;
+  const kills = force.map(() => 0);
+  for (const k of parsed.data.kills) {
+    const i = force.findIndex(
+      (e) => e.kind === k.kind && e.seat === k.seat && (e.kind !== 'site' || e.siteId === (k as { siteId: string }).siteId),
+    );
+    if (i === -1) {
+      throw new IllegalAction('campaign.casualties: that location is not part of the defeated force');
+    }
+    if (kills[i] !== 0) {
+      throw new IllegalAction('campaign.casualties: duplicate allocation for one location');
+    }
+    if (k.count > force[i].count) {
+      throw new IllegalAction(
+        `campaign.casualties: cannot kill ${k.count} where the force has only ${force[i].count}`,
+      );
+    }
+    kills[i] = k.count;
+  }
+  const allocated = kills.reduce((sum, n) => sum + n, 0);
+  if (allocated !== quota) {
+    throw new IllegalAction(
+      `campaign.casualties: must allocate exactly ${quota} kills, got ${allocated} (Law §5.5.6, §9.5)`,
+    );
+  }
+
+  let working = applyDefeat(state, chooser, force, kills);
+  working = applyVictorySpoils(working, c);
+  working.campaign!.phase = 'seize';
+  delete working.campaign!.casualties;
   return working;
 }
 
@@ -693,6 +913,7 @@ export const CAMPAIGN_HANDLERS: Record<string, Handler> = {
   'campaign.respond': respond,
   'campaign.roll': roll,
   'campaign.resolve': resolve,
+  'campaign.casualties': casualties,
   'campaign.seize': seize,
 };
 

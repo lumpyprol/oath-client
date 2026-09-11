@@ -172,6 +172,17 @@ export type AttackFace = 'sword' | 'hollowSword' | 'skull';
 export type DefenseFace = 'blank' | 'shield' | 'doubleShield' | 'shieldX2';
 
 /**
+ * One component of a force (Glossary §10.9 "Force"; unit 16a): warbands of
+ * ONE seat in ONE place. The Law treats a force as an undifferentiated pile
+ * of physical pieces; our per-seat, per-site bookkeeping means we have to
+ * carry it as a list of (where, whose, how many) instead — which is also
+ * exactly what §5.5.6's Imperial allocation choice needs to address.
+ */
+export type ForceEntry =
+  | { kind: 'site'; siteId: string; seat: number; count: number }
+  | { kind: 'board'; seat: number; count: number };
+
+/**
  * The in-progress Campaign (unit 12; Law §5.5). Non-null from `declare`
  * through resolution (unit 13 clears it). While non-null, every action
  * other than the phase's own resolving action is illegal-state
@@ -192,14 +203,27 @@ export interface CampaignState {
    * `'roll'` — the attacker submits `campaign.roll`.
    * `'rolled'` — faces are persisted; the attacker submits `campaign.resolve`
    * (Law §5.5.5-6; sacrifice, casualties, defeat) — if it's a loss, this
-   * clears the campaign; if a win, moves to `'seize'`.
+   * clears the campaign; if a win, moves to `'casualties'` or `'seize'`.
+   * `'casualties'` — a defeated force whose kill allocation changes the
+   * final position submits `campaign.casualties` (Law §5.5.6's Imperial
+   * aside; unit 16a). Skipped entirely whenever the allocation cannot
+   * matter, which is every single-destination force — see `campaign.ts`.
    * `'seize'` — the attacker submits `campaign.seize` (Law §5.5.7's
    * CHOICE-bearing parts only — placements, banish, burn-favor; taking
    * relics/banners is mandatory and already happened in `resolve`).
    */
-  phase: 'respond' | 'roll' | 'rolled' | 'seize';
+  phase: 'respond' | 'roll' | 'rolled' | 'casualties' | 'seize';
   attackFaces?: AttackFace[];
   defenseFaces?: DefenseFace[];
+  /**
+   * Set if and only if `phase === 'casualties'` (unit 16a): the defeated
+   * force as it stood at resolution, and the engine-computed kill quota
+   * (half, rounded down — Law §5.5.6). Persisted rather than recomputed for
+   * the same reason rolled dice faces are (HLD D14): the decision is
+   * answered in a later action, and the answer must be validated against
+   * exactly what was presented.
+   */
+  casualties?: { force: ForceEntry[]; quota: number };
   /** `actionCount` at declare — the pending-decision id's stable anchor. */
   declaredAt: number;
 }
@@ -566,7 +590,7 @@ export function checkInvariants(state: OathState): void {
         fail(`campaign target relic ${t.relicId} is not in the card database`);
       }
     }
-    if (c.phase === 'rolled' || c.phase === 'seize') {
+    if (c.phase === 'rolled' || c.phase === 'casualties' || c.phase === 'seize') {
       if (!c.attackFaces || c.attackFaces.length !== c.attackDice) {
         fail(`campaign: phase '${c.phase}' must carry exactly attackDice attack faces`);
       }
@@ -575,6 +599,33 @@ export function checkInvariants(state: OathState): void {
       }
     } else if (c.attackFaces || c.defenseFaces) {
       fail(`campaign: faces must not be set before phase 'rolled'`);
+    }
+
+    // -- the pending casualty allocation (unit 16a; Law §5.5.6) ------------
+    if (c.phase === 'casualties') {
+      const pending =
+        c.casualties ?? fail(`campaign: phase 'casualties' must carry the force and quota`);
+      const { force, quota } = pending;
+      nonneg(quota, 'campaign.casualties.quota');
+      let total = 0;
+      for (const entry of force) {
+        seatOk(entry.seat, 'campaign.casualties force entry seat');
+        if (!Number.isInteger(entry.count) || entry.count <= 0) {
+          fail(`campaign.casualties: a force entry has a non-positive count (${entry.count})`);
+        }
+        if (entry.kind === 'site' && !siteIds.has(entry.siteId)) {
+          fail(`campaign.casualties: force entry site ${entry.siteId} is not a site on the map`);
+        }
+        total += entry.count;
+      }
+      if (quota !== Math.floor(total / 2)) {
+        fail(
+          `campaign.casualties: quota ${quota} is not half (rounded down) of the ` +
+            `${total}-warband force (Law §5.5.6)`,
+        );
+      }
+    } else if (c.casualties) {
+      fail(`campaign: casualties must be set only during phase 'casualties'`);
     }
   }
 

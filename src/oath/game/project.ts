@@ -197,7 +197,18 @@ export function project(state: OathState, seat: number | null): OathView {
     banners: state.banners.map((b) => ({ ...b })),
     visionsDrawn: state.visionsDrawn,
     turn: { ...state.turn },
-    campaign: state.campaign ? { ...state.campaign, targets: [...state.campaign.targets] } : null,
+    campaign: state.campaign
+      ? {
+          ...state.campaign,
+          targets: [...state.campaign.targets],
+          // The pending casualty allocation (unit 16a) is public like the
+          // rest of a campaign — but copy it, or the view would alias live
+          // state through the nested force array.
+          ...(state.campaign.casualties
+            ? { casualties: { ...state.campaign.casualties, force: [...state.campaign.casualties.force] } }
+            : {}),
+        }
+      : null,
     citizenshipOffer: state.citizenshipOffer
       ? {
           ...state.citizenshipOffer,
