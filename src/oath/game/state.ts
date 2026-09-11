@@ -495,12 +495,11 @@ export function checkInvariants(state: OathState): void {
     if (c.defenderSeat === c.attackerSeat) fail('campaign: attacker cannot be the defender');
     nonneg(c.attackDice, 'campaign.attackDice');
     nonneg(c.defenseDice, 'campaign.defenseDice');
-    if (c.attackDice > players[c.attackerSeat].warbands.board) {
-      fail(
-        `campaign.attackDice (${c.attackDice}) exceeds the attacker's board warbands ` +
-          `(${players[c.attackerSeat].warbands.board}) (Law §5.5.2)`,
-      );
-    }
+    // NOT checked: attackDice <= the attacker's board warbands. That's true
+    // of the player's declared COMMITMENT (checked at declare time), but
+    // the stored value is the post-Plains/Mountain-modifier pool actually
+    // rolled (Law §11.4), which can be one higher (Plains) or lower
+    // (Mountain, clamped at 0) than the commitment.
     if (c.defenderSeat === 'bandits' && c.phase === 'respond') {
       fail(`campaign: phase 'respond' is unreachable against bandits — no player to respond`);
     }

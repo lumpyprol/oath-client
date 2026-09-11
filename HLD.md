@@ -628,16 +628,19 @@ they go.
   outside your turn" secret-flip nuance.
 - **Campaign (unit 12):** battle plans (§5.5.3, card powers used mid-
   Campaign — the naive P2 response window just skips straight to roll);
-  Plains/Mountain's attack-die modifiers (§11.4); every other site/card
-  power that adds or removes attack or defense dice. Also NOT card text
-  but still deferred, pending Citizenship (unit 16) existing at all:
-  Imperial Allies (§5.5.1's citizenship-status sentences, §5.5.2's
-  Chancellor-joins/Citizen-may-join, and their defense-total warband
-  bonuses in §5.5.4). Relic targets (§5.5.2) were ALSO deferred at first
-  for the identical reason as the recover cost — P1 had no per-relic
-  defense-dice count (§2.4.2) — but closed same-day, 09-11:
-  `data/relic-defense-dice.json`, all 20 relics. See `campaign.ts`'s
-  header and D39.
+  every OTHER site/card power that adds or removes attack or defense
+  dice (Plains/Mountain's own §11.4 modifier is NOT on this list — it's
+  identity-only and mandatory, so it's implemented directly in
+  `campaign.ts`, not deferred; see below). Also NOT card text but still
+  deferred, pending Citizenship (unit 16) existing at all: Imperial
+  Allies (§5.5.1's citizenship-status sentences, §5.5.2's Chancellor-
+  joins/Citizen-may-join, and their defense-total warband bonuses in
+  §5.5.4). Two things flagged for this list at first turned out not to
+  belong on it, closed same-day (09-11) instead: relic targets (§5.5.2 —
+  P1 had no per-relic defense-dice count, §2.4.2; `data/relic-defense-
+  dice.json`, all 20 relics) and Plains/Mountain's attack-die modifier
+  itself (§11.4 — no new data needed, just the site's name, which P1
+  already has). See `campaign.ts`'s header and D39.
 
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are

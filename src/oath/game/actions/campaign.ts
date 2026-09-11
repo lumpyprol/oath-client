@@ -23,13 +23,26 @@
  *     (§2.8.3: every site prints exactly one defense die, no per-site
  *     variation) + 2 for pawnFavor (§5.5.2's fixed "two dice, as shown by
  *     the shield on their board") + a targeted banner's current `tokens`
- *     (§2.5.2) + a targeted relic's printed `defenseDice` (§2.4.2 — P1
- *     follow-up landed 2026-09-11, data/relic-defense-dice.json). No card
- *     powers apply to any of this yet (v1: power.use, unit 14; e.g.
- *     Plains/Mountain's site-power attack-die modifiers are exactly the
- *     kind of thing HLD's v2 section already tracks as deferred). Opens
- *     a response window UNLESS the defender is bandits (no player to
- *     respond, so `declare` skips straight to phase `'roll'`).
+ *     (§2.5.2 — the SAME field means favor-on-it for the People's Favor
+ *     and secrets-on-it for the Darkest Secret; see `BannerState.tokens`)
+ *     + a targeted relic's printed `defenseDice` (§2.4.2 — P1 follow-up
+ *     landed 2026-09-11, data/relic-defense-dice.json). No card powers
+ *     apply to any of this yet (v1: power.use, unit 14) — but Plains and
+ *     Mountain's attack-die modifiers (§11.4) are NOT card-power text,
+ *     they're a mandatory Site Reference rule keyed only on site identity
+ *     ("You must add/subtract... even if you rule"), decidable from data
+ *     P1 already has (the site's name), so they're applied directly
+ *     below rather than deferred: +1 attack die if ANY declared target is
+ *     located at Plains, -1 if any is located at Mountain (both, if both
+ *     — they don't cancel by rule, they're independent "must" clauses
+ *     that happen to net out); a site target's location is itself, every
+ *     other kind's location is the attacker's own site (Law §9.2: "must"
+ *     rules are unconditional). The player's declared `attackDice` is
+ *     their commitment (0..board warbands, checked against that cap
+ *     BEFORE the modifier); the stored `campaign.attackDice` is the
+ *     post-modifier pool actually rolled, clamped at 0. Opens a response
+ *     window UNLESS the defender is bandits (no player to respond, so
+ *     `declare` skips straight to phase `'roll'`).
  *
  *   campaign.respond — the defender ONLY (not necessarily the active
  *     seat — turn order doesn't pass during a campaign). Closes the
@@ -80,7 +93,7 @@ import { z } from 'zod';
 import type { ProposedAction } from '../../../engine/types.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { rollDice } from '../../../engine/random.js';
-import { byId } from '../../cards/index.js';
+import { byId, findById } from '../../cards/index.js';
 import type { Relic } from '../../cards/schema.js';
 import {
   DARKEST_SECRET_ID,
@@ -177,12 +190,23 @@ function declare(state: OathState, action: GameAction): OathState {
   }
   const defenderPawnHere = defender !== 'bandits' && state.players[defender].pawnSite === attackerSite;
 
+  const attackerSiteName = byId(attackerSite).name;
   const seen = new Set<string>();
   let defenseDice = 0;
   let targetsYourSite = false; // satisfies the "at least one target at your site" clause
   let targetsYourSiteSpecifically = false; // satisfies the stronger "must target it" clause
+  let targetsPlains = false; // Law §11.4
+  let targetsMountain = false;
 
   for (const t of targets) {
+    // Law §11.4: this target's location — itself if a site target, else the
+    // attacker's own site (pawnFavor/banner/relic all require the defender's
+    // pawn there). A garbage siteId resolves to undefined here and simply
+    // fails the target's own validation below instead of throwing here.
+    const locationName = t.kind === 'site' ? findById(t.siteId)?.name : attackerSiteName;
+    if (locationName === 'Plains') targetsPlains = true;
+    if (locationName === 'Mountain') targetsMountain = true;
+
     const key =
       t.kind === 'site'
         ? `site:${t.siteId}`
@@ -255,12 +279,16 @@ function declare(state: OathState, action: GameAction): OathState {
     );
   }
 
+  // Law §11.4: mandatory, keyed on site identity alone — not a card power.
+  const dieModifier = (targetsPlains ? 1 : 0) - (targetsMountain ? 1 : 0);
+  const finalAttackDice = Math.max(0, attackDice + dieModifier);
+
   attacker.supply -= CAMPAIGN_COST;
   state.campaign = {
     attackerSeat,
     defenderSeat: defender,
     targets: targets.map((t) => (t.kind === 'banner' ? { kind: 'banner', bannerId: bannerFullId(t.bannerId) } : t)),
-    attackDice,
+    attackDice: finalAttackDice,
     defenseDice,
     phase: defender === 'bandits' ? 'roll' : 'respond',
     declaredAt: state.actionCount,

@@ -1149,6 +1149,28 @@ replay reuses persisted dice.
   field; `campaign.declare` now supports `{kind:'relic', relicId}`
   targets, requiring the defender to hold it and their pawn at the
   attacker's site. See RULINGS.md 2026-09-11.
+- **Plains/Mountain's attack-die modifier (§11.4) also wasn't actually
+  deferrable — implemented directly, same review pass.** It reads like
+  card-text power at a glance, but it's mandatory ("you must"), keyed
+  only on site IDENTITY (no card-power interpretation), and needs no new
+  data (the site's printed name, which P1 already has) — nothing like
+  Travel's genuinely-deferred site powers (Coast/Charming Valley/
+  Shrouded Wood/Narrow Pass, all of which really are optional-cost or
+  forced-choice text). +1 attack die if any declared target is located
+  at Plains, -1 if any is at Mountain (both net to 0 if both are
+  targeted — independent "must" clauses, not mutually exclusive); a
+  `site` target's location is itself, every other kind's location is the
+  attacker's own site. The player's declared `attackDice` is their
+  commitment (0..board warbands, checked against that cap first); the
+  stored `campaign.attackDice` is the post-modifier pool, clamped at 0.
+- **Banner dice were already correct — verified, not changed.** Asked
+  whether `BannerState.tokens` correctly drives both banners' defense
+  dice (§2.5.2: favor on the People's Favor, secrets on the Darkest
+  Secret) — yes: `tokens` is already the single field meaning whichever
+  of the two applies (see its own doc comment), so `defenseDice +=
+  banner.tokens` was correct for both from the start. Added an explicit
+  Darkest Secret test to campaign1.test.ts to remove any doubt, since
+  only the People's Favor had one before.
 - **Corrected the plan's own speculation.** This unit's TDD list above
   guessed a "citizenship restriction" illegal-declare case. Re-reading
   §5.5.1 closely: there isn't one. The "not an Imperial player during
@@ -1180,9 +1202,9 @@ replay reuses persisted dice.
     Chancellor-joins/Citizen-may-join, their defense-total warband bonus
     in §5.5.4) — meaningless to build or test before Citizenship (unit 16)
     gives a Citizen seat a way to exist and opt in.
-  - Battle plans (§5.5.3) and every site/card power that adds or removes
-    dice (e.g. Plains/Mountain, §11.4) — v1 card-text deferral, same as
-    every other unit's site powers.
+  - Battle plans (§5.5.3) and every OTHER site/card power that adds or
+    removes dice — v1 card-text deferral, same as every other unit's site
+    powers. (Plains/Mountain, §11.4, is NOT on this list — see above.)
 
 ---
 

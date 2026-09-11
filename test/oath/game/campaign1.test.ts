@@ -197,6 +197,19 @@ describe('campaign.declare (Law §5.5.1-5.5.2)', () => {
     ).toThrow(IllegalAction);
   });
 
+  it("a Darkest Secret target adds dice equal to SECRETS on it, not favor (Law §2.5.2 / BannerState.tokens)", () => {
+    const s = declareStateDefenderRulesYourSite();
+    s.banners[1].holder = 2; // Darkest Secret (index 1 — see helpers.ts)
+    s.banners[1].tokens = 4; // secrets on it; not conserved (Law §9.3), no sourcing needed
+    const out = declare(s, 1, {
+      defender: 2,
+      targets: [{ kind: 'site', siteId: s.sites[5].id }, { kind: 'banner', bannerId: 'darkest-secret' }],
+      attackDice: 1,
+    });
+    expect(out.campaign).toMatchObject({ defenseDice: 1 + 4 });
+    checkInvariants(out);
+  });
+
   describe('relic targets (Law §5.5.2; P1 follow-up, data/relic-defense-dice.json)', () => {
     // baseState gives seat 2 one held relic already: cards.relics[1] (sorted
     // by saveId — Cursed Cauldron, defenseDice 3).
@@ -226,6 +239,59 @@ describe('campaign.declare (Law §5.5.1-5.5.2)', () => {
       expect(() =>
         declare(s, 1, { defender: 2, targets: [{ kind: 'relic', relicId: heldRelicId }], attackDice: 1 }),
       ).toThrow(IllegalAction);
+    });
+  });
+
+  describe('site attack-die modifiers (Law §11.4 — identity-only, not a card power)', () => {
+    // baseState's 8-site board is saveId order 0..7: Mine, Salt Flats,
+    // Fertile Valley, Barren Coast, Plains (sites[4]), River, Steppe,
+    // Mountain (sites[7]).
+    it('Plains adds one attack die to the final pool', () => {
+      const s = baseState();
+      s.players[1].pawnSite = s.sites[4].id; // Plains
+      s.players[2].pawnSite = s.sites[4].id;
+      const out = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
+      expect(out.campaign).toMatchObject({ attackDice: 3 }); // 2 + 1
+      checkInvariants(out);
+    });
+
+    it('Mountain subtracts one attack die, even if the attacker rules it ("even if you rule")', () => {
+      const s = baseState();
+      s.players[1].pawnSite = s.sites[7].id; // Mountain
+      s.players[2].pawnSite = s.sites[7].id;
+      s.sites[7].warbands[1] = 1; // seat 1 (the ATTACKER) rules their own site
+      s.players[1].warbands.bank -= 1; // source it (conservation)
+      // pawnFavor, not a site target: a site target must be ruled by the
+      // DEFENDER (§5.5.2), not the attacker — irrelevant to what this test
+      // is checking, which is that the Mountain modifier applies regardless
+      // of who rules Mountain.
+      const out = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
+      expect(out.campaign).toMatchObject({ attackDice: 1 }); // 2 - 1
+      checkInvariants(out);
+    });
+
+    it("Mountain's subtraction clamps at 0, never negative", () => {
+      const s = baseState();
+      s.players[1].pawnSite = s.sites[7].id;
+      s.players[2].pawnSite = s.sites[7].id;
+      const out = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 0 });
+      expect(out.campaign).toMatchObject({ attackDice: 0 });
+      checkInvariants(out);
+    });
+
+    it('Plains and Mountain both targeted in the same campaign net to zero (independent "must" clauses)', () => {
+      const s = baseState();
+      s.players[1].pawnSite = s.sites[4].id; // Plains — attacker's own site
+      s.players[2].pawnSite = s.sites[4].id;
+      s.sites[7].warbands[2] = 1; // defender rules Mountain elsewhere, so it's a legal site target
+      s.players[2].warbands.bank -= 1;
+      const out = declare(s, 1, {
+        defender: 2,
+        targets: [{ kind: 'pawnFavor' }, { kind: 'site', siteId: s.sites[7].id }],
+        attackDice: 2,
+      });
+      expect(out.campaign).toMatchObject({ attackDice: 2, defenseDice: 2 + 1 }); // pawnFavor(2) + site(1)
+      checkInvariants(out);
     });
   });
 });
