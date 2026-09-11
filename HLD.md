@@ -6,8 +6,8 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | Field | Value |
 | --- | --- |
 | Started | 2026-09-07 |
-| Last updated | 2026-09-10 |
-| Current phase | P2 (in progress, units 1–11 done) |
+| Last updated | 2026-09-11 |
+| Current phase | P2 (in progress, units 1–16 done; 16a–16d, 17–20 to go) |
 | Owner | Ben |
 
 ---
@@ -361,8 +361,10 @@ normalising the actual image files.
 finish with the six actions enforced and card powers player-declared. This is
 the feasibility milestone: if the state machine is painful here, stop.
 
-**Prompt plan.** `prompt_plan_phase_2.md` — 20 TDD units. Campaign design
-(units 12–13) is the explicit feasibility gate.
+**Prompt plan.** `prompt_plan_phase_2.md` — 20 TDD units, plus units
+16b–16d added by the 09-11 Law review (a chapter-by-chapter sweep of the
+Law against units 1–16; findings table in the plan). Campaign design
+(units 12–13) was the explicit feasibility gate — passed.
 
 **Scope.**
 - State shape (see §5) and `setup()` per the rulebook's setup procedure,
@@ -370,6 +372,9 @@ the feasibility milestone: if the state machine is painful here, stop.
 - Turn structure: supply reset, action phase, end-of-turn checks
 - The six actions with supply costs and site/adjacency rules: Muster, Trade,
   Travel, Search, Recover, Campaign
+- The minor actions (Law §6) that aren't card powers: facedown-adviser
+  play/discard, warband movement with its permission flows, Citizenship
+  (§6.6–6.8); peeks (§6.3/§6.4) deferred to the v2/P4 boundary
 - Playing cards from hand: as adviser or to a site, slot limits, discards
 - Favor and secret banks per suit; warband supply per seat
 - Campaign resolution: warband commitment, dice via `prepare()`, results,
@@ -629,6 +634,21 @@ they go.
   relic/banner (§5.1.4.4).
 - **Rest (unit 5):** §4.3.5 "Use Rest Powers"; the §7.1.2 "pay a cost
   outside your turn" secret-flip nuance.
+- **Campaign (unit 12), Imperial Allies RESOLVED 09-11 (D44):** the five
+  Imperial campaign asides below were re-checked against the code on
+  request and are now scheduled as plan unit 16a, not deferred — §5.5.2's
+  join mechanic, §5.5.3's *window* (who may act), §5.5.4's Ally board
+  bonus, §5.5.6's Chancellor-chooses casualties, §5.5.7's
+  consolidate-to-the-Chancellor. Two of them (§5.5.6, §5.5.7) turned out
+  to be reachable with a single Citizen and no Allies at all, and one is a
+  seam D42 itself opened (every Imperial seat now rules a purple site, but
+  `defenseTotal` still counts only the recorded defender's credited
+  warbands there) — so this was a live correctness gap, not a clean
+  deferral. What REMAINS deferred from those asides: the battle plans
+  themselves (below), §5.5.3's "a specific battle plan cannot be used by
+  multiple players" once-each bookkeeping, and §5.5.2's "activate all
+  Campaign modifiers ruled by the defender and all Allies" — all three are
+  card-power effects, i.e. ordinary v2 scope.
 - **Campaign (unit 12):** battle plans (§5.5.3, card powers used mid-
   Campaign — the naive P2 response window just skips straight to roll);
   every OTHER site/card power that adds or removes attack or defense
@@ -659,12 +679,32 @@ they go.
   (§5.5.1's Chancellor-joins/Citizen-may-join, §5.5.4's Ally warband
   bonus, §5.5.6-7's consolidation) — ruling legality is fixed, the
   arithmetic still only reads the single recorded defender's own counts.
+  **Superseded 09-11 by D44:** that last sentence describes a live bug,
+  not a safe deferral — plan unit 16a closes it.
   Also still deferred: the 4 reliquary modifiers' actual EFFECTS (Brutal/
   Decadent/Careless/Greedy — RULINGS.md has the transcription) stay
   declared, not enforced, same v1/v2 split as every other card power
   (D9/D28); and the Peek family (§6.3/§6.4), not built anywhere in this
   engine, still unnecessary since a pending offer's relic is public to
   the deciding party regardless.
+- **Law review (09-11, D43) — the sweep that added plan units 16b–16d.**
+  Newly recorded deferrals: the **Peek family (§6.3/§6.4)** now has a
+  home — it needs peek-memory state plus a projection change
+  (`project.ts` carries the "revisit when a peek action exists" marker)
+  and is only useful with a client, so it sits on the v2/P4 boundary;
+  the **opportunity-site Wake take (§4.1.4/§11.1)** stays declared
+  (expressible today as a `siteFavor`/`siteSecrets` mover); **battle
+  plans' multi-roll defense doubling (§5.5.4)** rides with the existing
+  battle-plans deferral; **restriction banners (§7.2)** — site-only /
+  adviser-only / locked are per-card structural facts absent from the P1
+  database, so the play paths can't enforce them; enforcement is a
+  one-line check once the data exists (Q12, Ben: small P1-style data
+  addendum from cards.buriedgiant.com vs leave self-policed until v2).
+  Also note: unit 16d's `supply` effect is what makes the Travel-cost
+  deferrals above (§11.3/§11.6/§11.7/§7.6.2) *declarable* at all — until
+  it lands, the engine charges base cost with no way to give Supply
+  back, so that entry's "players declare these via power.use" premise
+  holds only from 16d onward.
 
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are
@@ -721,6 +761,8 @@ with `reversed by`.
 | D40 | 09-11 | Campaign resolution (unit 13) splits into two more phases/actions on the SAME sub-state rather than one big action: `'rolled' -> campaign.resolve -> ('seize' \| cleared)`, `'seize' -> campaign.seize -> cleared`. `resolve` alone handles a loss (nothing left to choose) and applies every MANDATORY win effect (relics, banners); `seize` exists only to gate the win-only CHOICES (placements, banish, burn-favor) behind their own pending decision, so a client can show the outcome before asking for them. One function (`resolveDefeatForSeat`) computes §5.5.6's casualty split for EITHER side by parameterizing which sites count and whether the board does — the attacker is just the `siteIds: []`/`includeBoard: true` case | Keeps each action's payload single-purpose and lets the UI reveal win/loss before demanding seizure choices, without inventing a second sub-state; one casualty function instead of two near-duplicates (attacker/defender) that would drift apart under future edits | active |
 | D41 | 09-11 | Citizenship (unit 16) is five actions: `citizenship.offer`/`accept`/`decline` (Law §6.6, one pending `state.citizenshipOffer` — unlike Campaign, it does NOT lock other actions, so `pending()` appends it rather than preempting), `citizenship.exile` (§6.7, unilateral, no consent step), `citizenship.selfExile` (§6.8). The load-bearing call: our per-seat warband model has only TWO conserved buckets (each Exile's own 14; Chancellor+Citizens' combined 24 purple), never a third "idle reserve" or "unattributed purple" bucket, so §6.6.2's "replace with purple, if not enough the Exile chooses" and §6.7/§6.8's "replace with your own color" are generalized rather than taken as literally scoped (board+map only, silent on bank): joining wipes a seat's ENTIRE current holding (bank+board+every site — always exactly 14, no tracked destination, mirroring how setup hands a new Exile 14 from nowhere); leaving moves the ENTIRE current purple holding to the Chancellor's bank (Glossary "Kill"'s own disposal, reused) and grants a fresh 14 (3 board / 11 bank, Law §1.15's own setup split). Given this, the "capacity" formula for how much purple a joining Exile could keep is computed generally but is PROVABLY always 0 in a state that satisfied the invariant beforehand (Chancellor+Citizens already hold the full 24 between them) — `accept` throws rather than silently mishandling the unreached positive-capacity branch | Matches unit 7 (Muster)'s already-established precedent that the physical purple/own-color distinction is a token detail our invariant-only conservation model doesn't need; avoids inventing new state-shape (a third warband bucket) for a corner the model's own math proves unreachable, while still computing the general formula rather than hardcoding the specific number | active |
 | D42 | 09-11 | Unit 16 follow-up, same day, on user review: (1) Law §6.6.3 "every Imperial player rules every purple site" + §5.5.1's Campaign-scoped carve-out, implemented in a new shared `rule.ts` (`rulersOf`/`imperialExclusionFor`) imported by both `campaign.ts` and `power.ts` rather than duplicated; (2) the Imperial Reliquary's 4 fixed named spaces (Brutal/Decadent/Careless/Greedy — printed board text, RULINGS.md has the transcription) are now structural state: `reliquary: string[]` became `reliquary: ReliquarySpace[]` (`{modifier, relicId}`, always length 4), letting `power.ts#hasAccess` grant the Chancellor a `reliquary:<modifier>` id once its covering relic is gone — the MODIFIER's actual effects stay declared (v1, same as every other card power, D9/D28), only ACCESS is structural. Deliberately NOT done: the Allies mechanic itself (defense-total/casualty arithmetic across multiple Imperial seats' combined force) — ruling legality and access are now correct for any number of Imperial seats, but the DICE math still reads only the single recorded defender's own counts, since combining forces needs the opt-in Ally mechanic (who joins, the Chancellor's mandatory join) to do correctly | The user flagged these as under-scoped in the initial unit 16 pass rather than genuinely low-priority — same pattern as unit 12's relic-targets pushback: a "ripple" that looked deferrable on paper turns out to matter the instant a second Imperial seat exists, which unit 16 itself just made possible for the first time | active |
+| D43 | 09-11 | Full Law review before unit 17 (findings table in the plan) added three units and rewrote unit 17's prompt with the now-known Law specifics. Structural closures, all by unit 12's Plains/Mountain precedent (identity-only + mandatory ⇒ engine's job, not card text): the §6.1/§6.5 minor actions (unit 16b — a game literally cannot garrison a site or surface a facedown adviser without them), the §2.11 Oathkeeper/Usurper mandatory defense dice and the Grand Scepter as a campaign target (unit 16c), a `supply` effect + the §7.1.2 occupied-card feasibility rule (unit 16d — without the supply effect, every deferred Supply-touching power was *undeclarable*, breaking the v1 deferral premise, not just unenforced). The People's Favor Wake maintenance (§4.1.1) is Law ch. 4 turn sequence, so it's structural and folded into unit 17 alongside the Wake-timed win checks. Deferred with a recorded home instead of silently: peeks (§6.3/§6.4 → v2/P4 boundary), opportunity-site Wake take (§4.1.4, declared), §5.5.4 multi-roll doubling (rides with battle plans), restriction banners (§7.2 → Q12, pending a data decision) | A one-sitting sweep of the reference against the built system is cheap insurance right before the victory unit locks in endgame semantics; the alternative — discovering §6.5 during unit 19's scripted game — would have cost more and been diagnosed worse | active |
+| D44 | 09-11 | Imperial Allies are pulled forward into P2 as plan unit 16a rather than left on the v2 deferred list. Prompted by a re-check of all eight of the Law's purple Imperial asides against the code: three (§5.2.2 Muster purple, §4.3.3 Citizen Supply, §5.5.1's carve-out) are implemented; the other five are not. Two of those five — §5.5.6's "the Chancellor chooses which warbands die" and §5.5.7's "Imperial warbands at sites move to the Chancellor's board" — are reachable with ONE Citizen and no Allies whatsoever, and `defenseTotal`'s site bonus is a seam D42 itself opened (D42 made every Imperial seat rule a purple site, so a Citizen can now be declared defender of a site garrisoned by the Chancellor and defend it with zero site warbands counted). The unit therefore splits along reachability, not along "Allies vs not": part 1 is the correctness fix (combined site warbands, §5.5.7 consolidation, §5.5.6's allocation choice as a `casualties` phase, auto-skipped when allocation cannot change the outcome — unit 13's existing shortcut stays valid for single-owner forces), part 2 is the opt-in mechanic (Chancellor mandatory join, Citizens' permissioned join via `campaign.ally` + `respond.allies`, §5.5.4's per-Ally board bonus, and §5.5.3's response-window membership). Battle-plan effects, §5.5.3's once-each bookkeeping, and §5.5.2's modifier activation stay v2 — they are card powers | Third time a "documented deferral" turned out to be a reachable defect the moment a prerequisite shipped (relic targets in D39, site ruling in D42, now the Imperial force): the pattern is that deferrals reasoned about on paper age badly against code, so the check is now against the code. Deferring further would also have left unit 19's acceptance game unable to campaign against a Citizen correctly | active |
 
 ---
 
@@ -732,7 +774,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); next is unit 17 (Victory and game end) |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a; next is 16a, whose part 1 is a correctness fix |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
@@ -765,6 +807,7 @@ with `reversed by`.
 | Q9 | ~~Art source?~~ **Resolved 09-08:** composite — Buried Giant card search for faces, Dev Kit for frames, Vassal module for boards (see P1 addendum); filling `ART_DIR` is P4 work | — | — |
 | Q10 | ~~Initial effect vocabulary~~ **Resolved 09-08 in principle (D33):** minimal zone-addressed movers, growth only on need; concrete set designed in P2 unit 3 | — | — |
 | Q11 | Is any phone support required for v1, or is inbox-on-phone a P6 nicety? | P4 | Ben — HLD assumes inbox-on-phone is in P4 |
+| Q12 | Restriction banners (Law §7.2): add a `restriction` field to the P1 card data (transcribed from cards.buriedgiant.com, drift-tested) so `card.play`/`adviser.play` can enforce site-only/adviser-only/locked — or leave self-policed until v2? | nothing in P2; play-legality correctness | Ben — leaning add the data (structural facts, not text; enforcement is then one line) |
 
 ---
 

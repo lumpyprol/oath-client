@@ -1621,6 +1621,442 @@ targets:
 
 ---
 
+## Law review (2026-09-11) — gaps found before unit 17
+
+With units 1–16 built, the whole plan was swept against the Law
+(rules.buriedgiant.com, printing p1) chapter by chapter. Most of the Law is
+covered or on the documented deferred list (HLD §6 v2). What follows is
+everything that was in **neither** place, with its disposition:
+
+| Law | Gap | Disposition |
+| --- | --- | --- |
+| §6.1 | Play/discard a facedown adviser | **Unit 16b** (new) |
+| §6.5 | Move warbands to/from your site | **Unit 16b** (new) |
+| §2.11 | Oathkeeper +1 / Usurper +2 mandatory defense dice as defender | **Unit 16c** (new) — identity-only and mandatory, so structural by the Plains/Mountain precedent (§11.4), not card text |
+| §5.5.2 | Grand Scepter is not campaign-targetable ("any of their relics" includes it; it lives in `state.grandScepter`, outside `seatRelics`) | **Unit 16c** (new) |
+| — | No `seatSupply` effect zone: every deferred Supply-touching power (Coast §11.3, "spend no Supply" §7.6.2, Charming Valley §11.6, …) is currently **undeclarable**, not just unenforced — the engine charges the base Travel cost and a declared `power.use` has no way to give the Supply back. The v1 deferral list's premise is broken for this class | **Unit 16d** (new) — D33 growth, needed by real powers today |
+| §7.1.2 | "You cannot place favor or secrets on a card that has favor or secrets on it already" — enforced by Muster/Trade for themselves, but not by `applyEffects`, so a declared power can do what no rule allows | **Unit 16d** (new) — one feasibility rule |
+| §4.1.1 | The People's Favor holder's mandatory Wake maintenance (place-or-return, Mob repeat, flip at ≥6) — turn-sequence structure in Law ch. 4, not card text; it materially drives Oathkeeper of the People and Vision of Rebellion | **Unit 17** (amended below) |
+| §3, §4.1 | Unit 17's prompt predated the Law and was generic; the win checks' Wake-phase timing, the Empire-collective Supremacy goal, tie/transfer rules, the ≥3-Visions floor, Stable Regime die faces, the Successor table, and War Exhaustion's priority order are all now known | **Unit 17** prompt rewritten with the specifics |
+| §7.2 | Restriction banners (site-only / adviser-only / locked) are per-card structural facts absent from the P1 database, so `card.play`, `adviser.play`, and swap/move effects cannot enforce them | **Deferred with a decision, Q12 (Ben):** either a small P1-style data addendum (schema field + transcription from cards.buriedgiant.com + drift test) with a one-line check in the play paths, or leave to v2 with players self-policing. Recorded in the HLD deferred list either way |
+| §6.3/§6.4 | The Peek family (known, previously flagged in unit 16's notes but homeless) | **Recorded in the HLD deferred list**: needs peek-memory state + a projection change (`project.ts` already carries the "revisit when a peek action exists" comment) and is only *useful* with a client — P4 work, on the v2/P4 boundary |
+| §4.1.4 | Opportunity-site Wake take (Salt Flats/Mine/Drowned City) — "may", expressible today as a declared `siteFavor`/`siteSecrets` → seat mover | **Stays declared (v1)**; added to the HLD deferred list |
+| §5.5.4 | Multi-roll defense doubling ("each roll doubles… ×4, ×8") — only reachable via battle-plan powers | Rides with the existing battle-plans deferral; noted there |
+
+Confirmed covered (no action needed): Search's Visions-Drawn cost curve and
+stop-on-Vision (§5.1.1–.2), campaign's full target dice including relic data
+and banner stakes (§2.4.2/§2.5.2), the seize penalty (§2.5.3),
+sacrifice-exactness (§9.5), kill-half (§5.5.6 — its *arithmetic*; the second
+pass below reopens its Imperial destinations and choice), Rest §4.3.1–4.3.4 including
+save-Supply, the discard glossary, §9.4 privacy in projection (world deck as
+present/absent), Reliquary structural exclusions (§2.3), and Imperial
+rulership (§6.6.3 via `rule.ts`).
+
+### Second pass (09-11, on request): the Imperial/Citizen purple asides
+
+The Law prints its Imperial-player-specific rules as purple asides. All
+eight in the Supply/warbands/Campaign chapters were re-checked against the
+code, not against the earlier notes:
+
+| Law | Purple aside | Status |
+| --- | --- | --- |
+| §5.2.2 | A Citizen gains purple warbands, not their own colour | **Implemented** — `muster.ts`'s header: the purple/own-colour distinction is a token detail our two-bucket conservation model deliberately doesn't track (D41) |
+| §4.3.3 | A Citizen refreshes Supply to the Chancellor's Supply | **Implemented** — `turn.ts#rest` copies `players[0].supply` outright; the reading is recorded in `RULINGS.md` |
+| §5.5.1 | Citizen-vs-Empire attacks suspend one seat's Imperial status | **Implemented** — `rule.ts#imperialExclusionFor`, threaded through every `rulersOf` call in `declare` (D42) |
+| §5.5.2 | Chancellor mandatory-joins as Ally; Citizens may join with permission | **Missing** → unit 16a part 2 |
+| §5.5.3 | Defender *and Allies* may use battle plans | **Missing (window half)** → unit 16a part 2; the battle-plan *effects* stay v2 |
+| §5.5.4 | Each Ally adds their board warbands to the defense total | **Missing** → unit 16a part 2 |
+| §5.5.6 | The Chancellor chooses which warbands in the defending force die | **Missing** → unit 16a part 1 |
+| §5.5.7 | Imperial warbands at sites move to the *Chancellor's* board | **Missing** → unit 16a part 1 |
+
+So the five open ones are all still needed. But the sweep also found that
+**two of them are reachable today with a single Citizen and no Allies at
+all** — they are not, as previously recorded, uniformly "pieces of the
+Allies mechanic." Worse, one is a seam that D42 itself opened:
+
+- `defenseTotal`'s site bonus reads
+  `site.warbands[c.defenderSeat]` — only the seat our bookkeeping credits.
+  D42 made *every* Imperial seat rule a purple site (correctly — the
+  pieces are physically just purple, per `rule.ts`'s own header), so a
+  Citizen with no warbands anywhere can now legally be declared defender
+  of a site garrisoned by the Chancellor, and then defends it with **zero
+  site warbands counted**. Ruling was fixed; the arithmetic reading the
+  same pieces was not.
+- `resolveDefeatForSeat` consolidates survivors onto
+  `seatWarbandBoard(defenderSeat)`. §5.5.7's aside says Imperial survivors
+  at sites go to the **Chancellor's** board instead, and that warbands on
+  Citizens' boards stay put — a different final position whenever the
+  defender is a Citizen.
+
+That second point also makes §5.5.6's Chancellor-chooses aside a *real*
+choice without Allies: for an Imperial defender, a kill taken at a site
+and a kill taken from the defender's own board send their survivors to
+different boards. (Unit 13's existing sites-first-then-board shortcut
+stays correct for a **single-colour, single-owner** force — everything
+that survives consolidates onto one board either way, so the allocation
+cannot change the outcome. It is only the mixed-destination Imperial case
+that needs asking.)
+
+Hence unit 16a below splits along that line rather than along "Allies vs
+not": part 1 is a correctness fix reachable today, part 2 is the opt-in
+mechanic.
+
+---
+
+## Unit 16a — The Imperial defending force and Allies
+
+**Purpose.** Close the last five Imperial campaign asides (§5.5.2, §5.5.3's
+window half, §5.5.4, §5.5.6, §5.5.7). Part 1 fixes arithmetic that is wrong
+today; part 2 adds the Allies opt-in.
+
+**Depends on.** Units 12, 13, 16 (`rule.ts`). **Do this before unit 16c** —
+16c adds the §2.11 title dice to the same defense pool, and its "the
+Chancellor always adds its power when any Imperial player is defending"
+clause is an Ally-flavoured rule that reads much better once Allies exist.
+
+**Reopens earlier units deliberately.** This changes unit 12's
+`defenseTotal` and unit 13's `resolveDefeatForSeat` — the same kind of
+justified reopen as D42. The plan's "never reopen" convention is about not
+*designing* units that require it; a correctness fix found by review is
+exactly what should reopen code.
+
+```
+Unit 16a of Phase 2: the Imperial defending force, then Allies.
+
+Read Law §5.5.1-5.5.7 end to end, paying attention to the purple asides —
+they are where every Imperial-specific rule in Campaign lives.
+
+The load-bearing reading, which both parts follow (it is the same one
+`rule.ts`'s header already makes for ruling): warbands at a site are
+physically just pieces. For Imperial seats they are all purple, and our
+per-seat `site.warbands[seat]` attribution is bookkeeping, never an
+ownership mark. So for an Imperial defender, "warbands at targeted
+sites" (§5.5.4) means EVERY Imperial seat's credited warbands there,
+regardless of who joined as an Ally — Allies govern BOARD contributions
+(§5.5.4's own sentence is about "the warbands on their board"), not the
+site pieces. That asymmetry is why this unit splits the way it does.
+Throughout: the `bandits` defender path and every Exile-defender path
+must be unchanged — assert that with tests, not by inspection.
+
+PART 1 — the Imperial force (no Allies needed; this is a bug fix).
+
+  1a. Defense total (§5.5.4). For an Imperial defender, the site bonus
+      sums ALL Imperial seats' credited warbands at each targeted site,
+      minus any seat suspended by §5.5.1's carve-out (reuse
+      rule.ts#imperialExclusionFor — do not re-derive it). An Exile
+      defender is unchanged. Put the "who is in this force" question in
+      one exported helper next to rulersOf in rule.ts, since part 2 and
+      unit 16c both need the same answer.
+
+  1b. Casualty destinations (§5.5.6 + §5.5.7's aside — note the aside is
+      printed under §5.5.7 but it modifies §5.5.6's "move all the other
+      warbands in their force to their board"). For an Imperial defeated
+      force: killed purple goes to the Chancellor's bank (Glossary
+      "Kill" — already what killFromBoard does); survivors that were AT
+      SITES consolidate onto the CHANCELLOR's board; survivors that were
+      already on a seat's board STAY on that seat's board ("any warbands
+      still on Citizens' boards stay there").
+
+  1c. Allocation choice (§5.5.6's aside). Because 1b gives site-kills
+      and board-kills different destinations, who dies is now a real
+      choice, and the Law hands it to the Chancellor. Add a
+      'casualties' phase to CampaignState, entered from campaign.resolve
+      instead of finishing the defeat inline, with a pending decision
+      for the Chancellor's seat (stable id, same actionCount anchor as
+      the rest of the campaign) resolved by 'campaign.casualties':
+      payload allocates the fixed kill quota (half the force, rounded
+      down — computed by the engine, never trusted from the payload)
+      across (siteId, seat) pairs and seat boards. Reject an allocation
+      that doesn't sum to the quota, or that takes more from a location
+      than the force has there.
+      SKIP the phase entirely — resolve straight through as today —
+      whenever the allocation cannot change the final position: an Exile
+      or bandits defender, a quota of 0, or a force whose survivors
+      would all land in the same place anyway (unit 13's existing
+      shortcut, whose justification holds exactly in that case; keep
+      that reasoning in the header rather than deleting it).
+
+  Commit part 1: "Fix the Imperial defending force: combined site
+  warbands, Chancellor consolidation, casualty choice"
+
+PART 2 — Allies (§5.5.2).
+
+  2a. State: CampaignState gains `allies: number[]` and
+      `allyVolunteers: number[]`; extend checkInvariants (seats in
+      range, disjoint from the attacker, no duplicates, empty whenever
+      the defender is bandits or an Exile).
+
+  2b. The Chancellor's mandatory join, computed at declare: if the
+      recorded defender is an Imperial player (after the §5.5.1
+      carve-out) and the Chancellor is neither the attacker nor
+      suspended, they ARE an Ally — no action, no permission, no pawn
+      requirement. Note in the header that the pawn condition in
+      §5.5.2 attaches to the Citizen clause only, and that §5.5.4's
+      board bonus applies its own pawn test separately, so a
+      mandatorily-joined Chancellor may well contribute nothing.
+
+  2c. Citizens' permissioned join, during the 'respond' window: new
+      action 'campaign.ally' submitted by the Citizen themselves
+      (eligibility: a Citizen, Imperial after the carve-out, not the
+      attacker, and their pawn at a targeted site or at the attacker's
+      pawn's site — §5.5.2), appending to `allyVolunteers`. The
+      defender's existing 'campaign.respond' payload gains
+      `allies: number[]`, validated as a subset of the volunteers —
+      that is the "with the defender's permission" half, and it keeps
+      both consents explicit without adding a phase. pending() must
+      surface the volunteering window alongside the defender's respond
+      decision (naive one-at-a-time is fine; P3 batches).
+
+  2d. Defense total (§5.5.4): each Ally adds the warbands on their
+      board IF their pawn is at the attacker's pawn's site or at any
+      targeted site. Generalize unit 12's defenderBoardBonusApplies to
+      take a seat rather than writing a second copy.
+
+  2e. Casualties: Ally board warbands are part of the defending force,
+      so they enter part 1c's allocation — this is the case that makes
+      the Chancellor's choice most obviously load-bearing.
+
+  2f. Battle-plan window (§5.5.3's aside), the half v1 can do: the
+      respond window's permitted `power.use` actors become defender +
+      allies. The seam is one line in power.ts (today:
+      `state.campaign.defenderSeat === actor`). The battle plans
+      THEMSELVES stay v2 — as does §5.5.3's "a specific battle plan
+      cannot be used by multiple players" once-each bookkeeping, and
+      §5.5.2's "activate all Campaign modifiers ruled by the defender
+      and all Allies." Record all three in the file header and on the
+      HLD's deferred list; this unit closes who may ACT in the window,
+      not what the cards do.
+
+  Commit part 2: "Add Imperial Allies to Campaign"
+
+TDD, `test/oath/game/allies.test.ts` (new file; extend campaign1/2's
+describes only where a case genuinely belongs to an existing one):
+  PART 1
+  - a Citizen defender declared as ruler of a site garrisoned only by
+    the Chancellor defends with those warbands counted (the D42 seam —
+    assert the exact defense total, hand-computed)
+  - an Exile defender's total and a bandits defence are byte-identical
+    to today (regression guard on the reopen)
+  - a defeated Imperial defender's site survivors land on the
+    CHANCELLOR's board; their own board survivors stay on their board;
+    killed purple lands in the Chancellor's bank
+  - the casualties phase: raised only when the allocation matters,
+    skipped when it cannot; a wrong-sum allocation and an
+    over-allocation from one location are both illegal-state; the
+    Chancellor is the only legal actor
+  - warband conservation invariant across every one of the above
+  PART 2
+  - the Chancellor is an Ally automatically when a Citizen defends; NOT
+    when the Chancellor is the attacker; and no Allies exist at all when
+    the Chancellor attacks a Citizen (§5.5.1 suspends the defender's
+    Imperial status — the case that proves the carve-out and the Allies
+    rule compose)
+  - a Citizen volunteers and is permitted: their board warbands join the
+    defense total only under §5.5.4's pawn test — assert both branches
+  - a volunteer the defender omits from `respond.allies` contributes
+    nothing; a non-eligible volunteer (wrong pawn site, is the attacker,
+    is an Exile) is illegal-actor
+  - a power.use during the respond window by a permitted Ally succeeds;
+    by a volunteer who was not permitted, and by an unrelated seat,
+    illegal-actor
+  - a full Imperial defence end to end through the HTTP layer:
+    declare -> ally -> respond -> roll -> resolve -> casualties ->
+    seize, then wipe snapshots and refold — identical final state
+```
+
+**Done when.** All five asides are implemented or (for battle-plan effects
+and the modifier activation) explicitly re-recorded as v2, with the
+Exile/bandits paths proven unchanged.
+
+---
+
+## Unit 16b — Remaining minor actions: §6.1 and §6.5
+
+**Purpose.** Close the two minor actions a real game cannot be played
+without: facedown advisers can currently never come up, and sites can never
+be garrisoned outside Campaign seizure. (§6.2 is `power.use`, §6.6–6.8 are
+unit 16; §6.3/§6.4 are deferred — see the review table above.)
+
+**Depends on.** Units 5, 6, 16 (uses `rule.ts` and the offer pattern).
+
+```
+Unit 16b of Phase 2: the remaining minor actions.
+
+Two new action modules, registered additively as always. Both are
+Act-Phase actions (Law §4.2): gate through requireActiveSeat with the
+default locks (illegal mid-Search and mid-Campaign).
+
+1. `src/oath/game/actions/adviser.ts` — 'adviser.play' (Law §6.1):
+   payload { adviserIndex, as: 'faceup' | 'discard' }.
+   - Only a FACEDOWN adviser is a legal index (§6.1 — §5.1.4.2 makes
+     this "generally the only time you can discard a faceup adviser"
+     precisely because §6.1 doesn't reach faceup ones).
+   - 'faceup' resolves "as if you searched (§5.1.4)": a denizen flips
+     faceup in place; a facedown VISION follows §5.1.4.3 — Exiles only
+     (non-Conspiracy), to the Revealed Vision space, discarding any
+     prior revealed Vision; the Chancellor/Citizens are illegal-state.
+     The Conspiracy's faceup play stays card text (v1, same as
+     card.play). When Played powers stay declared (power.use).
+   - 'discard' bins it to the pawn-region's downstream pile (Glossary
+     "Discard", same as card.play).
+   - No favor gain: §5.1.4.1's favor is for playing TO A SITE; §6.1
+     plays to neither site nor a new adviser slot. Cite this in a test.
+
+2. `src/oath/game/actions/warbands.ts` — 'warbands.move' (Law §6.5),
+   at your pawn's site only (§10.30 "your site"):
+   payload { direction: 'toBoard' | 'toSite', count }.
+   - toBoard: any number EXCEPT the last one — at least one of the
+     mover's warbands must remain at the site (§6.5's "except the last
+     one"). A Citizen needs the Chancellor's permission: model it with
+     the unit-16 offer pattern — a non-locking sub-state
+     (state.warbandRequest) appended to pending() for seat 0, resolved
+     by 'warbands.allow' / 'warbands.deny' (logged, rewindable; P3
+     will fold this into standing responses). The Chancellor moving
+     their own warbands needs no permission.
+   - toSite: legal only if the actor rules their site (rule.ts —
+     Imperial rule included, §6.6.3).
+   - The Imperial give/take between co-located Imperial players
+     (§6.5's last paragraph) uses the same request/allow shape with a
+     target seat; both-permission per the Law.
+   - All movement through applyEffects' existing warband movers
+     (seatWarbandBoard ↔ siteWarbands); conservation invariant proves
+     the accounting.
+
+TDD, `test/oath/game/minor.test.ts`:
+  - adviser.play faceup: denizen flips in place; adviser count
+    unchanged; no favor gained
+  - a facedown Vision played faceup by an Exile lands on the Revealed
+    Vision space and discards the prior one; by a Citizen — illegal
+  - adviser.play discard: lands in the pawn-region downstream pile
+  - faceup adviser index, out-of-range index: illegal-state
+  - warbands.move toSite requires rule; toBoard forbids taking the
+    last warband; counts beyond what's present are infeasible
+  - Citizen toBoard raises the pending permission with a stable id;
+    allow applies the move, deny clears it; the Chancellor's own moves
+    don't ask
+  - illegal-actor / mid-Search / mid-Campaign locks for both actions
+  - invariants throughout
+
+Commit: "Add the remaining minor actions: facedown advisers and warband movement"
+```
+
+**Done when.** Both §6.1 and §6.5 work with citations; the permission flow
+is logged and rewindable.
+
+---
+
+## Unit 16c — Campaign completeness: title dice and the Grand Scepter
+
+**Purpose.** Two campaign facts the Law states card-free, missed by unit 12
+and cheap to close by unit 12's own Plains/Mountain precedent
+(identity-only + mandatory ⇒ structural).
+
+**Depends on.** Units 12–13, 16, **and 16a** (additive changes inside
+`campaign.ts`'s dice assembly and seize handling — extending the same
+functions' rule lists, not redesigning them; unit 12's action sequence is
+untouched). Part 1's third bullet below is stated in terms of "any Imperial
+player is defending", which 16a is what makes precise.
+
+```
+Unit 16c of Phase 2: title defense dice and the Grand Scepter in Campaign.
+
+1. Mandatory title dice (Law §2.11): when assembling the defense pool
+   in campaign.declare —
+   - defender holds the Oathkeeper title on its Oathkeeper side
+     (state.oathkeeper === defender && !state.usurper): +1 defense die
+   - defender holds it on its Usurper side: +2
+   - "The Chancellor … always adds its power when any Imperial player
+     is defending": if the recorded defender is any Imperial seat and
+     the Chancellor holds the title, add the +1 — this reads only the
+     single recorded defender, so it does NOT depend on the deferred
+     Allies arithmetic. Cite the sentence.
+
+2. The Grand Scepter as a target (Law §5.5.2 "any of their relics"):
+   - extend the relic target to accept the Scepter — cleanest is a
+     dedicated target kind 'scepter' validated against
+     state.grandScepter === defender (the Scepter has no card-database
+     id; don't invent a fake one)
+   - its defense dice come from the physical card's shield: read it
+     from the card (cards.buriedgiant.com, name:"Grand Scepter") and
+     record the value in RULINGS.md next to a SCEPTER_DEFENSE_DICE
+     constant
+   - seizure transfers state.grandScepter to the attacker — a direct
+     holder mutation, same precedent as banner holders ("the
+     vocabulary addresses a banner's token STAKE, never its holder")
+   - note in the header: the Scepter changing hands changes who can
+     offer Citizenship (§6.6.1) — no code needed, citizenship.ts
+     already reads state.grandScepter
+
+TDD, extend `test/oath/game/campaign1.test.ts` / `campaign2.test.ts`
+(new describe blocks, no edits to existing cases):
+  - dice counts for: defender-as-Oathkeeper (+1), defender-as-Usurper
+    (+2), Imperial defender with Chancellor-held title (+1),
+    non-holder defender (+0) — hand-computed per §2.11
+  - a scepter target requires the defender to hold it; adds the
+    recorded dice; a victorious attacker holds it afterward
+  - a defeated attacker leaves the Scepter where it was
+  - invariants throughout
+
+Commit: "Add mandatory title defense dice; make the Grand Scepter campaign-targetable"
+```
+
+**Done when.** All four title-dice cases and the Scepter transfer are
+tested and cited.
+
+---
+
+## Unit 16d — Effects growth: Supply and the occupied-card rule
+
+**Purpose.** Two `applyEffects`-level fixes that make the v1 deferral list
+honest: declared powers must be able to *say* what the deferred cards do
+(Supply), and must not be able to say what no rule allows (§7.1.2).
+
+**Depends on.** Unit 3 (additive: one new effect tag, one new feasibility
+rule — exactly the D33 growth shape).
+
+```
+Unit 16d of Phase 2: grow the effect vocabulary for Supply; enforce §7.1.2.
+
+1. New effect { kind: 'supply', seat, delta } (Supply is a marker
+   position, not a conserved token, so this is a non-mover — same
+   class as 'flip'):
+   - delta < 0 spends: infeasible if it would take the marker below 0
+   - delta > 0 gains: CLAMPS at the leftmost space (Law §4.3.4's own
+     cap, already the turn.ts convention) rather than rejecting
+   - document the intended use in the header: this is how the deferred
+     Travel-cost and Supply powers (§11.3, §11.6, §11.7, §7.6.2, and
+     Supply-granting denizens) are DECLARED in v1 — e.g. a Coast
+     travel is `travel` at the base cost plus a power.use naming the
+     Coast site with a +1 supply effect. The engine still never checks
+     the declaration against the card.
+
+2. §7.1.2 in feasibility: a favor or secret mover whose destination is
+   a card zone (siteCardFavor/siteCardSecrets/adviserFavor/
+   adviserSecrets) is infeasible if that card already has ANY favor or
+   secrets on it. (A single mover placing 2 favor on an empty card
+   stays legal — Trade's own shape, §5.3.2.II.) Muster/Trade's own
+   preconditions become redundant; leave them, they cite the Law.
+
+TDD, extend `test/oath/game/effects.test.ts` (new describe blocks):
+  - supply spend within range applies; overspend is infeasible with
+    the effect index in the message
+  - supply gain clamps at leftmost, cited to §4.3.4
+  - a power.use through the HTTP layer declaring a +1 supply effect
+    lands and the marker moves (the end-to-end proof the deferral
+    workaround works)
+  - a favor mover onto a card holding a secret is infeasible; onto an
+    empty card, feasible — cited to §7.1.2
+  - invariants throughout (supply is not conserved; assert no
+    conservation check fires on it)
+
+Commit: "Add supply effect; enforce the occupied-card cost rule"
+```
+
+**Done when.** A declared power can move Supply end to end; §7.1.2 is a
+feasibility rule.
+
+---
+
 ## Unit 17 — Victory and game end
 
 **Purpose.** Games end (D35: structurally enforced). Oathkeeper, succession,
@@ -1628,43 +2064,100 @@ visions, and the end-of-game clock.
 
 **Depends on.** Units 5, 16.
 
+**Amended 2026-09-11** by the Law review above: the original prompt was
+written before the Law was the confirmed reference and said "encode the
+rulebook's exact timing" generically. The specifics are now known and are
+in the prompt; the Wake Phase (Law §4.1) is this unit's territory because
+three of its four steps are victory machinery.
+
 ```
-Unit 17 of Phase 2: victory.
+Unit 17 of Phase 2: victory, the Wake Phase, and game end.
 
 Create `src/oath/game/victory.ts`, appending checks to the turn-boundary
 pipelines (never editing existing ones). Encode, cited:
 
-  - oathkeeper tracking: the check that moves oathkeeper status when the
-    oath's condition holds for someone else (the rulebook's exact timing
-    and tiebreak)
-  - the winner check: when the rulebook says the game ends with the
-    oathkeeper winning (the timing chapter — encode its exact trigger)
-  - vision victory: the check for an Exile holding a satisfied Vision at
-    the rulebook's stated moment
-  - the end-of-game clock: the rulebook's mechanism for the final rounds
-    (IF it involves a die roll, that die is randomness — it must roll in
-    prepare() of the action whose resolution needs it and persist in the
-    payload, like campaign dice; DO NOT roll in a reducer or pipeline.
-    Design the check to read the persisted roll.)
+  - THE WAKE PHASE (Law §4.1), resolved in order at the start of each
+    turn (the moment turn.rest advances activeSeat):
+      §4.1.1 the People's Favor holder's mandatory maintenance — place
+        one favor on it or move one to the least-full favor bank; the
+        involved choices (place vs return, which tied bank) surface as
+        a pending decision for the waking seat when a real choice
+        exists, auto-resolved when the Law forces the outcome ("if it
+        only has one favor, you must place unless you have none");
+        repeat once if on the Mob side; flip to Mob at six or more.
+        Naive one-at-a-time decisions are fine — P3 batches.
+      §4.1.2 win checks (below) — checked DURING THE WAKING EXILE'S OWN
+        Wake Phase, not at end of turn.
+      §4.1.3 an Exile holding the title flips it to its Usurper side
+        (state.usurper = true). On ANY later transfer of the title it
+        flips back to Oathkeeper (§2.11 "whenever a player takes the
+        title…").
+      §4.1.4 the opportunity-site take stays DECLARED (v1, deferred
+        list) — expressible today as a siteFavor/siteSecrets mover.
+
+  - OATHKEEPER TRACKING (§2.11), checked whenever its inputs change
+    (end-of-action pipeline is fine):
+      the four goals — Supremacy: rules the most sites (rule.ts, so
+      Imperial rule counts, and the CHANCELLOR holds it "if the EMPIRE
+      meets the goal" — the goal is collective for the Empire); The
+      People: holds the People's Favor; Protection: most relics +
+      banners COMBINED (Reliquary relics excluded, §2.3; the Scepter
+      counts — it's a held relic); Devotion: holds the Darkest Secret.
+      Tie rules verbatim: the holder keeps the title on a tie; if
+      others meet the goal and the holder doesn't, the HOLDER CHOOSES
+      the taker — a pending decision, stable id.
+
+  - USURPER WIN (§3.1): waking Exile holds the title on its Usurper
+    side -> wins now.
+  - VISIONARY WIN (§3.2): waking Exile has a revealed Vision whose
+    goal holds AND visionsDrawn >= 3 (every Vision goal carries that
+    floor — encode it once, cited). The four Vision goals mirror the
+    Oathkeeper goals table.
+  - STABLE REGIME (§3.3): at the END of rounds five/six/seven, ONLY if
+    the Chancellor or a Citizen holds the title: roll the end die.
+    Chancellor wins on 6 / 5-6 / 3-6 respectively. The die is
+    randomness: it rolls in prepare() of the round-ending turn.rest
+    (prepare sees state, so it knows the roll is due) and persists in
+    that action's payload; the pipeline READS the persisted roll — it
+    never rolls. SUCCESSOR (§3.3.1): if the Chancellor would win, a
+    Citizen meeting the Successor goal wins instead — the crossed
+    table verbatim (Supremacy->most relics+banners among Empire;
+    The People->holds Darkest Secret; Protection->holds People's
+    Favor; Devotion->holds Grand Scepter, state.grandScepter).
+  - WAR EXHAUSTION (§3.4): the end of round eight ends the game
+    unconditionally; winner by the priority order 3.4.1-3.4.4
+    (Empire-if-title -> Successor substitution; any Usurper; any
+    satisfied Visionary, ties broken Conquest -> Rebellion ->
+    Sanctuary -> Faith; else the Chancellor, Successor substitution
+    again). No die.
   - on completion: state.complete, state.winner set; every action
-    thereafter is illegal-state; pending() returns []
+    thereafter is illegal-state; pending() returns [].
 
 TDD, `test/oath/game/victory.test.ts`:
-  - hand-built states on either side of the oath condition: oathkeeper
-    moves exactly when the rulebook says
-  - a succession/win scenario reaches complete with the right winner
-  - a vision win scenario likewise; the same state WITHOUT citizenship
-    eligibility does not win (ties to unit 16)
-  - the clock: fold a log where the persisted roll ends the game and one
-    where it doesn't; wipe snapshots and refold — identical outcomes
+  - hand-built states on either side of each Oathkeeper goal: the
+    title moves exactly per §2.11; holder-keeps-on-tie; the
+    holder-chooses case raises a pending decision
+  - the People's Favor wake: forced-place auto-resolves; a real choice
+    raises the decision; Mob repeat and the >= 6 flip, each cited
+  - Usurper flip at wake; flip-back on transfer
+  - a Usurper win and a Visionary win fire during the winner's OWN
+    wake, not earlier; the same Vision state with visionsDrawn == 2
+    does not win; a Citizen's Vision never wins (unit 16 tie-in)
+  - Stable Regime: no roll when an Exile holds the title; the die
+    faces per round hand-checked; a persisted roll that misses does
+    not end the game; wipe snapshots and refold both logs — identical
+    outcomes
+  - War Exhaustion at round eight resolves each rung of 3.4.1-3.4.4,
+    including the Vision tiebreak order and both Successor
+    substitutions
   - after complete: any action 400s; pending is empty; isComplete true
     end to end through the HTTP layer
 
-Commit: "Add oathkeeper, vision victory, and game end"
+Commit: "Add the Wake Phase, oathkeeper tracking, and every road to game end"
 ```
 
-**Done when.** All three roads to game end are enforced, cited, and
-replay-safe.
+**Done when.** All four roads to game end (§3.1–3.4) are enforced, cited,
+and replay-safe; the Wake Phase runs in Law order.
 
 ---
 
@@ -1738,7 +2231,12 @@ The script must exercise: every one of the six actions at least once,
 card.play both ways, at least two power.use declarations, one full
 campaign with a defender response, one citizenship transition if the
 script can reach it (skip with a comment if not), rests, and an ending
-via one of unit 17's roads.
+via one of unit 17's roads. Per the 09-11 Law review, also: both unit
+16b minor actions (an adviser.play and a warbands.move garrison — the
+script will need the garrison anyway to hold a site), at least one
+People's Favor wake decision if a seat holds the banner, and — if the
+script reaches a Citizenship transition — one campaign against an
+Imperial defender, which exercises 16a's combined force end to end.
 
 Assertions along the way:
   - after every action: checkInvariants on the folded state
@@ -1816,12 +2314,21 @@ passes against oath; HLD updated.
           │                │          └────────> 10 search
           │                ├──> 9 travel
           │                ├──> 11 recover
-          │                ├──> 12 campaign I ──> 13 campaign II
-          │                └──> 16 citizenship ──> 17 victory
+          │                ├──> 12 campaign I ──> 13 campaign II ──┐
+          │                └──> 16 citizenship ──────────────────┴──> 16a allies ──> 16c campaign gaps
+          │                                    └──> 16b minor actions
+          │                3 effects ──────────────────────────────> 16d supply/§7.1.2
+          │                16a,16b,16c,16d ────────────────────────> 17 victory
           └──> 4 ────────────────────────────────> 18 seeded setup
 
-7,8,9,10,11,13,14,15,16,17,18 ──> 19 full game ──> 20 audit + close
+7,8,9,10,11,13,14,15,16,16a,16b,16c,16d,17,18 ──> 19 full game ──> 20 audit + close
 ```
+
+The 16x units all fall out of the 09-11 Law review. 16a before 16c (both
+touch the defense pool; 16c's Imperial-title clause reads better once
+Allies exist); 16b and 16d are independent of both and of each other.
+16a part 1 is a correctness fix — if you only have time for one thing
+here, it is that.
 
 Q5 (rulebook edition) is resolved — see "Rules authority". Units 6–11 and
 14 are parallelizable in principle but do them in
@@ -1834,10 +2341,10 @@ that's the feasibility gate talking — stop and reassess rather than hack.
 | Exit criterion | Unit(s) |
 | --- | --- |
 | 3-player game to completion via API, powers declared | 19 |
-| Every action: legal / illegal-actor / illegal-state tests | 6–13, 16 (convention enforced throughout) |
+| Every action: legal / illegal-actor / illegal-state tests | 6–13, 16, 16a–16c (convention enforced throughout) |
 | `power.use` rejects infeasible effects | 3, 14 |
 | One enforced card via registry, same log shape | 15 |
-| Campaign dice from `prepare()` survive snapshot wipe + replay | 12, 13 |
+| Campaign dice from `prepare()` survive snapshot wipe + replay | 12, 13, 16a (Imperial defence end to end) |
 | Hidden-information fuzz over a played game | 10 (spot), 20 (full) |
 | `cradle` deleted | 20 |
 
