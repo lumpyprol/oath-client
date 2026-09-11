@@ -207,6 +207,14 @@ describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple 
 
   it('flips Usurper back to Oathkeeper if the new Citizen held it on that side', () => {
     const s = offerState();
+    // Seat 1 has to hold the title LEGITIMATELY, or unit 17's continuous
+    // §2.11 tracking takes it straight back off them: under baseState's
+    // default Supremacy goal the Chancellor rules the most sites, and once
+    // seat 1 turns Citizen the Empire's claim is the Chancellor's anyway.
+    // Devotion is individual — whoever holds the Darkest Secret — so it
+    // survives the transition and keeps this test about §6.6.2's flip.
+    s.oath = 'devotion';
+    s.banners[1].holder = 1;
     s.oathkeeper = 1;
     s.usurper = true;
     const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });

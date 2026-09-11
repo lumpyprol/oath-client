@@ -316,6 +316,33 @@ export interface WarbandRequest {
   requestedAt: number;
 }
 
+/**
+ * An unresolved Wake Phase (unit 17; Law §4.1). Present only while the
+ * waking seat still owes §4.1.1's People's Favor maintenance and the Law
+ * leaves them a genuine choice — forced outcomes never reach the player.
+ * LOCKS the game while it stands: §4.1 is resolved before the Act Phase.
+ */
+export interface WakeState {
+  seat: number;
+  /** §4.1.1 steps still owed — two on the People's Favor's Mob side (§4.1.1.II). */
+  stepsRemaining: number;
+  /** `actionCount` at the turn's start — the pending-decision id's anchor. */
+  startedAt: number;
+}
+
+/**
+ * Law §2.11: "If multiple players meet its goal but the holder does not, the
+ * holder chooses one of those other players to take it." Non-locking, like
+ * a Citizenship offer — the title simply stays put until answered.
+ */
+export interface TitleChoice {
+  /** The current title holder, who makes the choice. */
+  holder: number;
+  /** The seats meeting the Oathkeeper goal; the holder picks one. */
+  candidates: number[];
+  raisedAt: number;
+}
+
 export interface OathState {
   /** 2..6 seats; seat 0 is the Chancellor. */
   seats: number;
@@ -361,6 +388,8 @@ export interface OathState {
   campaign: CampaignState | null;
   citizenshipOffer: CitizenshipOffer | null;
   warbandRequest: WarbandRequest | null;
+  wake: WakeState | null;
+  titleChoice: TitleChoice | null;
   /** Incremented by every reduce; pending-decision ids derive from it. */
   actionCount: number;
   complete: boolean;
@@ -722,6 +751,41 @@ export function checkInvariants(state: OathState): void {
     if (o.offeredAt < 0 || o.offeredAt > state.actionCount) {
       fail(`citizenshipOffer.offeredAt (${o.offeredAt}) must be between 0 and actionCount`);
     }
+  }
+
+  // -- Wake Phase and the Oathkeeper choice (unit 17; Law §4.1, §2.11) -----
+  if (state.wake) {
+    const w = state.wake;
+    seatOk(w.seat, 'wake.seat');
+    if (w.seat !== state.turn.activeSeat) {
+      fail(`wake.seat (${w.seat}) must be the active seat (${state.turn.activeSeat}) — Law §4.1`);
+    }
+    if (!Number.isInteger(w.stepsRemaining) || w.stepsRemaining <= 0) {
+      fail(`wake.stepsRemaining must be positive while a Wake Phase is pending, got ${w.stepsRemaining}`);
+    }
+    if (w.startedAt < 0 || w.startedAt > state.actionCount) {
+      fail(`wake.startedAt (${w.startedAt}) must be between 0 and actionCount`);
+    }
+  }
+  if (state.titleChoice) {
+    const c = state.titleChoice;
+    seatOk(c.holder, 'titleChoice.holder');
+    if (c.holder !== state.oathkeeper) {
+      fail(`titleChoice.holder (${c.holder}) must be the current Oathkeeper (${state.oathkeeper})`);
+    }
+    if (c.candidates.length < 2) {
+      fail('titleChoice: a choice needs at least two candidates (Law §2.11)');
+    }
+    for (const seat of c.candidates) {
+      seatOk(seat, 'titleChoice candidate');
+      if (seat === c.holder) fail('titleChoice: the holder cannot be among the candidates');
+    }
+    if (new Set(c.candidates).size !== c.candidates.length) {
+      fail('titleChoice: duplicate candidate');
+    }
+  }
+  if (state.complete && (state.wake || state.titleChoice)) {
+    fail('a completed game cannot still be asking for a decision');
   }
 
   // -- pending warband permission (unit 16b; Law §6.5) ---------------------

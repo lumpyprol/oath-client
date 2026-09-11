@@ -340,6 +340,8 @@ export function init(setup: OathSetup): OathState {
     campaign: null,
     citizenshipOffer: null,
     warbandRequest: null,
+    wake: null,
+    titleChoice: null,
     actionCount: 0,
     complete: false,
     winner: null,

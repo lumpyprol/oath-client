@@ -62,17 +62,24 @@ export type Handler = (state: OathState, action: GameAction) => OathState;
  * `midSearchOk: false` (the default) and is rejected. `card.play` itself
  * passes `midSearchOk: true`. Likewise, while a Campaign (unit 12) is in
  * progress, everything is illegal-state except its own three actions;
- * `campaign.roll` (the attacker's move) passes `campaignOk: true`.
+ * `campaign.roll` (the attacker's move) passes `campaignOk: true`. And an
+ * unresolved Wake Phase (unit 17) locks the same way — Law §4.1's steps
+ * come before the Act Phase, so everything but `wake.favor` waits.
  */
 export function requireActiveSeat(
   state: OathState,
   action: GameAction,
-  opts: { midSearchOk?: boolean; campaignOk?: boolean } = {},
+  opts: { midSearchOk?: boolean; campaignOk?: boolean; wakeOk?: boolean } = {},
 ): number {
   if (state.complete) throw new IllegalAction(`${action.type}: the game is already complete`);
   if (action.actor === null) throw new IllegalAction(`${action.type} requires a seated actor`);
   if (action.actor !== state.turn.activeSeat) {
     throw new IllegalAction(`${action.type}: it is not seat ${action.actor}'s turn`);
+  }
+  if (!opts.wakeOk && state.wake) {
+    throw new IllegalAction(
+      `${action.type}: finish your Wake Phase first (Law §4.1) — it comes before the Act Phase`,
+    );
   }
   if (!opts.campaignOk && state.campaign) {
     throw new IllegalAction(`${action.type}: a Campaign is in progress (Law §5.5)`);

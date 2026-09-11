@@ -28,6 +28,7 @@ import { POWER_HANDLERS, preparePower } from './actions/power.js';
 import { CITIZENSHIP_HANDLERS } from './actions/citizenship.js';
 import { ADVISER_HANDLERS } from './actions/adviser.js';
 import { WARBAND_HANDLERS } from './actions/warbands.js';
+import { VICTORY_HANDLERS, afterAction, prepareRest } from './victory.js';
 import { project } from './project.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -45,6 +46,7 @@ const HANDLERS: Record<string, Handler> = {
   ...CITIZENSHIP_HANDLERS,
   ...ADVISER_HANDLERS,
   ...WARBAND_HANDLERS,
+  ...VICTORY_HANDLERS,
 };
 
 /**
@@ -56,6 +58,7 @@ const HANDLERS: Record<string, Handler> = {
 const PREPARE: Record<string, (state: OathState, proposed: ProposedAction) => unknown> = {
   'campaign.roll': prepareCampaign,
   'power.use': preparePower,
+  'turn.rest': prepareRest,
 };
 
 /** Action types a client may actually submit — 'game.created' is a marker, never one of them. */
@@ -82,12 +85,21 @@ export const oath: GameDefinition<OathState, OathSetup> = {
   reduce(state, action) {
     const handler = HANDLERS[action.type];
     if (!handler) throw new IllegalAction(`unknown action: ${action.type}`);
+    // Law §3: once the game has ended, nothing further is legal. Checked
+    // centrally so every action inherits it, including the ones that
+    // deliberately bypass `requireActiveSeat` to answer another seat.
+    if (state.complete) {
+      throw new IllegalAction(`${action.type}: the game is already complete`);
+    }
     // Every handler's actionCount bump happens exactly once, here — not
     // per-handler — and BEFORE dispatch, so a handler that starts a new
     // turn (turn.rest) can stamp `turn.turnStartedAt` from the same value
     // this action will be remembered by.
     state.actionCount += 1;
-    return handler(state, action);
+    // Every action runs the victory pipeline afterwards (unit 17): the
+    // Oathkeeper title tracks its inputs continuously (Law §2.11), and a
+    // `turn.rest` also ends a round and starts the next seat's Wake Phase.
+    return afterAction(handler(state, action), action);
   },
 
   project(state, seat) {
@@ -126,6 +138,34 @@ export const oath: GameDefinition<OathState, OathSetup> = {
         prompt: `Seat ${r.seat} asks permission to ${what} (Law §6.5).`,
         resolves: ['warbands.allow', 'warbands.deny'],
       });
+    }
+    if (state.titleChoice) {
+      const c = state.titleChoice;
+      citizenshipDecision.push({
+        id: `oathkeeper:${c.holder}:${c.raisedAt}`,
+        seat: c.holder,
+        kind: 'oathkeeper',
+        prompt:
+          `Seats ${c.candidates.join(', ')} meet the Oathkeeper goal and you no longer do — ` +
+          `choose which of them takes the title (Law §2.11).`,
+        resolves: ['oathkeeper.grant'],
+      });
+    }
+    // An unresolved Wake Phase (unit 17) preempts the active seat's turn:
+    // Law §4.1 is resolved in full before the Act Phase begins.
+    if (state.wake) {
+      return [
+        ...citizenshipDecision,
+        {
+          id: `wake:${state.wake.seat}:${state.wake.startedAt}`,
+          seat: state.wake.seat,
+          kind: 'wake',
+          prompt:
+            `Wake Phase: resolve the People's Favor — place one favor on it, or return one ` +
+            `to the least-full favor bank (Law §4.1.1).`,
+          resolves: ['wake.favor'],
+        },
+      ];
     }
     // A Campaign (unit 12) preempts the normal turn decision entirely —
     // whose move it is depends on the campaign's phase, not activeSeat.
