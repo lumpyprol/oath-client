@@ -1926,7 +1926,7 @@ Exile/bandits paths proven unchanged.
 
 ---
 
-## Unit 16b — Remaining minor actions: §6.1 and §6.5
+## Unit 16b — Remaining minor actions: §6.1 and §6.5 ✅ (completed 2026-09-11)
 
 **Purpose.** Close the two minor actions a real game cannot be played
 without: facedown advisers can currently never come up, and sites can never
@@ -1998,6 +1998,44 @@ Commit: "Add the remaining minor actions: facedown advisers and warband movement
 
 **Done when.** Both §6.1 and §6.5 work with citations; the permission flow
 is logged and rewindable.
+
+## What unit 16b established (as built, 2026-09-11)
+
+- **"As if you searched" is a dispatch, not a copy.** §6.1 delegates to
+  §5.1.4, but only two of §5.1.4's four branches can be reached from the
+  adviser row: a denizen (flips in place) and a Vision (§5.1.4.3). There
+  is no "play to your site" branch and no new adviser slot, which is
+  exactly why no favor is gained — §5.1.4.1's favor is a payment for
+  putting a card at a SITE. The absence is asserted in a test, because an
+  unexplained missing favor gain reads as a bug six months from now.
+- **A facedown Vision leaves the adviser row entirely.** §2.2.1 is
+  emphatic that the Revealed Vision space "is not an adviser", so the
+  faceup play is a `card` move (`seatAdvisers` -> `seatVision`), not a
+  `flip` like a denizen. Two different effect kinds behind one payload.
+- **The "except the last one" clause is load-bearing, and the rulebook
+  proves it elsewhere.** §7.6.5's Bandit Crown grants "you can move the
+  last of your physical warbands from your site" — a power that means
+  nothing unless the base rule forbids it. That cross-check is what
+  settled the reading, and it is cited in `warbands.ts`.
+- **Permission had to be re-validated, not replayed.** The request is
+  non-locking by design (the plan's word), so the requester keeps playing
+  while it stands — which means the warbands it names can be gone by the
+  time the approver answers. `warbands.allow` therefore re-runs the same
+  legality function `warbands.move` ran, rather than applying a stored
+  effect list. One function, two call sites, and a test that moves the
+  board out from under a pending request.
+- **Validation happens at the asker too.** An illegal move is rejected
+  when submitted, not when approved — otherwise a player could burn
+  someone else's round trip on a move that was never legal.
+- **`pending()` grew a shared prefix.** With two non-locking side
+  decisions (Citizenship offers, warband permissions) and six `return`
+  sites in the campaign/turn branches, the prepend is now built once. The
+  alternative — a second spread at every site — was already the shape
+  that made unit 16's addition awkward.
+- **Deliberately NOT reached:** the Chancellor's own toBoard needs no
+  permission (only Citizens are named in §6.5's aside), and toSite needs
+  none from anyone. Both are asserted, since "we asked when the Law
+  doesn't" is as wrong as the reverse.
 
 ---
 
