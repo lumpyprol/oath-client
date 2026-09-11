@@ -7,7 +7,7 @@
  * convention).
  */
 
-import type { GameDefinition, ProposedAction } from '../../engine/types.js';
+import type { GameDefinition, PendingDecision, ProposedAction } from '../../engine/types.js';
 import { IllegalAction } from '../../engine/types.js';
 import { FIRST_GAME, init, oathSetup, type OathSetup } from './setup.js';
 import type { OathState } from './state.js';
@@ -26,6 +26,8 @@ import {
 } from './actions/campaign.js';
 import { POWER_HANDLERS, preparePower } from './actions/power.js';
 import { CITIZENSHIP_HANDLERS } from './actions/citizenship.js';
+import { ADVISER_HANDLERS } from './actions/adviser.js';
+import { WARBAND_HANDLERS } from './actions/warbands.js';
 import { project } from './project.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -41,6 +43,8 @@ const HANDLERS: Record<string, Handler> = {
   ...CAMPAIGN_HANDLERS,
   ...POWER_HANDLERS,
   ...CITIZENSHIP_HANDLERS,
+  ...ADVISER_HANDLERS,
+  ...WARBAND_HANDLERS,
 };
 
 /**
@@ -92,11 +96,11 @@ export const oath: GameDefinition<OathState, OathSetup> = {
 
   pending(state) {
     if (state.complete) return [];
-    // A Citizenship offer (unit 16) does NOT preempt anything — unlike a
-    // Campaign, it doesn't lock other actions, so it's an ADDITIONAL
-    // pending decision alongside whatever else is happening, never a
-    // replacement (append-only, per the plan).
-    const citizenshipDecision = state.citizenshipOffer
+    // Non-locking side decisions (units 16, 16b). Unlike a Campaign, these
+    // don't stop anyone else acting, so they're ADDITIONAL pending
+    // decisions alongside whatever else is happening, never a replacement —
+    // every `return` below prepends them.
+    const citizenshipDecision: PendingDecision[] = state.citizenshipOffer
       ? [
           {
             id: `citizenshipOffer:${state.citizenshipOffer.exile}:${state.citizenshipOffer.offeredAt}`,
@@ -107,6 +111,22 @@ export const oath: GameDefinition<OathState, OathSetup> = {
           },
         ]
       : [];
+    if (state.warbandRequest) {
+      const r = state.warbandRequest;
+      const what =
+        r.direction === 'toBoard'
+          ? `move ${r.count} warband(s) off their site onto their board`
+          : r.direction === 'give'
+            ? `give you ${r.count} warband(s)`
+            : `take ${r.count} of your warband(s)`;
+      citizenshipDecision.push({
+        id: `warbands:${r.approver}:${r.requestedAt}`,
+        seat: r.approver,
+        kind: 'warbands',
+        prompt: `Seat ${r.seat} asks permission to ${what} (Law §6.5).`,
+        resolves: ['warbands.allow', 'warbands.deny'],
+      });
+    }
     // A Campaign (unit 12) preempts the normal turn decision entirely —
     // whose move it is depends on the campaign's phase, not activeSeat.
     if (state.campaign) {

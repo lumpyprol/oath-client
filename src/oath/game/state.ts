@@ -57,6 +57,16 @@ export const DARKEST_SECRET_ID = 'banner:darkest-secret';
 byId(PEOPLES_FAVOR_ID);
 byId(DARKEST_SECRET_ID);
 
+/**
+ * The Conspiracy (Law §2.7.2): the one Vision anyone — the Chancellor and
+ * Citizens included — may play faceup, and the one whose faceup play is a
+ * card power rather than the §5.1.4.3 Revealed-Vision move. Both play paths
+ * (`card.play`, unit 6; `adviser.play`, unit 16b) have to special-case it,
+ * so the id lives here rather than in either of them.
+ */
+export const CONSPIRACY_ID = 'vision:conspiracy';
+byId(CONSPIRACY_ID);
+
 // ---- types --------------------------------------------------------------
 
 /**
@@ -276,6 +286,29 @@ export interface CitizenshipOffer {
   offeredAt: number;
 }
 
+/**
+ * A warband move awaiting another seat's permission (unit 16b; Law §6.5).
+ * Three of §6.5's clauses need consent: a Citizen moving warbands off a site
+ * to their board (the Chancellor's permission), and an Imperial player
+ * giving warbands to or taking them from another Imperial player (theirs).
+ *
+ * Non-locking, like a Citizenship offer and unlike a Campaign: the requester
+ * plays on while it stands, so the move is re-validated when it is approved,
+ * never trusted from when it was asked.
+ */
+export interface WarbandRequest {
+  /** The seat who submitted the `warbands.move`. */
+  seat: number;
+  /** The seat whose permission Law §6.5 requires. */
+  approver: number;
+  direction: 'toBoard' | 'give' | 'take';
+  count: number;
+  /** The other Imperial player, for `give`/`take`; null for `toBoard`. */
+  target: number | null;
+  /** `actionCount` at request — the pending-decision id's stable anchor. */
+  requestedAt: number;
+}
+
 export interface OathState {
   /** 2..6 seats; seat 0 is the Chancellor. */
   seats: number;
@@ -320,6 +353,7 @@ export interface OathState {
   };
   campaign: CampaignState | null;
   citizenshipOffer: CitizenshipOffer | null;
+  warbandRequest: WarbandRequest | null;
   /** Incremented by every reduce; pending-decision ids derive from it. */
   actionCount: number;
   complete: boolean;
@@ -680,6 +714,29 @@ export function checkInvariants(state: OathState): void {
     }
     if (o.offeredAt < 0 || o.offeredAt > state.actionCount) {
       fail(`citizenshipOffer.offeredAt (${o.offeredAt}) must be between 0 and actionCount`);
+    }
+  }
+
+  // -- pending warband permission (unit 16b; Law §6.5) ---------------------
+  if (state.warbandRequest) {
+    const r = state.warbandRequest;
+    seatOk(r.seat, 'warbandRequest.seat');
+    seatOk(r.approver, 'warbandRequest.approver');
+    if (r.approver === r.seat) fail('warbandRequest: a seat cannot permit their own move');
+    if (!Number.isInteger(r.count) || r.count <= 0) {
+      fail(`warbandRequest.count is not a positive integer: ${r.count}`);
+    }
+    if (r.direction === 'toBoard') {
+      if (r.target !== null) fail("warbandRequest: 'toBoard' has no target seat");
+    } else {
+      const target = r.target ?? fail(`warbandRequest: '${r.direction}' needs a target seat`);
+      seatOk(target, 'warbandRequest.target');
+      if (target !== r.approver) {
+        fail("warbandRequest: give/take is permitted by the other Imperial player themselves (Law §6.5)");
+      }
+    }
+    if (r.requestedAt < 0 || r.requestedAt > state.actionCount) {
+      fail(`warbandRequest.requestedAt (${r.requestedAt}) must be between 0 and actionCount`);
     }
   }
 }

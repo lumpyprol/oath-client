@@ -43,10 +43,9 @@ import { byId } from '../../cards/index.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import { discardRegion } from '../map.js';
-import { ADVISER_LIMIT, type OathState, type Region } from '../state.js';
+import { ADVISER_LIMIT, CONSPIRACY_ID, type OathState, type Region } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
-const CONSPIRACY_ID = 'vision:conspiracy';
 
 const PlayPayloadSchema = z.object({
   handIndex: z.number().int().min(0),

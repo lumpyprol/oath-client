@@ -38,6 +38,7 @@ import {
   type CardInPlay,
   type CitizenshipOffer,
   type ReliquarySpace,
+  type WarbandRequest,
   type OathState,
   type PlayerState,
   type Region,
@@ -123,6 +124,12 @@ export interface OathView {
    * (Law §6.4 — the Grand Scepter lets its holder peek any relic there).
    */
   citizenshipOffer: CitizenshipOffer | null;
+  /**
+   * A pending warband permission (unit 16b; Law §6.5) is public: warband
+   * counts are explicitly public (§9.4), and the approver has to see what
+   * they are being asked to allow.
+   */
+  warbandRequest: WarbandRequest | null;
   complete: boolean;
   winner: number | null;
 }
@@ -216,6 +223,7 @@ export function project(state: OathState, seat: number | null): OathView {
           take: { ...state.citizenshipOffer.take, relics: [...state.citizenshipOffer.take.relics], banners: [...state.citizenshipOffer.take.banners] },
         }
       : null,
+    warbandRequest: state.warbandRequest ? { ...state.warbandRequest } : null,
     complete: state.complete,
     winner: state.winner,
   };

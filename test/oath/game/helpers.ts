@@ -165,6 +165,7 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
     turn: { activeSeat: 1, round: 3, turnStartedAt: 17 },
     campaign: null,
     citizenshipOffer: null,
+    warbandRequest: null,
     actionCount: 17,
     complete: false,
     winner: null,
