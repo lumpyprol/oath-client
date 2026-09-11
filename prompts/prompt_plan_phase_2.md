@@ -1305,7 +1305,7 @@ survive replay.
 
 ---
 
-## Unit 14 — Declared powers: `power.use`
+## Unit 14 — Declared powers: `power.use` ✅ (completed 2026-09-12)
 
 **Purpose.** The v1 answer to 200 cards (HLD D9/D28): name the card, declare
 the effects, engine checks feasibility only.
@@ -1348,6 +1348,47 @@ Commit: "Add declared power.use action"
 ```
 
 **Done when.** Declared powers work; every infeasibility class tested.
+
+## What unit 14 established (as built, 2026-09-12)
+
+- **Access (Law §7.1.1), five zone kinds, one function.** A relic in your
+  own personal bank; a banner you hold; your own FACEUP adviser (a
+  facedown one has no suit/restriction/power at all per §5.1.4.II — this
+  is a structural fact, checked here, not a card-text guess); a site
+  itself, or a denizen/edifice at a faceup site, if you rule that site OR
+  your pawn is there. Everything else (hand, either deck, a discard pile,
+  a facedown site, a facedown relic sitting at a site, the Reliquary,
+  another seat's stuff) is simply not reachable — `hasAccess` returns
+  `false` rather than enumerating exclusions.
+- **Timing opens exactly the one door unit 12 left ajar.** Normal Act-
+  Phase timing reuses `requireActiveSeat` verbatim (so `power.use`
+  automatically inherits the mid-Search and Campaign locks every other
+  action already has — no new lock logic). The ONE addition:
+  `state.campaign?.phase === 'respond' && defenderSeat === actor` also
+  passes, checked BEFORE falling through to `requireActiveSeat` — the
+  window's owner can act even though it isn't their turn. Nothing finer:
+  the attacker gets no equivalent mid-campaign window (battle plans stay
+  entirely deferred either way), and no distinction is made between
+  Wake/Action/Rest/When-Played power types (§7.3.1-4) — v1 leaves that to
+  the players, same as effect content.
+- **The engine never checks effects against card text — literally: the
+  card's suit, powers, even its EXISTENCE beyond the id string are never
+  read.** `hasAccess` only asks "is this id present in a zone you have
+  access to," never "does this card's printed power produce these
+  effects." Disputes are a rollback, not an adjudication (HLD's own
+  framing) — this is the seam unit 15 will attach real per-card
+  implementations to, unchanged.
+- **`EffectSchema` validated twice, deliberately** — once in `prepare()`
+  (rejects a malformed submission before it's ever written to the log,
+  per the plan) and again in `reduce()` (so every DIRECT-`reduce` caller
+  — which is most of this codebase's own tests — gets the same clean
+  `IllegalAction` instead of a raw TypeError reading an unvalidated
+  payload's fields). Not a hedge against `prepare()` being skippable in
+  production; it's for test/direct-call parity with every other action's
+  own convention of validating inside `reduce`.
+- Nothing new needed in `effects.ts` or `state.ts` — `applyEffects` (unit
+  3) and the existing zones covered every declared-effect case this unit
+  exercised.
 
 ---
 

@@ -19,6 +19,7 @@ import { TRAVEL_HANDLERS } from './actions/travel.js';
 import { SEARCH_HANDLERS } from './actions/search.js';
 import { RECOVER_HANDLERS } from './actions/recover.js';
 import { CAMPAIGN_HANDLERS, prepareCampaign } from './actions/campaign.js';
+import { POWER_HANDLERS, preparePower } from './actions/power.js';
 import { project } from './project.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -32,15 +33,18 @@ const HANDLERS: Record<string, Handler> = {
   ...SEARCH_HANDLERS,
   ...RECOVER_HANDLERS,
   ...CAMPAIGN_HANDLERS,
+  ...POWER_HANDLERS,
 };
 
 /**
  * Additive, same pattern as `HANDLERS`: any action type needing `prepare()`
  * (HLD D14 — dice roll here, at append time, never in `reduce`) registers a
- * function here. Only `campaign.roll` needs one so far.
+ * function here. `campaign.roll` rolls dice; `power.use` just rejects a
+ * malformed payload before it's ever written to the log.
  */
 const PREPARE: Record<string, (state: OathState, proposed: ProposedAction) => unknown> = {
   'campaign.roll': prepareCampaign,
+  'power.use': preparePower,
 };
 
 /** Action types a client may actually submit — 'game.created' is a marker, never one of them. */

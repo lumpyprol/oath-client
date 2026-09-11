@@ -425,10 +425,10 @@ the feasibility milestone: if the state machine is painful here, stop.
 **Exit criteria.**
 - [ ] a 3-player game plays to completion through the API with powers declared
 - [x] every action has reducer tests for legal, illegal-actor, illegal-state
-      (all six — Muster..Campaign — as of unit 13; `power.use`, unit 14,
-      still to come)
-- [ ] `power.use` rejects infeasible effects (spending favor you lack, moving
-      warbands that aren't there)
+      (all six, plus `power.use`, as of unit 14)
+- [x] `power.use` rejects infeasible effects (spending favor you lack, moving
+      warbands that aren't there) (unit 14, `power.test.ts`'s "infeasible
+      effects reject the whole action" cases)
 - [ ] one card is enforced through the registry in a test, producing the same
       log shape as a declaration
 - [x] campaign dice come from `prepare()` and survive snapshot wipe + replay
@@ -713,7 +713,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–13 done (all six actions + card.play; Campaign declare through resolution/seizure); next is unit 14 (`power.use`) |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–14 done (all six actions + card.play + `power.use`); next is unit 15 (powers registry, the enforcement seam) |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
