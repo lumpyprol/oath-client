@@ -5,6 +5,7 @@ import {
   PEOPLES_FAVOR_ID,
   DARKEST_SECRET_ID,
   type OathState,
+  type SiteState,
 } from '../../../src/oath/game/state.js';
 import { oath } from '../../../src/oath/game/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
@@ -22,62 +23,92 @@ function recover(state: OathState, actor: number | null, payload: unknown): Oath
   return oath.reduce(state, action);
 }
 
-// baseState: seat 1 active, pawn at sites[5], supply 4. Put a relic there.
-function withRelicAtPawn() {
+/** A fresh, empty site for a real card that isn't on baseState's 8-site board. */
+function emptySite(name: string, seats: number): SiteState {
+  const card = cards.sites.find((s) => s.name === name)!;
+  return {
+    id: card.id,
+    region: 'hinterland',
+    facedown: false,
+    cards: Array.from({ length: card.capacity }, () => null),
+    relics: [],
+    warbands: Array.from({ length: seats }, () => 0),
+    favor: 0,
+    secrets: 0,
+  };
+}
+
+/**
+ * baseState: seat 1 active, supply 4. Moves seat 1's pawn to the named real
+ * site (adding it to the board first if it isn't sites[0..7]) and puts a
+ * relic there — the site's printed recover cost (Law §5.4.2) then drives
+ * what `recover` charges. Default: Mountain, already on the board, `burnFavor`.
+ */
+function withRelicAtPawn(siteName = 'Mountain') {
   const s = baseState();
-  const site = s.sites.find((x) => x.id === s.players[1].pawnSite)!;
+  const id = cards.sites.find((c) => c.name === siteName)!.id;
+  let site = s.sites.find((x) => x.id === id);
+  if (!site) {
+    site = emptySite(siteName, s.seats);
+    s.sites.push(site);
+  }
+  s.players[1].pawnSite = site.id;
   const relicId = s.relicDeck.shift()!; // pull from the deck to keep ids unique
   site.relics = [relicId];
   return { s, site, relicId };
 }
 
 describe('recover — a relic at your site (Law §5.4)', () => {
-  it('spends 1 Supply + the declared cost, and the relic reaches your board', () => {
+  it("spends 1 Supply + the site's printed cost, and the relic reaches your board", () => {
+    // Mountain: burnFavor (Law §5.4.2)
     const { s, relicId } = withRelicAtPawn();
     s.players[1].favor = 5;
     s.sharedBank.favor -= 4; // source the extra favor
     const supplyBefore = s.players[1].supply;
+    const sharedBefore = s.sharedBank.favor;
 
-    const out = recover(s, 1, {
-      target: 'relic',
-      relicId,
-      cost: { kind: 'burnFavor' }, // §5.4.2: burn two favor
-    });
+    const out = recover(s, 1, { target: 'relic', relicId });
 
     expect(out.players[1].relics).toContain(relicId);
     expect(out.sites.find((x) => x.id === out.players[1].pawnSite)!.relics).not.toContain(relicId);
     expect(out.players[1].supply).toBe(supplyBefore - 1);
     expect(out.players[1].favor).toBe(5 - 2);
+    expect(out.sharedBank.favor).toBe(sharedBefore + 2);
     checkInvariants(out);
   });
 
-  it("'placeFavor' puts 3 favor in the named suit bank; 'burnFavor' goes to the shared bank", () => {
-    const { s, relicId } = withRelicAtPawn();
+  it("a 'placeFavor' site puts 3 favor in its printed suit bank", () => {
+    // Barren Coast: placeFavor nomad (Law §5.4.2)
+    const { s, relicId } = withRelicAtPawn('Barren Coast');
     s.players[1].favor = 5;
     s.sharedBank.favor -= 4;
-    const bankBefore = s.favorBanks.hearth;
+    const bankBefore = s.favorBanks.nomad;
 
-    const out = recover(s, 1, {
-      target: 'relic',
-      relicId,
-      cost: { kind: 'placeFavor', suit: 'hearth' },
-    });
-    expect(out.favorBanks.hearth).toBe(bankBefore + 3);
+    const out = recover(s, 1, { target: 'relic', relicId });
+    expect(out.favorBanks.nomad).toBe(bankBefore + 3);
     expect(out.players[1].favor).toBe(5 - 3);
     checkInvariants(out);
   });
 
-  it("'burnSecret' burns 1 or 2 secrets to the shared bank", () => {
-    const { s, relicId } = withRelicAtPawn();
+  it("a 'burnSecret' site burns its printed number of secrets to the shared bank", () => {
+    // Wastes: burnSecret amount 2 (Law §5.4.2)
+    const { s, relicId } = withRelicAtPawn('Wastes');
     s.players[1].secrets = { ready: 3, flipped: 0 };
     const sharedBefore = s.sharedBank.secrets;
-    const out = recover(s, 1, {
-      target: 'relic',
-      relicId,
-      cost: { kind: 'burnSecret', amount: 2 },
-    });
+    const out = recover(s, 1, { target: 'relic', relicId });
     expect(out.players[1].secrets.ready).toBe(1);
     expect(out.sharedBank.secrets).toBe(sharedBefore + 2);
+    checkInvariants(out);
+  });
+
+  it("a 'burnSecret' site can also cost just 1 secret", () => {
+    // Marshes: burnSecret amount 1 (Law §5.4.2)
+    const { s, relicId } = withRelicAtPawn('Marshes');
+    s.players[1].secrets = { ready: 3, flipped: 0 };
+    const sharedBefore = s.sharedBank.secrets;
+    const out = recover(s, 1, { target: 'relic', relicId });
+    expect(out.players[1].secrets.ready).toBe(2);
+    expect(out.sharedBank.secrets).toBe(sharedBefore + 1);
     checkInvariants(out);
   });
 
@@ -85,18 +116,23 @@ describe('recover — a relic at your site (Law §5.4)', () => {
     const s = baseState();
     // baseState puts a relic at sites[1]; seat 1's pawn is at sites[5]
     const relicId = s.sites[1].relics[0];
-    expect(() =>
-      recover(s, 1, { target: 'relic', relicId, cost: { kind: 'burnFavor' } }),
-    ).toThrow(IllegalAction);
+    expect(() => recover(s, 1, { target: 'relic', relicId })).toThrow(IllegalAction);
   });
 
-  it("is illegal when you can't pay the declared cost", () => {
+  it('is illegal at a site with no printed recover cost (structurally can never hold a relic)', () => {
+    const s = baseState();
+    // Salt Flats (sites[1]): baseState already put a relic there; force it as
+    // seat 1's pawn to exercise the defensive `recoverCost === null` check.
+    const relicId = s.sites[1].relics[0];
+    s.players[1].pawnSite = s.sites[1].id;
+    expect(() => recover(s, 1, { target: 'relic', relicId })).toThrow(IllegalAction);
+  });
+
+  it("is illegal when you can't pay the site's cost", () => {
     const { s, relicId } = withRelicAtPawn();
     s.sharedBank.favor += s.players[1].favor;
-    s.players[1].favor = 1; // needs 2 to burn
-    expect(() =>
-      recover(s, 1, { target: 'relic', relicId, cost: { kind: 'burnFavor' } }),
-    ).toThrow(IllegalAction);
+    s.players[1].favor = 1; // Mountain needs 2 to burn
+    expect(() => recover(s, 1, { target: 'relic', relicId })).toThrow(IllegalAction);
   });
 
   it('is illegal with insufficient Supply', () => {
@@ -104,9 +140,7 @@ describe('recover — a relic at your site (Law §5.4)', () => {
     s.players[1].supply = 0;
     s.players[1].favor = 5;
     s.sharedBank.favor -= 4;
-    expect(() =>
-      recover(s, 1, { target: 'relic', relicId, cost: { kind: 'burnFavor' } }),
-    ).toThrow(IllegalAction);
+    expect(() => recover(s, 1, { target: 'relic', relicId })).toThrow(IllegalAction);
   });
 });
 
@@ -220,9 +254,7 @@ describe('recover — the Darkest Secret (Law §5.4.2 / §5.4.4)', () => {
 describe('recover — shared legality', () => {
   it('is illegal for a non-active seat', () => {
     const { s, relicId } = withRelicAtPawn();
-    expect(() =>
-      recover(s, 2, { target: 'relic', relicId, cost: { kind: 'burnFavor' } }),
-    ).toThrow(IllegalAction);
+    expect(() => recover(s, 2, { target: 'relic', relicId })).toThrow(IllegalAction);
   });
 
   it('does not advance the turn', () => {

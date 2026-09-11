@@ -25,6 +25,7 @@ const site = (over: Record<string, unknown> = {}) => ({
   saveId: 1,
   capacity: 2,
   reveal: { favor: 0, secrets: 0, relics: 1 },
+  recoverCost: { kind: 'burnFavor' },
   ...over,
 });
 

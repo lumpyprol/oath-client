@@ -4,12 +4,11 @@
  *
  *   §5.4.2 relic cost — the site's bottom-right corner lists ONE of: place
  *          three favor in a specific bank, burn two favor, burn one
- *          secret, or burn two secrets. P1's card data does NOT carry this
- *          per-site value, so the payload DECLARES which of the four it is
- *          (`cost`), v1-style: the engine knows where each payment goes
- *          and checks feasibility, but not that the declared cost matches
- *          the card. Transcribing the per-site costs into the card data is
- *          a P1 follow-up.
+ *          secret, or burn two secrets. This is structural site data, not
+ *          card text, so it's read straight from `byId(siteId).recoverCost`
+ *          (P1 follow-up to unit 11, same category as the reveal-prompt
+ *          data — see data/site-reveals.json) rather than declared by the
+ *          player; the payload no longer carries a relic `cost` field.
  *   §5.4.2 banner cost — the People's Favor: "any amount of favor greater
  *          than its current value"; the Darkest Secret: "any amount of
  *          secrets greater than its current value". The payload gives
@@ -32,7 +31,7 @@
 
 import { z } from 'zod';
 import { byId } from '../../cards/index.js';
-import { SUITS, type Suit } from '../../cards/schema.js';
+import { SUITS, type Site, type Suit } from '../../cards/schema.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import {
@@ -45,18 +44,11 @@ import { requireActiveSeat, type Handler } from '../turn.js';
 
 const RECOVER_COST = 1; // Supply (Law §5.4.1)
 
-const RelicCostSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('placeFavor'), suit: z.enum(SUITS) }),
-  z.object({ kind: z.literal('burnFavor') }),
-  z.object({ kind: z.literal('burnSecret'), amount: z.union([z.literal(1), z.literal(2)]) }),
-]);
-
 const RecoverPayloadSchema = z.discriminatedUnion('target', [
   z.object({
     target: z.literal('relic'),
     relicId: z.string(),
     siteId: z.string().optional(),
-    cost: RelicCostSchema,
   }),
   z.object({
     target: z.literal('banner'),
@@ -99,7 +91,7 @@ function recover(state: OathState, action: GameAction): OathState {
   const post: Array<(s: OathState) => void> = [];
 
   if (parsed.data.target === 'relic') {
-    const { relicId, cost } = parsed.data;
+    const { relicId } = parsed.data;
     const siteId = parsed.data.siteId ?? player.pawnSite;
     if (siteId !== player.pawnSite) {
       throw new IllegalAction('recover: the relic must be at your site (Law §5.4.1)');
@@ -107,6 +99,10 @@ function recover(state: OathState, action: GameAction): OathState {
     const site = state.sites.find((s) => s.id === siteId);
     if (!site || !site.relics.includes(relicId)) {
       throw new IllegalAction(`recover: no facedown relic ${relicId} at your site`);
+    }
+    const cost = (byId(siteId) as Site).recoverCost;
+    if (!cost) {
+      throw new IllegalAction(`recover: ${siteId} has no printed recover cost (Law §5.4.2)`);
     }
 
     if (cost.kind === 'placeFavor') {

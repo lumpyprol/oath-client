@@ -81,6 +81,27 @@ Investigated and rejected before P0:
 - **One maintainer.** Everything should be understandable in one sitting a
   year from now.
 
+### Reference sources — use these, not PDFs
+
+Two live, official tools cover everything a unit should need to look up. Both
+are JS-rendered SPAs — `WebFetch` gets a 403 or an empty shell; use the
+Chrome browser tools (`navigate` + `computer` zoom/screenshot, or
+`get_page_text`) instead.
+
+- **Card data and art** — `https://cards.buriedgiant.com/search?q=game:oath`.
+  Search by `name:"Card Name"` for an exact single hit. This renders every
+  card's actual face at full resolution — icons, costs, suit symbols — and is
+  the source for anything not in the vendored Lua (e.g. site reveal prompts,
+  recover costs). Already the decided art source (Q9).
+- **Rules text** — `https://rules.buriedgiant.com/?product=oath&locale=en-US`
+  (the Oath printing p1 edition, already decided as canonical — Q5). Cite as
+  `Law §x.y`.
+
+Before cropping the Oath Deck Order PDF or `pdftotext`-ing the rulebook PDF
+for anything, check whether the answer is just a search away on one of these
+two sites — it usually is, and it's both faster and more reliable than
+pixel-hunting a page render.
+
 ---
 
 ## 3. System overview

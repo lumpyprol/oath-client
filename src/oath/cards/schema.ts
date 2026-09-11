@@ -66,6 +66,17 @@ export const DenizenSchema = baseCard
   .extend({ suit: SuitSchema })
   .refine(idPrefix('denizen').check, idPrefix('denizen').opts);
 
+/**
+ * The relic recover cost printed in a site's bottom-right corner (Law
+ * §5.4.2, §2.8.4) — one of four fixed options. `null` for sites that never
+ * hold a relic (`reveal.relics === 0`), which print no such icon.
+ */
+export const SiteRecoverCostSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('placeFavor'), suit: SuitSchema }),
+  z.object({ kind: z.literal('burnFavor') }),
+  z.object({ kind: z.literal('burnSecret'), amount: z.union([z.literal(1), z.literal(2)]) }),
+]);
+
 export const SiteSchema = baseCard
   .extend({
     /** Max denizen + edifice cards the site holds (Law §2.8.1). */
@@ -82,6 +93,8 @@ export const SiteSchema = baseCard
       secrets: z.number().int().min(0),
       relics: z.number().int().min(0),
     }),
+    /** See `SiteRecoverCostSchema`. Hand-transcribed — see data/site-reveals.json. */
+    recoverCost: SiteRecoverCostSchema.nullable(),
   })
   .refine(idPrefix('site').check, idPrefix('site').opts);
 
@@ -118,6 +131,7 @@ export const BannerSchema = baseCard
 
 export type Denizen = z.infer<typeof DenizenSchema>;
 export type Site = z.infer<typeof SiteSchema>;
+export type SiteRecoverCost = z.infer<typeof SiteRecoverCostSchema>;
 export type Relic = z.infer<typeof RelicSchema>;
 export type Vision = z.infer<typeof VisionSchema>;
 export type EdificeRuin = z.infer<typeof EdificeRuinSchema>;

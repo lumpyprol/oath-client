@@ -1026,16 +1026,22 @@ Commit: "Add Recover action"
 - **Recover** (`actions/recover.ts`): 1 Supply + a target cost. `target:
   'relic'` (a facedown relic at your site → your board) or `target:
   'banner'` (People's Favor / Darkest Secret).
-- **The relic recover cost is DECLARED, not read from data** — P1's card
-  data has no per-site recover cost (§2.8.4 bottom-right corner; the
-  vendored Lua doesn't carry it). The payload's `cost` names one of
-  §5.4.2's four options (`placeFavor`+suit / `burnFavor` / `burnSecret`
-  1|2); the engine knows where each payment lands (a suit bank / the
-  shared bank) and checks feasibility, but not that the declared cost
-  matches the physical card — v1-style. **Transcribing the per-site
-  recover costs into the card data is a P1 follow-up**, same category as
-  the reveal prompts (structural site data missing from the Lua, not
-  card text). Worth doing before unit 19's full game.
+- **The relic recover cost is read from card data, not declared.** The P1
+  follow-up landed 2026-09-10: `SiteSchema.recoverCost` (§2.8.4
+  bottom-right corner; the vendored Lua doesn't carry it), hand-transcribed
+  into `data/site-reveals.json` alongside the reveal prompts, sourced from
+  the Buried Giant Studios card library (`cards.buriedgiant.com` — see
+  HLD.md "Reference sources") rather than pixel-cropping a PDF render. The
+  `recover` payload no longer carries a `cost` field — `recover.ts` reads
+  `byId(siteId).recoverCost` (one of §5.4.2's four options: `placeFavor`+
+  suit / `burnFavor` / `burnSecret` 1|2) and throws if a site has none
+  (structurally can't hold a relic). Two rulebook-walkthrough worked
+  examples (Narrow Pass, Mountain) anchored the icon grammar; the other 13
+  relic-bearing sites' costs were read directly off the card renders. One
+  name note: saveId 20 ("Imperial Seat" in the Lua/2020 TTS mod) prints as
+  "The Tribunal" on the current copy — recorded in site-reveals.json's
+  provenance rather than as an `overrides.json` entry, since that file is
+  keyed by saveId, not name.
 - **Banner cost**: payload `pay`, must be strictly `> banner.tokens`
   (§5.4.2 "greater than", so equal is illegal). §5.4.4 stake handling is
   implemented — People's Favor: old stake → favor banks (one per bank;

@@ -9,6 +9,7 @@ import {
   type EdificeRuin,
   type Relic,
   type Site,
+  type SiteRecoverCost,
   type Suit,
   type Vision,
 } from './schema.js';
@@ -104,6 +105,7 @@ export interface SiteReveal {
   favor: number;
   secrets: number;
   relics: number;
+  recoverCost: SiteRecoverCost | null;
 }
 
 function buildSite(record: RawRecord, reveals: Record<number, SiteReveal>): Site | null {
@@ -120,6 +122,7 @@ function buildSite(record: RawRecord, reveals: Record<number, SiteReveal>): Site
     saveId,
     capacity: num(record, 'capacity'),
     reveal: { favor: reveal.favor, secrets: reveal.secrets, relics: reveal.relics },
+    recoverCost: reveal.recoverCost,
   };
 }
 

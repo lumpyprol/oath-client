@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { parseCardsLua } from '../../../src/oath/cards/lua.js';
 import { buildDatabase, MOD_BANNER_CARDTYPE } from '../../../src/oath/cards/build.js';
 import { loadSiteReveals } from '../../../src/oath/cards/generate.js';
-import { CardDatabaseSchema, SUITS } from '../../../src/oath/cards/schema.js';
+import { CardDatabaseSchema, SUITS, type SiteRecoverCost } from '../../../src/oath/cards/schema.js';
 import type { RawRecord } from '../../../src/oath/cards/lua.js';
+import type { SiteReveal } from '../../../src/oath/cards/build.js';
 
 const rec = (name: string, fields: Record<string, string | number>): RawRecord => ({
   name,
@@ -15,10 +16,13 @@ const rec = (name: string, fields: Record<string, string | number>): RawRecord =
 
 /** A reveal map that answers any saveId, overridable per id. */
 const reveals = (
-  over: Record<number, { favor?: number; secrets?: number; relics?: number }> = {},
+  over: Record<
+    number,
+    { favor?: number; secrets?: number; relics?: number; recoverCost?: SiteRecoverCost | null }
+  > = {},
 ) =>
-  new Proxy({} as Record<number, { favor: number; secrets: number; relics: number }>, {
-    get: (_t, key) => ({ favor: 0, secrets: 0, relics: 0, ...over[Number(key)] }),
+  new Proxy({} as Record<number, SiteReveal>, {
+    get: (_t, key) => ({ favor: 0, secrets: 0, relics: 0, recoverCost: null, ...over[Number(key)] }),
   });
 
 describe('buildDatabase — per-cardtype mapping', () => {
@@ -33,7 +37,7 @@ describe('buildDatabase — per-cardtype mapping', () => {
         rec('Fake Front / Fake Back', { saveid: 110, cardtype: MOD_BANNER_CARDTYPE }),
         rec('Fake Lone Banner', { saveid: 120, cardtype: MOD_BANNER_CARDTYPE }),
       ],
-      reveals({ 1: { favor: 1, secrets: 0, relics: 2 } }),
+      reveals({ 1: { favor: 1, secrets: 0, relics: 2, recoverCost: { kind: 'burnFavor' } } }),
     );
 
     expect(db.sites[0]).toMatchObject({
@@ -43,6 +47,7 @@ describe('buildDatabase — per-cardtype mapping', () => {
       saveId: 1,
       capacity: 3,
       reveal: { favor: 1, secrets: 0, relics: 2 },
+      recoverCost: { kind: 'burnFavor' },
     });
     expect(db.denizens[0]).toMatchObject({ id: 'denizen:fake-denizen', suit: 'hearth', saveId: 5 });
     expect(db.relics[0]).toMatchObject({ id: 'relic:fake-relic', saveId: 100 });
