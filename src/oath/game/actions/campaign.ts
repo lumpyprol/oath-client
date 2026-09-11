@@ -93,7 +93,7 @@ import { z } from 'zod';
 import type { ProposedAction } from '../../../engine/types.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { rollDice } from '../../../engine/random.js';
-import { byId, findById } from '../../cards/index.js';
+import { byId } from '../../cards/index.js';
 import type { Relic } from '../../cards/schema.js';
 import {
   DARKEST_SECRET_ID,
@@ -190,7 +190,6 @@ function declare(state: OathState, action: GameAction): OathState {
   }
   const defenderPawnHere = defender !== 'bandits' && state.players[defender].pawnSite === attackerSite;
 
-  const attackerSiteName = byId(attackerSite).name;
   const seen = new Set<string>();
   let defenseDice = 0;
   let targetsYourSite = false; // satisfies the "at least one target at your site" clause
@@ -199,14 +198,6 @@ function declare(state: OathState, action: GameAction): OathState {
   let targetsMountain = false;
 
   for (const t of targets) {
-    // Law §11.4: this target's location — itself if a site target, else the
-    // attacker's own site (pawnFavor/banner/relic all require the defender's
-    // pawn there). A garbage siteId resolves to undefined here and simply
-    // fails the target's own validation below instead of throwing here.
-    const locationName = t.kind === 'site' ? findById(t.siteId)?.name : attackerSiteName;
-    if (locationName === 'Plains') targetsPlains = true;
-    if (locationName === 'Mountain') targetsMountain = true;
-
     const key =
       t.kind === 'site'
         ? `site:${t.siteId}`
@@ -218,53 +209,75 @@ function declare(state: OathState, action: GameAction): OathState {
     if (seen.has(key)) throw new IllegalAction(`campaign.declare: duplicate target (${key})`);
     seen.add(key);
 
-    if (t.kind === 'site') {
-      if (defender === 'bandits') {
-        const site = state.sites.find((s) => s.id === t.siteId);
-        if (!site || site.facedown || rulersOf(state, t.siteId).length > 0) {
-          throw new IllegalAction(`campaign.declare: bandits do not rule ${t.siteId} (Law §5.5.2)`);
+    // §5.5.2's four target kinds, one branch each. Every kind but `site`
+    // requires the defender's pawn at the attacker's site — that's WHY
+    // they're "at your site" (their `locationSiteId` is the attacker's own
+    // site, unconditionally, below), not a separate rule for each.
+    let dice: number;
+    let locationSiteId: string;
+    switch (t.kind) {
+      case 'site': {
+        const targetSite = state.sites.find((s) => s.id === t.siteId);
+        const ruledByDefender =
+          !!targetSite &&
+          !targetSite.facedown &&
+          (defender === 'bandits'
+            ? rulersOf(state, t.siteId).length === 0
+            : rulersOf(state, t.siteId).includes(defender));
+        if (!ruledByDefender) {
+          throw new IllegalAction(`campaign.declare: the defender does not rule ${t.siteId} (Law §5.5.2)`);
         }
-      } else if (!rulersOf(state, t.siteId).includes(defender)) {
-        throw new IllegalAction(`campaign.declare: the defender does not rule ${t.siteId} (Law §5.5.2)`);
+        dice = SITE_DEFENSE_DICE;
+        locationSiteId = t.siteId;
+        break;
       }
-      defenseDice += SITE_DEFENSE_DICE;
-      if (t.siteId === attackerSite) {
-        targetsYourSite = true;
-        targetsYourSiteSpecifically = true;
+      case 'pawnFavor': {
+        if (!defenderPawnHere) {
+          throw new IllegalAction(
+            "campaign.declare: pawnFavor requires the defender's pawn at your site (Law §5.5.2)",
+          );
+        }
+        dice = PAWN_FAVOR_DICE;
+        locationSiteId = attackerSite;
+        break;
       }
-    } else if (t.kind === 'pawnFavor') {
-      if (!defenderPawnHere) {
-        throw new IllegalAction(
-          "campaign.declare: pawnFavor requires the defender's pawn at your site (Law §5.5.2)",
-        );
+      case 'banner': {
+        if (!defenderPawnHere) {
+          throw new IllegalAction(
+            "campaign.declare: banners require the defender's pawn at your site (Law §5.5.2)",
+          );
+        }
+        const bannerId = bannerFullId(t.bannerId);
+        const banner = state.banners.find((b) => b.id === bannerId)!;
+        if (banner.holder !== defender) {
+          throw new IllegalAction(`campaign.declare: the defender does not hold ${bannerId} (Law §5.5.2)`);
+        }
+        dice = banner.tokens; // §2.5.2: favor-on-it (People's Favor) or secrets-on-it (Darkest Secret)
+        locationSiteId = attackerSite;
+        break;
       }
-      defenseDice += PAWN_FAVOR_DICE;
-      targetsYourSite = true;
-    } else if (t.kind === 'banner') {
-      if (!defenderPawnHere) {
-        throw new IllegalAction(
-          "campaign.declare: banners require the defender's pawn at your site (Law §5.5.2)",
-        );
+      case 'relic': {
+        if (!defenderPawnHere) {
+          throw new IllegalAction(
+            "campaign.declare: relics require the defender's pawn at your site (Law §5.5.2)",
+          );
+        }
+        if (!state.players[defender as number].relics.includes(t.relicId)) {
+          throw new IllegalAction(`campaign.declare: the defender does not hold ${t.relicId} (Law §5.5.2)`);
+        }
+        dice = (byId(t.relicId) as Relic).defenseDice;
+        locationSiteId = attackerSite;
+        break;
       }
-      const bannerId = bannerFullId(t.bannerId);
-      const banner = state.banners.find((b) => b.id === bannerId)!;
-      if (banner.holder !== defender) {
-        throw new IllegalAction(`campaign.declare: the defender does not hold ${bannerId} (Law §5.5.2)`);
-      }
-      defenseDice += banner.tokens;
-      targetsYourSite = true;
-    } else {
-      if (!defenderPawnHere) {
-        throw new IllegalAction(
-          "campaign.declare: relics can only be targeted if the defender's pawn is at your site (Law §5.5.2)",
-        );
-      }
-      if (!state.players[defender as number].relics.includes(t.relicId)) {
-        throw new IllegalAction(`campaign.declare: the defender does not hold ${t.relicId} (Law §5.5.2)`);
-      }
-      defenseDice += (byId(t.relicId) as Relic).defenseDice;
-      targetsYourSite = true;
     }
+
+    defenseDice += dice;
+    const atYourSite = locationSiteId === attackerSite;
+    if (atYourSite) targetsYourSite = true;
+    if (atYourSite && t.kind === 'site') targetsYourSiteSpecifically = true;
+    const locationName = byId(locationSiteId).name; // Law §11.4
+    if (locationName === 'Plains') targetsPlains = true;
+    if (locationName === 'Mountain') targetsMountain = true;
   }
 
   if (!targetsYourSite) {

@@ -149,6 +149,14 @@ describe('campaign.declare (Law §5.5.1-5.5.2)', () => {
       ).toThrow(IllegalAction);
     });
 
+    it('is illegal to site-target a nonexistent site, even against bandits', () => {
+      const s = declareState();
+      s.players[1].pawnSite = s.sites[3].id; // Barren Coast: nobody's warbands are here
+      expect(() =>
+        declare(s, 1, { defender: 'bandits', targets: [{ kind: 'site', siteId: 'site:does-not-exist' }], attackDice: 1 }),
+      ).toThrow(IllegalAction);
+    });
+
     it('is legal at an unruled site, and skips straight past the response window', () => {
       const s = declareState();
       s.players[1].pawnSite = s.sites[3].id; // Barren Coast: nobody's warbands are here
