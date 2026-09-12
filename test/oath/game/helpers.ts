@@ -7,6 +7,7 @@
  * defaults.
  */
 
+import { expect } from 'vitest';
 import { cards, byId } from '../../../src/oath/cards/index.js';
 import {
   type OathState,
@@ -180,4 +181,31 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
   byId(state.sites[0].id);
 
   return { ...state, ...overrides };
+}
+
+/**
+ * Does `value` contain `id` as an actual card id, anywhere in its structure?
+ *
+ * NOT `JSON.stringify(value).includes(id)`. `denizen:hospital` is a
+ * substring of `denizen:hospitality` — the ONE such pair in the whole card
+ * database — so the substring form reported a leak whenever the short card
+ * sat in a hidden zone while the long one was legitimately visible. With a
+ * shuffled first game that is about 1 run in 27, which is how it survived
+ * as a silent flake until unit 20 hunted it down.
+ *
+ * Walks the structure and compares whole strings, so a redaction test
+ * asserts redaction rather than string non-overlap.
+ */
+export function containsId(value: unknown, id: string): boolean {
+  if (typeof value === 'string') return value === id;
+  if (Array.isArray(value)) return value.some((v) => containsId(v, id));
+  if (value && typeof value === 'object') {
+    return Object.values(value).some((v) => containsId(v, id));
+  }
+  return false;
+}
+
+/** Assert `id` appears nowhere in `value` — see `containsId` for why not toContain. */
+export function expectHidden(value: unknown, id: string): void {
+  expect(containsId(value, id), `${id} leaked into the projection`).toBe(false);
 }

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { checkInvariants, type OathState } from '../../../src/oath/game/state.js';
 import { oath } from '../../../src/oath/game/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
-import { baseState } from './helpers.js';
+import { baseState, expectHidden } from './helpers.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-search-')), 'test.db');
 let store: typeof import('../../../src/actionlog.js');
@@ -170,7 +170,7 @@ describe('search — legality and turn flow', () => {
     const view0 = oath.project(drawn, 0) as any;
     expect(view0.players[1].hand).toEqual({ count: 3 });
     for (const id of drawn.players[1].hand) {
-      expect(JSON.stringify(view0)).not.toContain(id);
+      expectHidden(view0, id);
     }
   });
 });
@@ -206,12 +206,12 @@ describe('search — the action log leaks no drawn identity (HLD §4, through th
 
     // the kept card is now a facedown adviser; the other two are in a
     // facedown discard pile. NONE of the three ids may appear in the raw log.
-    const rawLog = JSON.stringify(store.history(gameId));
+    const rawLog = store.history(gameId);
     for (const id of drawnIds) {
-      expect(rawLog).not.toContain(id);
+      expectHidden(rawLog, id);
     }
     // and the played card is redacted from another seat's view
     const view1 = oath.project(r2.state, 1) as any;
-    expect(JSON.stringify(view1)).not.toContain(drawnIds[0]);
+    expectHidden(view1, drawnIds[0]);
   });
 });

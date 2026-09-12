@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { expectHidden } from './helpers.js';
 
 // db.ts reads DB_PATH at import time, so this must be set first (mirrors
 // replay.test.ts's own pattern).
@@ -225,7 +226,7 @@ describe('project', () => {
     const view1 = oath.project(s, 1) as any;
     expect(view0.players[0].hand).toEqual(['denizen:x', 'denizen:y']);
     expect(view1.players[0].hand).toEqual({ count: 2 });
-    expect(JSON.stringify(view1)).not.toContain('denizen:x');
+    expectHidden(view1, 'denizen:x');
   });
 
   it('redacts a facedown adviser identity for other seats but not the owner', () => {
@@ -237,7 +238,7 @@ describe('project', () => {
     expect(viewSelf.players[1].advisers[0].id).toBe(trueId);
     expect(viewOther.players[1].advisers[0].id).toBeNull();
     expect(viewOther.players[1].advisers[0].facedown).toBe(true);
-    expect(JSON.stringify(viewOther)).not.toContain(trueId);
+    expectHidden(viewOther, trueId);
   });
 
   it('hides the world deck entirely, including its size (Law §9.4: deck count is private)', () => {
@@ -247,7 +248,7 @@ describe('project', () => {
     expect((state as any).worldDeck.length).toBeGreaterThan(0); // sanity
     expect(JSON.stringify(view.worldDeck)).not.toMatch(/[0-9]/);
     for (const id of (state as any).worldDeck) {
-      expect(JSON.stringify(view)).not.toContain(id);
+      expectHidden(view, id);
     }
   });
 
@@ -258,7 +259,7 @@ describe('project', () => {
     for (const region of ['cradle', 'provinces', 'hinterland'] as const) {
       expect(view.discards[region].count).toBe((state as any).discards[region].length);
       for (const id of (state as any).discards[region]) {
-        expect(JSON.stringify(view)).not.toContain(id);
+        expectHidden(view, id);
       }
     }
   });
@@ -270,7 +271,7 @@ describe('project', () => {
     const view = oath.project(state, null) as any;
     expect(view.players[0].hand).toEqual({ count: 0 });
     expect(view.players[0].advisers[0].id).toBeNull();
-    expect(JSON.stringify(view)).not.toContain(trueId);
+    expectHidden(view, trueId);
   });
 
   it('passes public numbers through unchanged (favor banks, warbands, supply)', () => {
