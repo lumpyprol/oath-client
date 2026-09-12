@@ -303,7 +303,20 @@ Commit: "Batch the Wake Phase into one visit"
 
 ---
 
-## Unit 4 — Campaign in two attacker visits
+## Unit 4 — Campaign in two attacker visits ✅ (completed 2026-09-12)
+
+> **Finding recorded during this unit.** The prompt's fourth test bullet
+> asked for "campaign visits strictly below the recorded baseline" on the
+> regenerated fixture. That assertion is **false and was not written**: a
+> visit is a maximal same-actor run, and the attacker's old
+> `roll`/`resolve`/`seize` were already consecutive, so batching them cuts
+> ACTIONS (8 → 5 across the fixture's two campaigns) without cutting
+> visits. D51's own arithmetic agrees — it predicts 2 attacker + 1 defender
+> = 3 visits for a contested campaign, which is exactly the baseline. A
+> visit is only saved where another seat interleaves, i.e. the casualties
+> handoff (5 → 4). `metrics.ts` grew a `campaignActions` counter, the three
+> cases are pinned in `metrics.test.ts`, and INTERRUPTS.md carries the
+> explanation. The phase's headline visit reduction lands in unit 7.
 
 **Purpose.** D50 + D51 applied to the flow that dominates async wall
 clock: dice move to the window-closing action, and everything the

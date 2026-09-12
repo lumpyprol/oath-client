@@ -52,11 +52,15 @@ const HANDLERS: Record<string, Handler> = {
 /**
  * Additive, same pattern as `HANDLERS`: any action type needing `prepare()`
  * (HLD D14 — dice roll here, at append time, never in `reduce`) registers a
- * function here. `campaign.roll` rolls dice; `power.use` just rejects a
- * malformed payload before it's ever written to the log.
+ * function here. The two campaign entries are D51 (P3 unit 4): the dice roll
+ * in whichever action CLOSES the response window — `campaign.respond`
+ * normally, `campaign.declare` itself against bandits — which is what
+ * deleted the attacker's old "come online to roll" visit. `power.use` just
+ * rejects a malformed payload before it's ever written to the log.
  */
 const PREPARE: Record<string, (state: OathState, proposed: ProposedAction) => unknown> = {
-  'campaign.roll': prepareCampaign,
+  'campaign.declare': prepareCampaign,
+  'campaign.respond': prepareCampaign,
   'power.use': preparePower,
   'turn.rest': prepareRest,
 };
@@ -203,18 +207,6 @@ export const oath: GameDefinition<OathState, OathSetup> = {
           })),
         ];
       }
-      if (c.phase === 'roll') {
-        return [
-          ...citizenshipDecision,
-          {
-            id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
-            seat: c.attackerSeat,
-            kind: 'campaign',
-            prompt: `Roll your Campaign's dice: ${c.attackDice} attack, ${c.defenseDice} defense (Law §5.5.4-5.5.5).`,
-            resolves: ['campaign.roll'],
-          },
-        ];
-      }
       if (c.phase === 'rolled') {
         return [
           ...citizenshipDecision,
@@ -222,35 +214,25 @@ export const oath: GameDefinition<OathState, OathSetup> = {
             id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
             seat: c.attackerSeat,
             kind: 'campaign',
-            prompt: `Resolve your Campaign's outcome (Law §5.5.5-5.5.6).`,
+            prompt:
+              `Resolve your Campaign: sacrifice if you want the win, and if you take it, ` +
+              `place warbands and banish/burn if you targeted their pawn (Law §5.5.5-5.5.7).`,
             resolves: ['campaign.resolve'],
           },
         ];
       }
-      if (c.phase === 'casualties') {
-        // Law §5.5.6's aside (unit 16a) — usually the Chancellor, but the
-        // defeated player themselves when they are not an Imperial player.
-        const chooser = casualtyChooser(state, c);
-        return [
-          ...citizenshipDecision,
-          {
-            id: `campaign:${chooser}:${c.declaredAt}`,
-            seat: chooser,
-            kind: 'campaign',
-            prompt: `Choose which ${c.casualties!.quota} warbands of the defeated force are killed (Law §5.5.6).`,
-            resolves: ['campaign.casualties'],
-          },
-        ];
-      }
-      // phase 'seize': a win — the attacker's remaining choices (Law §5.5.7).
+      // phase 'casualties'. Law §5.5.6's aside (unit 16a) — usually the
+      // Chancellor, but the defeated player themselves when they are not an
+      // Imperial player.
+      const chooser = casualtyChooser(state, c);
       return [
         ...citizenshipDecision,
         {
-          id: `campaign:${c.attackerSeat}:${c.declaredAt}`,
-          seat: c.attackerSeat,
+          id: `campaign:${chooser}:${c.declaredAt}`,
+          seat: chooser,
           kind: 'campaign',
-          prompt: `You are victorious — place warbands, and banish/burn if you targeted their pawn (Law §5.5.7).`,
-          resolves: ['campaign.seize'],
+          prompt: `Choose which ${c.casualties!.quota} warbands of the defeated force are killed (Law §5.5.6).`,
+          resolves: ['campaign.casualties'],
         },
       ];
     }

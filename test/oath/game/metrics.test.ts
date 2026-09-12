@@ -105,6 +105,67 @@ describe('computeVisitMetrics (unit 1: the visit metric)', () => {
     expect(computeVisitMetrics(log).campaigns).toEqual([1, 3]);
   });
 
+  it('counts campaign ACTIONS separately from campaign VISITS (P3 unit 4)', () => {
+    const log: LoggedAction[] = [
+      { type: 'campaign.declare', actor: 1 },
+      { type: 'campaign.roll', actor: 1 },
+      { type: 'campaign.resolve', actor: 1 },
+      { type: 'campaign.seize', actor: 1 },
+      { type: 'turn.rest', actor: 1 },
+    ];
+    const m = computeVisitMetrics(log);
+    expect(m.campaigns).toEqual([1]); // one uninterrupted run
+    expect(m.campaignActions).toEqual([4]); // ...but four submits
+  });
+
+  /**
+   * The finding that unit 4 turned up, pinned as a test so it cannot be
+   * quietly forgotten: batching consecutive actions by ONE actor cuts the
+   * action count but NOT the visit count, because those actions were
+   * already one maximal run. A visit is only saved when another seat's
+   * action sat between them.
+   */
+  it('batching one actor\'s consecutive actions cuts actions, not visits', () => {
+    const before: LoggedAction[] = [
+      { type: 'campaign.declare', actor: 2 },
+      { type: 'campaign.respond', actor: 0 },
+      { type: 'campaign.roll', actor: 2 },
+      { type: 'campaign.resolve', actor: 2 },
+    ];
+    const after: LoggedAction[] = [
+      { type: 'campaign.declare', actor: 2 },
+      { type: 'campaign.respond', actor: 0 }, // now carries the dice (D51)
+      { type: 'campaign.resolve', actor: 2 }, // now carries the seizure (D50)
+    ];
+    expect(computeVisitMetrics(before).campaigns).toEqual([3]);
+    expect(computeVisitMetrics(after).campaigns).toEqual([3]); // unchanged!
+    expect(computeVisitMetrics(before).campaignActions).toEqual([4]);
+    expect(computeVisitMetrics(after).campaignActions).toEqual([3]); // this is what moved
+  });
+
+  it('...but a visit IS saved when another seat interleaves — the casualties handoff', () => {
+    // Old shape: seize came AFTER the Chancellor's casualty allocation, so
+    // the attacker had to come back a third time.
+    const before: LoggedAction[] = [
+      { type: 'campaign.declare', actor: 1 },
+      { type: 'campaign.respond', actor: 2 },
+      { type: 'campaign.roll', actor: 1 },
+      { type: 'campaign.resolve', actor: 1 },
+      { type: 'campaign.casualties', actor: 0 },
+      { type: 'campaign.seize', actor: 1 },
+    ];
+    // New shape: the seizure choices rode `resolve`, so the campaign ends
+    // with the allocation and the attacker never returns.
+    const after: LoggedAction[] = [
+      { type: 'campaign.declare', actor: 1 },
+      { type: 'campaign.respond', actor: 2 },
+      { type: 'campaign.resolve', actor: 1 },
+      { type: 'campaign.casualties', actor: 0 },
+    ];
+    expect(computeVisitMetrics(before).campaigns).toEqual([5]);
+    expect(computeVisitMetrics(after).campaigns).toEqual([4]); // a real round trip saved
+  });
+
   it('summarize reports avg and max over a list of visit counts', () => {
     expect(summarize([1, 1, 1, 3, 1, 3, 1])).toEqual({ avg: 11 / 7, max: 3 });
   });

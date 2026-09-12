@@ -39,18 +39,24 @@ interface RollOpts {
   defenseFaces: string[];
 }
 
-/** declare -> (respond) -> roll, leaving the campaign in phase 'rolled'. */
+/**
+ * declare -> (respond), leaving the campaign in phase 'rolled'.
+ *
+ * P3 unit 4 (D51): the dice ride the action that CLOSES the response window,
+ * so these tests hand the faces to `campaign.respond` — or to
+ * `campaign.declare` itself against bandits, where no window ever opens.
+ * There is no `campaign.roll` any more. (These tests drive `reduce` directly,
+ * so they supply the faces `prepare()` would otherwise have rolled — exactly
+ * as they always did for `campaign.roll`.)
+ */
 function toRolled(s: OathState, o: RollOpts): OathState {
-  let out = act(s, 'campaign.declare', o.attacker, {
-    defender: o.defender,
-    targets: o.targets,
-    attackDice: o.attackDice,
-  });
-  if (out.campaign!.phase === 'respond') out = act(out, 'campaign.respond', o.defender as number);
-  return act(out, 'campaign.roll', o.attacker, {
-    attackFaces: o.attackFaces,
-    defenseFaces: o.defenseFaces,
-  });
+  const faces = { attackFaces: o.attackFaces, defenseFaces: o.defenseFaces };
+  const declaration = { defender: o.defender, targets: o.targets, attackDice: o.attackDice };
+  if (o.defender === 'bandits') {
+    return act(s, 'campaign.declare', o.attacker, { ...declaration, ...faces });
+  }
+  const declared = act(s, 'campaign.declare', o.attacker, declaration);
+  return act(declared, 'campaign.respond', o.defender as number, faces);
 }
 
 /**
@@ -128,7 +134,7 @@ describe('unit 16a part 1 — the Imperial defending force (Law §5.5.4)', () =>
     expect(() => act(rolled, 'campaign.resolve', 1, { sacrifice: 2 })).toThrow(/must be exactly 1\b/);
     const out = act(rolled, 'campaign.resolve', 1, { sacrifice: 1 });
     checkInvariants(out);
-    expect(out.campaign!.phase).toBe('seize'); // one destination: no casualty choice
+    expect(out.campaign).toBeNull(); // one destination: no casualty choice, and P3 unit 4 seizes in the same action
   });
 
   it('leaves bandits exactly as they were: one die per targeted site, never warbands', () => {
@@ -146,7 +152,7 @@ describe('unit 16a part 1 — the Imperial defending force (Law §5.5.4)', () =>
     // the site contributes 1 bandit. 2 swords > 1: victorious, nothing dies.
     const out = act(rolled, 'campaign.resolve', 1, {});
     checkInvariants(out);
-    expect(out.campaign!.phase).toBe('seize');
+    expect(out.campaign).toBeNull(); // P3 unit 4: the win finishes inside resolve
     expect(out.players[1].warbands.board).toBe(3); // no skulls rolled, nothing sacrificed
   });
 });
@@ -205,8 +211,7 @@ describe('unit 16a part 1 — casualty destinations (Law §5.5.6 + §5.5.7\'s pu
     expect(out.players[0].warbands.bank).toBe(17); // 15 + 2, purple to the Chancellor (Glossary "Kill")
     expect(out.players[0].warbands.board).toBe(3); // unchanged — nothing survived at the site
     expect(out.players[2].warbands.board).toBe(3); // the Citizen's own board is untouched
-    expect(out.campaign!.phase).toBe('seize');
-    expect(out.campaign!.casualties).toBeUndefined();
+    expect(out.campaign).toBeNull(); // P3 unit 4: casualties applies the stashed seizure and finishes
   });
 
   it("killing on the CITIZEN's board: the site survivors consolidate onto the Chancellor's board", () => {
@@ -239,7 +244,7 @@ describe('unit 16a part 1 — casualty destinations (Law §5.5.6 + §5.5.7\'s pu
 
   it('every other action stays locked out while the allocation is pending', () => {
     const out = toCasualties();
-    expect(() => act(out, 'campaign.seize', 1, {})).toThrow(IllegalAction);
+    expect(() => act(out, 'campaign.resolve', 1, {})).toThrow(IllegalAction);
     expect(() => act(out, 'turn.rest', 1, {})).toThrow(IllegalAction);
   });
 });
@@ -263,7 +268,7 @@ describe('unit 16a part 1 — the casualties phase is skipped when it cannot mat
     // Force: 2 at sites[0] + the Chancellor's 3 board = 5, quota 2.
     const out = act(rolled, 'campaign.resolve', 1, { sacrifice: 3 });
     checkInvariants(out);
-    expect(out.campaign!.phase).toBe('seize'); // no choice to make
+    expect(out.campaign).toBeNull(); // no choice to make; P3 unit 4 finishes in resolve
     // Unit 13's sites-first default, still correct here: both kills come off
     // the site, and every survivor was already heading to the same board.
     expect(out.sites[0].warbands[0]).toBe(0);
@@ -291,7 +296,7 @@ describe('unit 16a part 1 — the casualties phase is skipped when it cannot mat
     // Force is 1 warband, quota floor(1/2) = 0 — nothing to allocate.
     const out = act(rolled, 'campaign.resolve', 1, {});
     checkInvariants(out);
-    expect(out.campaign!.phase).toBe('seize');
+    expect(out.campaign).toBeNull();
     expect(out.players[2].warbands.board).toBe(1);
   });
 
@@ -316,7 +321,7 @@ describe('unit 16a part 1 — the casualties phase is skipped when it cannot mat
     // out (their pawn fails §5.5.4's test). Quota 1, but one destination.
     const out = act(rolled, 'campaign.resolve', 1, { sacrifice: 1 });
     checkInvariants(out);
-    expect(out.campaign!.phase).toBe('seize');
+    expect(out.campaign).toBeNull();
     expect(out.sites[5].warbands[0]).toBe(0);
     expect(out.players[0].warbands.bank).toBe(13); // 12 + 1 killed
     expect(out.players[0].warbands.board).toBe(5); // 3 + 2 survivors (§5.5.7's aside)
@@ -400,6 +405,9 @@ describe('unit 16a part 2 — who is an Ally (Law §5.5.2)', () => {
       defender: 'bandits',
       targets: [{ kind: 'site', siteId: b.sites[3].id }],
       attackDice: 2,
+      // D51: declare closes the (nonexistent) window vs bandits, so it carries the dice.
+      attackFaces: ['sword', 'sword'],
+      defenseFaces: ['blank'],
     });
     expect(vsBandits.campaign!.allies).toEqual([]);
   });
@@ -458,12 +466,12 @@ describe('unit 16a part 2 — §5.5.4\'s per-Ally board bonus', () => {
     const faces = { attackFaces: ['sword', 'sword', 'sword'], defenseFaces: ['blank', 'blank', 'blank'] };
 
     // Declined: the force is the Chancellor's 3 board warbands alone.
-    const declined = act(act(offered, 'campaign.respond', 0, { allies: [] }), 'campaign.roll', 1, faces);
+    const declined = act(offered, 'campaign.respond', 0, { allies: [], ...faces });
     expect(declined.campaign!.allies).toEqual([]);
     expect(() => act(declined, 'campaign.resolve', 1, { sacrifice: 2 })).toThrow(/must be exactly 1\b/);
 
     // Permitted: + the Citizen's 4 = 7.
-    const permitted = act(act(offered, 'campaign.respond', 0, { allies: [2] }), 'campaign.roll', 1, faces);
+    const permitted = act(offered, 'campaign.respond', 0, { allies: [2], ...faces });
     expect(permitted.campaign!.allies).toEqual([2]);
     expect(() => act(permitted, 'campaign.resolve', 1, { sacrifice: 2 })).toThrow(/must be exactly 5\b/);
   });
@@ -541,7 +549,10 @@ describe('unit 16a part 2 — joining is illegal without both consents', () => {
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 2,
     });
-    const responded = act(declared, 'campaign.respond', 0, {});
+    const responded = act(declared, 'campaign.respond', 0, {
+      attackFaces: ['sword', 'sword'],
+      defenseFaces: ['blank', 'blank', 'blank'],
+    });
     expect(() => act(responded, 'campaign.ally', 2)).toThrow(IllegalAction);
   });
 });
@@ -584,7 +595,7 @@ describe('unit 16a — a full Imperial defence, end to end through the store', (
     return base * 2 ** faces.filter((f) => f === 'shieldX2').length;
   }
 
-  it('declare -> ally -> respond -> roll -> resolve -> casualties -> seize, and the log refolds identically', () => {
+  it('declare -> ally -> respond(dice) -> resolve(sacrifice+seize) -> casualties, and the log refolds identically', () => {
     const opening = chancellorDefendsState();
     // This test rolls REAL dice through prepare(), so the sacrifice it will
     // owe is not known in advance — only bounded. Two deliberate choices
@@ -618,8 +629,10 @@ describe('unit 16a — a full Imperial defence, end to end through the store', (
 
     append('campaign.declare', 1, { defender: 0, targets: [{ kind: 'pawnFavor' }], attackDice: 0 });
     append('campaign.ally', 2, {});
-    append('campaign.respond', 0, { allies: [2] });
-    const rolled = append('campaign.roll', 1, {});
+    // D51: the DEFENDER's respond is what closes the window, so its own
+    // prepare() rolls the dice and the faces land in ITS payload.
+    const rolled = append('campaign.respond', 0, { allies: [2] });
+    expect(rolled.campaign!.phase).toBe('rolled'); // no separate roll action any more
 
     // Force: the Chancellor's 3 board warbands + the Ally Citizen's 4 = 7.
     // Zero attack dice, so the attack is whatever is sacrificed, and §9.5
@@ -627,18 +640,25 @@ describe('unit 16a — a full Imperial defence, end to end through the store', (
     const defense = shieldsOf(rolled.campaign!.defenseFaces!) + 7;
     expect(rolled.campaign!.defenseDice).toBe(2); // no title die — see above
     expect(defense + 1).toBeLessThanOrEqual(rolled.players[1].warbands.board);
-    const pending = append('campaign.resolve', 1, { sacrifice: defense + 1 });
+
+    // D50: sacrifice AND the §5.5.7 seizure choices ride one payload. The
+    // casualty allocation is another seat's decision, so it still intervenes
+    // — the seizure waits in the campaign until it lands.
+    const pending = append('campaign.resolve', 1, {
+      sacrifice: defense + 1,
+      seize: { burnFavor: true },
+    });
     expect(pending.campaign!.phase).toBe('casualties');
     expect(pending.campaign!.casualties!.quota).toBe(3); // floor(7 / 2)
+    expect(pending.campaign!.seize).toEqual({ placements: [], burnFavor: true });
+    expect(pending.players[0].favor).toBe(2); // not burned YET — §5.5.7 waits for §5.5.6
 
-    const allocated = append('campaign.casualties', 0, {
+    const final = append('campaign.casualties', 0, {
       kills: [
         { kind: 'board', seat: 0, count: 1 },
         { kind: 'board', seat: 2, count: 2 },
       ],
     });
-    expect(allocated.campaign!.phase).toBe('seize');
-    const final = append('campaign.seize', 1, { burnFavor: true });
     checkInvariants(final);
 
     expect(final.campaign).toBeNull();

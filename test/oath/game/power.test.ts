@@ -359,11 +359,13 @@ describe('power.use — timing (Law §7.3.2; the Campaign response window, unit 
       seq: s.actionCount + 1,
       type: 'campaign.respond',
       actor: 2,
-      payload: {},
+      // D51: respond closes the window and carries the dice it rolled in
+      // prepare(); this test drives reduce directly, so it supplies them.
+      payload: { attackFaces: ['sword'], defenseFaces: ['blank', 'blank'] },
       createdAt: '2026-09-12T00:00:00.000Z',
     };
     const responded = oath.reduce(s, respondAction);
-    expect(responded.campaign).toMatchObject({ phase: 'roll' });
+    expect(responded.campaign).toMatchObject({ phase: 'rolled' });
     const cardId = responded.players[2].relics[0];
     expect(() => act(responded, 2, { cardId, effects: [] })).toThrow(IllegalAction);
   });

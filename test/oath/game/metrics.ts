@@ -22,6 +22,19 @@ export interface VisitMetrics {
   turns: number[];
   /** Visits per campaign (a contiguous run of `campaign.*` actions), in log order. */
   campaigns: number[];
+  /**
+   * ACTIONS per campaign, in log order — the other half of the picture, added
+   * in P3 unit 4 once it turned out the two move independently.
+   *
+   * A visit is a maximal same-actor run, so several consecutive actions by
+   * ONE player collapse into one visit. Batching them (D50) therefore cuts
+   * actions without cutting visits, UNLESS another seat acts in between —
+   * which is exactly when the batching was buying a real round trip. Both
+   * numbers matter and neither substitutes for the other: visits are the
+   * async wall-clock cost, actions are the client's submit count and the
+   * log's length.
+   */
+  campaignActions: number[];
 }
 
 /** Maximal runs of the same actor, counted. */
@@ -66,6 +79,7 @@ export function computeVisitMetrics(log: LoggedAction[]): VisitMetrics {
   return {
     turns: turnBuckets.map(visitsIn),
     campaigns: campaignBuckets.map(visitsIn),
+    campaignActions: campaignBuckets.map((b) => b.length),
   };
 }
 

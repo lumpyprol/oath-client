@@ -31,15 +31,13 @@ Citizen's opportunity to volunteer as an Ally).
 
 | Kind | Raised when | Owning seat | Resolves | Locking | Id anchor | Batching (P3) | Standing (P3) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `turn` | Default — no Wake, Campaign, or mid-Search hand is blocking `state.turn.activeSeat` | `turn.activeSeat` | `turn.rest`, `card.play`, `muster`, `trade`, `travel`, `search`, `recover`, `campaign.declare`, `campaign.ally`, `campaign.respond`, `campaign.roll`, `campaign.resolve`, `campaign.casualties`, `campaign.seize`, `power.use`, `citizenship.offer`, `citizenship.accept`, `citizenship.decline`, `citizenship.exile`, `citizenship.selfExile`, `adviser.play`, `warbands.move`, `warbands.allow`, `warbands.deny`, `wake.resolve`, `oathkeeper.grant` | no (the default; replaced by any row below that applies) | `turn.turnStartedAt` | naive | naive |
+| `turn` | Default — no Wake, Campaign, or mid-Search hand is blocking `state.turn.activeSeat` | `turn.activeSeat` | `turn.rest`, `card.play`, `muster`, `trade`, `travel`, `search`, `recover`, `campaign.declare`, `campaign.ally`, `campaign.respond`, `campaign.resolve`, `campaign.casualties`, `power.use`, `citizenship.offer`, `citizenship.accept`, `citizenship.decline`, `citizenship.exile`, `citizenship.selfExile`, `adviser.play`, `warbands.move`, `warbands.allow`, `warbands.deny`, `wake.resolve`, `oathkeeper.grant` | no (the default; replaced by any row below that applies) | `turn.turnStartedAt` | naive | naive |
 | `play` | `state.players[seat].hand` is non-empty — a Search's drawn cards await Law §5.1.4's play/discard step | active seat | `card.play` | yes (replaces `turn`) | `player.handDrawnAt` | naive (Search stays two actions per D50 — the draw is a reveal) | naive |
 | `wake` | `state.wake` is set — Law §4.1.1's People's Favor maintenance is still owed, and/or the waking seat is standing on an unclaimed Opportunity Site (Law §4.1.4) | `state.wake.seat` | `wake.resolve` | yes (replaces `turn`) | `state.wake.startedAt` | **batched** (unit 3): every owed §4.1.1 step (up to 2, Mob side) and, if owed, the §4.1.4 take all ride one `wake.resolve` — at most one visit; fully forced/no-Opportunity Wakes stay zero, as before | naive |
-| `campaign` | `state.campaign.phase === 'respond'` — the defender's response window (Law §5.5.3) | `state.campaign.defenderSeat` (numeric — bandits skip this phase) | `campaign.respond` | yes (replaces `turn`) | `state.campaign.declaredAt` | naive | naive |
+| `campaign` | `state.campaign.phase === 'respond'` — the defender's response window (Law §5.5.3) | `state.campaign.defenderSeat` (numeric — bandits skip this phase) | `campaign.respond` | yes (replaces `turn`) | `state.campaign.declaredAt` | **closes the window and rolls** (unit 4, D51): the dice roll in this action's `prepare()`, deleting the attacker's old `campaign.roll` visit. Against bandits there is no window and `campaign.declare` itself rolls | naive |
 | `campaign` | `state.campaign.phase === 'respond'`, once per eligible Citizen not yet in `allyVolunteers` (Law §5.5.2) | each eligible Citizen | `campaign.ally` | **no** — additional alongside the defender's `respond` decision; "optional and racy by design" (`campaign.ts`'s own words) — the defender's `respond` closes the window over any left unanswered | `state.campaign.declaredAt` | naive (P2's known gap: a Citizen Ally can never actually act in the window — unit 5's target) | naive |
-| `campaign` | `state.campaign.phase === 'roll'` — the attacker rolls the dice fixed at declare (Law §5.5.4-5.5.5) | `state.campaign.attackerSeat` | `campaign.roll` | yes (replaces `turn`) | `state.campaign.declaredAt` | naive (unit 4 deletes this phase — D51 moves the roll to the window-closing action's `prepare`) | naive |
-| `campaign` | `state.campaign.phase === 'rolled'` — the attacker resolves sacrifice/victory (Law §5.5.5-5.5.6) | `state.campaign.attackerSeat` | `campaign.resolve` | yes (replaces `turn`) | `state.campaign.declaredAt` | naive | naive |
+| `campaign` | `state.campaign.phase === 'rolled'` — the attacker resolves sacrifice, victory AND the §5.5.7 seizure (Law §5.5.5-5.5.7) | `state.campaign.attackerSeat` | `campaign.resolve` | yes (replaces `turn`) | `state.campaign.declaredAt` | **batched** (unit 4, D50): sacrifice + placements/banish/burn in one payload; the old separate `campaign.seize` visit is gone | naive |
 | `campaign` | `state.campaign.phase === 'casualties'` — the defeated force's kill allocation matters (Law §5.5.6's Imperial aside) | `casualtyChooser(state, campaign)` — usually the Chancellor, but the defeated player themselves when not Imperial | `campaign.casualties` | yes (replaces `turn`) | `state.campaign.declaredAt` | naive (a real handoff, not a batching miss — unit 4 leaves this phase alone) | naive |
-| `campaign` | `state.campaign.phase === 'seize'` — a win: placements, banish, burn-favor (Law §5.5.7's choice-bearing parts) | `state.campaign.attackerSeat` | `campaign.seize` | yes (replaces `turn`) | `state.campaign.declaredAt` | naive (unit 4 deletes this phase — folds into `campaign.resolve`'s payload) | naive |
 | `citizenshipOffer` | `state.citizenshipOffer` is set, from `citizenship.offer` until accepted or declined (Law §6.6.1) | `state.citizenshipOffer.exile` | `citizenship.accept`, `citizenship.decline` | no | `state.citizenshipOffer.offeredAt` | naive | naive (negotiated — stays 'ask' per Q13's expected outcome) |
 | `warbands` | `state.warbandRequest` is set — a Citizen's move off-site, or an Imperial give/take, awaiting the required permission (Law §6.5) | `state.warbandRequest.approver` | `warbands.allow`, `warbands.deny` | no | `state.warbandRequest.requestedAt` | naive | naive (unit 6/16b target: `warbands: 'allow'\|'deny'\|'ask'`) |
 | `oathkeeper` | `state.titleChoice` is set — several other seats meet the current Oath's goal and the holder does not (Law §2.11) | `state.titleChoice.holder` | `oathkeeper.grant` | no | `state.titleChoice.raisedAt` | naive | naive (consequential — stays 'ask' per Q13's expected outcome) |
@@ -66,16 +64,41 @@ A VISIT is a maximal run of consecutive actions by the same actor; turns
 are split at `turn.rest` boundaries. These are the numbers units 4-7 exist
 to shrink and unit 9 must beat in the six-player game.
 
-| Metric | Values | Avg | Max |
-| --- | --- | --- | --- |
-| Visits per turn | `[1, 1, 1, 3, 1, 3, 1]` (7 turns) | 1.571 | 3 |
-| Visits per campaign | `[1, 3]` (2 campaigns: one vs bandits, one vs a responding defender) | 2 | 3 |
+| Metric | P2 baseline | After unit 4 | Avg (P2 → u4) | Max (P2 → u4) |
+| --- | --- | --- | --- | --- |
+| Visits per turn | `[1, 1, 1, 3, 1, 3, 1]` (7 turns) | `[1, 1, 1, 3, 1, 3, 1]` | 1.571 → 1.571 | 3 → 3 |
+| Visits per campaign | `[1, 3]` | `[1, 3]` | 2 → 2 | 3 → 3 |
+| **Actions** per campaign | `[4, 4]` | `[2, 3]` | 4 → 2.5 | 4 → 3 |
+| Total actions in the game | 29 | 26 | — | — |
 
-The vs-bandits campaign is already one visit — nothing separated
-`declare`/`roll`/`resolve`/`seize` because no one else needed to act in
-between. The contested campaign cost 3 visits total across both parties
-(attacker: declare, then roll+resolve once the response came back;
-defender: respond) — this is what D50 (batch `roll`+`resolve`, already
-true here) and D51 (delete the attacker's separate `roll` visit) are
-shrinking further, and what unit 5's join/permit windows will add to
-before units 6-7 erase it again with standing responses.
+### Unit 4's finding: batching cut actions, not visits
+
+D50 and D51 did what they set out to do — a contested campaign went from
+four actions to three, a bandits campaign from four to two — but the
+**visit** numbers did not move at all, and that is not a measurement bug.
+
+A visit is a maximal run of consecutive actions by ONE actor. The
+attacker's old `roll` → `resolve` → `seize` were already consecutive:
+nobody else acted between them, so they were always *one* visit and
+collapsing them into one action cannot save a round trip. What D51
+actually deleted was a submit, not a wait.
+
+Two corollaries, both now pinned by tests in `metrics.test.ts`:
+
+1. **Batching only saves a visit when another seat interleaves.** The one
+   place unit 4 does buy a real round trip is the casualties handoff: the
+   old `seize` came *after* the Chancellor's `campaign.casualties`, so the
+   attacker had to come back a third time. Riding the seizure on `resolve`
+   drops that campaign from 5 visits to 4. The fullgame fixture happens to
+   contain no casualties phase, which is why its numbers are flat.
+2. **The defender's visit is untouched by unit 4**, and is where the
+   remaining wall clock lives. Units 6-7 are what remove it: a standing
+   `defense: 'close'` policy means the defender submits *zero* actions and
+   the contested campaign drops from 3 visits to 1. Unit 5's join/permit
+   windows will push it up first; units 6-7 pull it back down past the
+   baseline.
+
+So the phase's headline number is still on track, but it lands in unit 7
+rather than here — and the metric table above should be read as two
+independent columns, not one. Actions measure the client's submit count
+and the log's length; visits measure the async wall clock.

@@ -204,13 +204,14 @@ function campaignCasualtiesState(): { before: OathState; after: OathState } {
   s.turn.activeSeat = 1;
   checkInvariants(s);
 
-  let out = act(s, 'campaign.declare', 1, {
+  const declared = act(s, 'campaign.declare', 1, {
     defender: 2,
     targets: [{ kind: 'site', siteId: s.sites[0].id }, { kind: 'pawnFavor' }],
     attackDice: 3,
   });
-  if (out.campaign!.phase === 'respond') out = act(out, 'campaign.respond', 2, { allies: [] });
-  out = act(out, 'campaign.roll', 1, {
+  // D51: the defender's respond closes the window and carries the dice.
+  const out = act(declared, 'campaign.respond', 2, {
+    allies: [],
     attackFaces: ['sword', 'sword', 'sword'],
     defenseFaces: ['blank', 'blank', 'blank', 'blank'],
   });
@@ -237,7 +238,7 @@ describe('INTERRUPTS.md is honest about the catalogue table', () => {
     expect([...catalogueKinds].sort()).toEqual(
       ['campaign', 'citizenshipOffer', 'oathkeeper', 'play', 'turn', 'wake', 'warbands'].sort(),
     );
-    expect(catalogue.length).toBeGreaterThanOrEqual(11); // one row per distinct (kind, resolves) shape
+    expect(catalogue.length).toBeGreaterThanOrEqual(9); // one row per distinct (kind, resolves) shape
   });
 });
 

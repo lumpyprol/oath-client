@@ -34,9 +34,7 @@ function act(state: OathState, type: string, actor: number | null, payload: unkn
 }
 const declare = (s: OathState, actor: number | null, p: unknown) => act(s, 'campaign.declare', actor, p);
 const respond = (s: OathState, actor: number | null, p: unknown = {}) => act(s, 'campaign.respond', actor, p);
-const rollAction = (s: OathState, actor: number | null, p: unknown) => act(s, 'campaign.roll', actor, p);
 const resolveAction = (s: OathState, actor: number | null, p: unknown = {}) => act(s, 'campaign.resolve', actor, p);
-const seizeAction = (s: OathState, actor: number | null, p: unknown = {}) => act(s, 'campaign.seize', actor, p);
 
 /** Sets a seat's board warbands to an exact value, sourcing/sinking the bank to keep conservation true. */
 function setBoard(s: OathState, seat: number, board: number): void {
@@ -50,19 +48,23 @@ function setBoard(s: OathState, seat: number, board: number): void {
  * (sites[5]) so pawnFavor is legal — the simplest single-target campaign,
  * with the defender's board set to an exact, known value (pawnFavor's
  * targeting precondition means the board bonus, Law §5.5.4, always
- * applies). `declare` -> `respond`, landing in phase 'roll'.
+ * applies). Stops at `declare`, so the campaign sits in phase 'respond'.
  */
-function pawnFavorCampaign(defenderBoard: number, attackDice = 2): OathState {
+function pawnFavorDeclared(defenderBoard: number, attackDice = 2): OathState {
   const s = baseState();
   s.players[2].pawnSite = s.sites[5].id;
   setBoard(s, 2, defenderBoard);
-  const declared = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice });
-  return respond(declared, 2);
+  return declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice });
 }
 
+/**
+ * ...and on through the defender's response, which is what CLOSES the window
+ * and therefore what carries the dice (P3 unit 4, D51 — there is no
+ * `campaign.roll` any more). Lands in phase 'rolled'.
+ */
 function rolled(attackFaces: string[], defenseFaces: string[], defenderBoard: number): OathState {
-  const s = pawnFavorCampaign(defenderBoard, attackFaces.length);
-  return rollAction(s, 1, { attackFaces, defenseFaces });
+  const s = pawnFavorDeclared(defenderBoard, attackFaces.length);
+  return respond(s, 2, { attackFaces, defenseFaces });
 }
 
 describe('campaign.resolve — attack/defense arithmetic (Law §5.5.4-5.5.5)', () => {
@@ -70,7 +72,7 @@ describe('campaign.resolve — attack/defense arithmetic (Law §5.5.4-5.5.5)', (
     const attackerBoardBefore = 3; // baseState default
     const s = rolled(['sword', 'sword'], ['blank', 'blank'], 0); // attack 2 > defense 0
     const out = resolveAction(s, 1, { sacrifice: 0 });
-    expect(out.campaign).toMatchObject({ phase: 'seize' });
+    expect(out.campaign).toBeNull(); // P3 unit 4: the win finishes inside resolve
     expect(out.players[1].warbands.board).toBe(attackerBoardBefore); // no skulls, no sacrifice
     checkInvariants(out);
   });
@@ -103,9 +105,9 @@ describe('campaign.resolve — attack/defense arithmetic (Law §5.5.4-5.5.5)', (
       ],
       attackDice: 3,
     });
-    const responded = respond(declared, 2); // defenseDice = 2 + 1 + 1 = 4
+    // defenseDice = 2 + 1 + 1 = 4; respond closes the window and carries the dice (D51).
     // 1 shield (1) + 1 doubleShield (2) = 3 base, x2 x2 = x4 -> 12
-    const r = rollAction(responded, 1, {
+    const r = respond(declared, 2, {
       attackFaces: ['sword', 'sword', 'sword'],
       defenseFaces: ['shield', 'doubleShield', 'shieldX2', 'shieldX2'],
     });
@@ -117,7 +119,7 @@ describe('campaign.resolve — attack/defense arithmetic (Law §5.5.4-5.5.5)', (
   it('skulls kill the attacker\'s own board warbands immediately, win or lose', () => {
     const s = rolled(['sword', 'sword', 'skull'], ['blank', 'blank'], 0); // still wins: 2 swords > 0
     const out = resolveAction(s, 1, { sacrifice: 0 });
-    expect(out.campaign).toMatchObject({ phase: 'seize' }); // victorious despite the skull
+    expect(out.campaign).toBeNull(); // victorious despite the skull
     expect(out.players[1].warbands.board).toBe(2); // 3 - 1 skull
     checkInvariants(out);
   });
@@ -134,7 +136,7 @@ describe('campaign.resolve — sacrifice (Law §5.5.5, §9.5 "no unprompted loss
     // attack 1 (2 hollow swords), defense 2 -> needs 2 more to hit 3 > 2
     const s = rolled(['hollowSword', 'hollowSword'], ['shield', 'shield'], 0);
     const out = resolveAction(s, 1, { sacrifice: 2 });
-    expect(out.campaign).toMatchObject({ phase: 'seize' });
+    expect(out.campaign).toBeNull();
     expect(out.players[1].warbands.board).toBe(1); // 3 - 2 sacrificed (killed)
     expect(out.players[1].warbands.bank).toBe(baseState().players[1].warbands.bank + 2);
     checkInvariants(out);
@@ -183,9 +185,8 @@ describe('campaign.resolve — mandatory victory effects: relics and banners (La
       ],
       attackDice: 2,
     });
-    const responded = respond(declared, 2);
     // defenseDice = 2 (pawnFavor) + 3 (Cursed Cauldron) + 5 (banner tokens) = 10
-    const r = rollAction(responded, 1, {
+    const r = respond(declared, 2, {
       attackFaces: ['sword', 'sword'],
       defenseFaces: Array(10).fill('blank'),
     });
@@ -195,7 +196,7 @@ describe('campaign.resolve — mandatory victory effects: relics and banners (La
   it('takes the targeted relic and the targeted banner on a win', () => {
     const { r, heldRelicId } = withRelicAndBanner();
     const out = resolveAction(r, 1, { sacrifice: 0 });
-    expect(out.campaign).toMatchObject({ phase: 'seize' });
+    expect(out.campaign).toBeNull();
     expect(out.players[1].relics).toContain(heldRelicId);
     expect(out.players[2].relics).not.toContain(heldRelicId);
     const banner = out.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!;
@@ -226,9 +227,8 @@ describe('campaign.resolve — mandatory victory effects: relics and banners (La
       targets: [{ kind: 'pawnFavor' }, { kind: 'relic', relicId: heldRelicId }, { kind: 'banner', bannerId: 'peoples-favor' }],
       attackDice: 2,
     });
-    const responded = respond(declared, 2);
     // defenseDice = 2 (pawnFavor) + 3 (relic) + 1 (banner tokens) = 6
-    const r = rollAction(responded, 1, { attackFaces: ['skull', 'skull'], defenseFaces: Array(6).fill('blank') });
+    const r = respond(declared, 2, { attackFaces: ['skull', 'skull'], defenseFaces: Array(6).fill('blank') });
     const out = resolveAction(r, 1, { sacrifice: 0 }); // attack 0 <= defense 0 -> loss
 
     expect(out.campaign).toBeNull();
@@ -239,8 +239,15 @@ describe('campaign.resolve — mandatory victory effects: relics and banners (La
   });
 });
 
-describe('campaign.seize — the winner\'s remaining choices (Law §5.5.7)', () => {
-  function victoriousWithSiteAndPawnFavor() {
+describe("campaign.resolve's seize block — the winner's remaining choices (Law §5.5.7)", () => {
+  /**
+   * A winning campaign, stopped just BEFORE `campaign.resolve` — the
+   * seizure choices now ride that action's payload (P3 unit 4, D50), so
+   * each test below supplies its own `seize` block rather than submitting a
+   * second action. Targets pawnFavor (for banish/burn) and a site (for
+   * placements), and the attacker wins outright with 3 swords vs 0.
+   */
+  function aboutToWin(): OathState {
     const s = baseState();
     s.players[2].pawnSite = s.sites[5].id;
     setBoard(s, 2, 0);
@@ -253,19 +260,20 @@ describe('campaign.seize — the winner\'s remaining choices (Law §5.5.7)', () 
       targets: [{ kind: 'pawnFavor' }, { kind: 'site', siteId: s.sites[3].id }],
       attackDice: 3,
     });
-    const responded = respond(declared, 2);
     // defenseDice = 2 (pawnFavor) + 1 (site) = 3
-    const r = rollAction(responded, 1, {
+    return respond(declared, 2, {
       attackFaces: ['sword', 'sword', 'sword'],
       defenseFaces: ['blank', 'blank', 'blank'],
     });
-    return resolveAction(r, 1, { sacrifice: 0 }); // phase 'seize'
   }
 
   it('places warbands on a targeted site, up to the board count', () => {
-    const s = victoriousWithSiteAndPawnFavor();
+    const s = aboutToWin();
     const boardBefore = s.players[1].warbands.board;
-    const out = seizeAction(s, 1, { placements: [{ siteId: s.sites[3].id, warbands: 2 }] });
+    const out = resolveAction(s, 1, {
+      sacrifice: 0,
+      seize: { placements: [{ siteId: s.sites[3].id, warbands: 2 }] },
+    });
     expect(out.campaign).toBeNull();
     expect(out.sites[3].warbands[1]).toBe(2);
     expect(out.players[1].warbands.board).toBe(boardBefore - 2);
@@ -273,37 +281,42 @@ describe('campaign.seize — the winner\'s remaining choices (Law §5.5.7)', () 
   });
 
   it('banishes the pawn to a site of the attacker\'s choice', () => {
-    const s = victoriousWithSiteAndPawnFavor();
-    const out = seizeAction(s, 1, { banishTo: s.sites[0].id });
+    const s = aboutToWin();
+    const out = resolveAction(s, 1, { sacrifice: 0, seize: { banishTo: s.sites[0].id } });
     expect(out.players[2].pawnSite).toBe(s.sites[0].id);
     checkInvariants(out);
   });
 
   it("burns half (rounded down) of the defender's favor", () => {
-    const s = victoriousWithSiteAndPawnFavor();
-    const out = seizeAction(s, 1, { burnFavor: true });
+    const s = aboutToWin();
+    const out = resolveAction(s, 1, { sacrifice: 0, seize: { burnFavor: true } });
     expect(out.players[2].favor).toBe(7 - 3); // floor(7/2) = 3
     checkInvariants(out);
   });
 
-  it('is legal to decline every choice (all fields optional)', () => {
-    const s = victoriousWithSiteAndPawnFavor();
-    const out = seizeAction(s, 1, {});
-    expect(out.campaign).toBeNull();
-    checkInvariants(out);
+  it('is legal to decline every choice — and to omit the block entirely', () => {
+    const empty = resolveAction(aboutToWin(), 1, { sacrifice: 0, seize: {} });
+    expect(empty.campaign).toBeNull();
+    checkInvariants(empty);
+
+    const omitted = resolveAction(aboutToWin(), 1, { sacrifice: 0 });
+    expect(omitted.campaign).toBeNull();
+    checkInvariants(omitted);
+    // Omitting is exactly declining: same end state but for the action count.
+    expect({ ...omitted, actionCount: 0 }).toEqual({ ...empty, actionCount: 0 });
   });
 
   it('is illegal: placing on a site that was not targeted', () => {
-    const s = victoriousWithSiteAndPawnFavor();
-    expect(() => seizeAction(s, 1, { placements: [{ siteId: s.sites[0].id, warbands: 1 }] })).toThrow(
-      IllegalAction,
-    );
+    const s = aboutToWin();
+    expect(() =>
+      resolveAction(s, 1, { sacrifice: 0, seize: { placements: [{ siteId: s.sites[0].id, warbands: 1 }] } }),
+    ).toThrow(IllegalAction);
   });
 
   it('is illegal: placing more warbands than remain on the board', () => {
-    const s = victoriousWithSiteAndPawnFavor();
+    const s = aboutToWin();
     expect(() =>
-      seizeAction(s, 1, { placements: [{ siteId: s.sites[3].id, warbands: 999 }] }),
+      resolveAction(s, 1, { sacrifice: 0, seize: { placements: [{ siteId: s.sites[3].id, warbands: 999 }] } }),
     ).toThrow(IllegalAction);
   });
 
@@ -316,38 +329,135 @@ describe('campaign.seize — the winner\'s remaining choices (Law §5.5.7)', () 
     s.sites[3].warbands[2] = 1; // defender co-rules it
     s.players[2].warbands.bank -= 1;
     const declared = declare(s, 1, { defender: 2, targets: [{ kind: 'site', siteId: s.sites[3].id }], attackDice: 2 });
-    const responded = respond(declared, 2);
-    const r = rollAction(responded, 1, { attackFaces: ['sword', 'sword'], defenseFaces: ['blank'] });
-    const resolved = resolveAction(r, 1, { sacrifice: 0 });
-    expect(() => seizeAction(resolved, 1, { burnFavor: true })).toThrow(IllegalAction);
-    expect(() => seizeAction(resolved, 1, { banishTo: s.sites[0].id })).toThrow(IllegalAction);
+    const r = respond(declared, 2, { attackFaces: ['sword', 'sword'], defenseFaces: ['blank'] });
+    expect(() => resolveAction(r, 1, { sacrifice: 0, seize: { burnFavor: true } })).toThrow(IllegalAction);
+    expect(() => resolveAction(r, 1, { sacrifice: 0, seize: { banishTo: s.sites[0].id } })).toThrow(
+      IllegalAction,
+    );
   });
 
-  it('is illegal for anyone but the attacker', () => {
-    const s = victoriousWithSiteAndPawnFavor();
-    expect(() => seizeAction(s, 2, {})).toThrow(IllegalAction);
-  });
-
-  it('is illegal before a win (phase is not "seize")', () => {
-    const s = pawnFavorCampaign(0);
-    expect(() => seizeAction(s, 1, {})).toThrow(IllegalAction);
+  it('is REJECTED, not ignored, on a loss — a silently dropped choice is how a client bug hides', () => {
+    const losing = rolled(['hollowSword'], ['shield', 'shield'], 0); // attack 0 <= defense 2
+    expect(() => resolveAction(losing, 1, { sacrifice: 0, seize: {} })).toThrow(/nothing to seize/);
+    // ...and the same resolve without the block is perfectly legal.
+    const out = resolveAction(losing, 1, { sacrifice: 0 });
+    expect(out.campaign).toBeNull();
+    checkInvariants(out);
   });
 });
 
-describe('campaign.resolve/seize — shared legality', () => {
+describe('P3 unit 4 — the campaign costs two attacker visits (D50 + D51)', () => {
+  /** Every action in a game's log, as the visit metric consumes it. */
+  function logOf(gameId: string) {
+    return store.history(gameId).map(({ type, actor }) => ({ type, actor }));
+  }
+
+  function gameFrom(initial: OathState) {
+    const { gameId } = store.createGame(oath, ['Chancellor', 'Red', 'Blue', 'Yellow']);
+    db.prepare('INSERT OR REPLACE INTO snapshots (game_id, seq, state) VALUES (?, ?, ?)').run(
+      gameId,
+      0,
+      JSON.stringify(initial),
+    );
+    let seq = store.headSeq(gameId);
+    const append = (type: string, actor: number, payload: unknown) => {
+      const r = store.appendAction(oath, gameId, seq, { type, actor, payload });
+      seq = r.seq;
+      return r.state as OathState;
+    };
+    return { gameId, append };
+  }
+
+  it('against a player: attacker submits exactly two actions, defender one', () => {
+    const initial = baseState();
+    initial.players[2].pawnSite = initial.sites[5].id;
+    setBoard(initial, 2, 0);
+    const { gameId, append } = gameFrom(initial);
+
+    append('campaign.declare', 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
+    const rolled = append('campaign.respond', 2, {});
+    // D51: the faces arrived in the DEFENDER's payload — no attacker roll visit.
+    expect(rolled.campaign!.phase).toBe('rolled');
+    const respondRow = store.history(gameId).find((a) => a.type === 'campaign.respond')!;
+    expect((respondRow.payload as { attackFaces: string[] }).attackFaces).toHaveLength(2);
+
+    const c = rolled.campaign!;
+    const swords =
+      c.attackFaces!.filter((f) => f === 'sword').length +
+      Math.floor(c.attackFaces!.filter((f) => f === 'hollowSword').length / 2);
+    const base = c.defenseFaces!.reduce((s, f) => s + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0), 0);
+    const defense = base * 2 ** c.defenseFaces!.filter((f) => f === 'shieldX2').length; // + 0 board
+    const needed = Math.max(0, defense - swords + 1);
+    const canWin = needed <= rolled.players[1].warbands.board;
+    const final = append('campaign.resolve', 1, {
+      sacrifice: canWin ? needed : 0,
+      ...(canWin ? { seize: { banishTo: initial.sites[0].id } } : {}),
+    });
+    expect(final.campaign).toBeNull(); // finished — no seize action to come
+    checkInvariants(final);
+
+    const campaignActions = logOf(gameId).filter((a) => a.type.startsWith('campaign.'));
+    expect(campaignActions.filter((a) => a.actor === 1)).toHaveLength(2); // attacker
+    expect(campaignActions.filter((a) => a.actor === 2)).toHaveLength(1); // defender
+
+    // Replay after a snapshot wipe is byte-identical — the dice moved to
+    // another seat's action, but they are still rolled in a prepare() and
+    // persisted (HLD D14), so nothing re-rolls.
+    const first = store.loadState(oath, gameId).state;
+    db.prepare('DELETE FROM snapshots WHERE game_id = ? AND seq > 0').run(gameId);
+    expect(store.loadState(oath, gameId).state).toEqual(first);
+  });
+
+  it('against bandits: the faces arrive in declare, and the attacker submits two actions total', () => {
+    const initial = baseState();
+    initial.players[1].pawnSite = initial.sites[3].id; // Barren Coast — unruled
+    const { gameId, append } = gameFrom(initial);
+
+    const declared = append('campaign.declare', 1, {
+      defender: 'bandits',
+      targets: [{ kind: 'site', siteId: initial.sites[3].id }],
+      attackDice: 2,
+    });
+    expect(declared.campaign!.phase).toBe('rolled'); // no window ever opened
+    const declareRow = store.history(gameId).find((a) => a.type === 'campaign.declare')!;
+    expect((declareRow.payload as { attackFaces: string[] }).attackFaces).toHaveLength(2);
+    expect((declareRow.payload as { defenseFaces: string[] }).defenseFaces).toHaveLength(1);
+
+    const c = declared.campaign!;
+    const swords =
+      c.attackFaces!.filter((f) => f === 'sword').length +
+      Math.floor(c.attackFaces!.filter((f) => f === 'hollowSword').length / 2);
+    const base = c.defenseFaces!.reduce((s, f) => s + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0), 0);
+    const defense = base * 2 ** c.defenseFaces!.filter((f) => f === 'shieldX2').length + 1; // +1 bandit
+    const needed = Math.max(0, defense - swords + 1);
+    const canWin = needed <= declared.players[1].warbands.board;
+    const final = append('campaign.resolve', 1, { sacrifice: canWin ? needed : 0 });
+    checkInvariants(final);
+
+    const campaignActions = logOf(gameId).filter((a) => a.type.startsWith('campaign.'));
+    expect(campaignActions).toHaveLength(2);
+    expect(campaignActions.every((a) => a.actor === 1)).toBe(true);
+
+    const first = store.loadState(oath, gameId).state;
+    db.prepare('DELETE FROM snapshots WHERE game_id = ? AND seq > 0').run(gameId);
+    expect(store.loadState(oath, gameId).state).toEqual(first);
+  });
+});
+
+describe('campaign.resolve — shared legality', () => {
   it('resolve is illegal for anyone but the attacker', () => {
     const s = rolled(['sword'], ['blank', 'blank'], 0);
     expect(() => resolveAction(s, 2, { sacrifice: 0 })).toThrow(IllegalAction);
   });
 
-  it('resolve is illegal before the roll happens (phase is not "rolled")', () => {
-    const s = pawnFavorCampaign(0);
+  it('resolve is illegal before the window closes (phase is not "rolled")', () => {
+    const s = pawnFavorDeclared(0);
     expect(() => resolveAction(s, 1, { sacrifice: 0 })).toThrow(IllegalAction);
   });
 });
 
 describe('campaign end to end — through the store, replay-stable (unit 13 exit criterion)', () => {
-  it('declare -> respond -> roll -> resolve, then a full refold matches byte-for-byte', () => {
+  it('declare -> respond(dice) -> resolve, then a full refold matches byte-for-byte', () => {
     // Real (random) dice via the store's prepare() — `sacrifice: 0` is
     // legal regardless of which way the roll went, so the outcome doesn't
     // need to be forced either way for this determinism check; `resolve`
@@ -368,16 +478,16 @@ describe('campaign end to end — through the store, replay-stable (unit 13 exit
       actor: 1,
       payload: { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 },
     }).seq;
+    // D51: respond closes the window, so ITS prepare() rolls the real dice.
     seq = store.appendAction(oath, gameId, seq, { type: 'campaign.respond', actor: 2, payload: {} }).seq;
-    seq = store.appendAction(oath, gameId, seq, { type: 'campaign.roll', actor: 1, payload: {} }).seq;
     const final = store.appendAction(oath, gameId, seq, {
       type: 'campaign.resolve',
       actor: 1,
       payload: { sacrifice: 0 },
     });
 
-    // Either a win (phase 'seize') or a loss (campaign cleared) is a valid
-    // outcome here — both are exercised elsewhere with scripted faces.
+    // Either outcome is valid here — both are exercised elsewhere with
+    // scripted faces; P3 unit 4 clears the campaign on a win too.
     checkInvariants(final.state as OathState);
 
     const first = store.loadState(oath, gameId).state;
@@ -406,30 +516,29 @@ describe('campaign — seizing the Grand Scepter (Law §5.5.7; unit 16c)', () =>
       attackDice: 2,
     });
     expect(declared.campaign!.defenseDice).toBe(7);
-    return respond(declared, 2);
+    return declared;
   }
 
   it('a victorious attacker holds it afterward', () => {
-    const s = rollAction(scepterCampaign(), 1, {
+    const s = respond(scepterCampaign(), 2, {
       attackFaces: ['sword', 'sword'],
       defenseFaces: ['blank', 'blank', 'blank', 'blank', 'blank', 'blank', 'blank'],
     });
     const out = resolveAction(s, 1, { sacrifice: 0 }); // attack 2 > defense 0
     checkInvariants(out);
-    expect(out.campaign).toMatchObject({ phase: 'seize' });
+    expect(out.campaign).toBeNull();
     expect(out.grandScepter).toBe(1);
 
     // The Law leaves this implicit, and it is the point of taking it: the
     // Scepter carries the power to offer Citizenship (§6.6.1). No code in
     // citizenship.ts changed for this — it already reads `grandScepter`
     // rather than assuming the Chancellor.
-    const afterSeize = seizeAction(out, 1, {});
-    const relicId = afterSeize.reliquary[0].relicId;
-    const offered = act(afterSeize, 'citizenship.offer', 1, { exile: 2, relicId });
+    const relicId = out.reliquary[0].relicId;
+    const offered = act(out, 'citizenship.offer', 1, { exile: 2, relicId });
     expect(offered.citizenshipOffer).toMatchObject({ scepterSeat: 1, exile: 2 });
 
     // ...and the seat that lost it can no longer offer, on their own turn.
-    const formerHolder = structuredClone(afterSeize);
+    const formerHolder = structuredClone(out);
     formerHolder.turn.activeSeat = 2;
     expect(() =>
       act(formerHolder, 'citizenship.offer', 2, { exile: 1, relicId }),
@@ -437,7 +546,7 @@ describe('campaign — seizing the Grand Scepter (Law §5.5.7; unit 16c)', () =>
   });
 
   it('a defeated attacker leaves it where it was', () => {
-    const s = rollAction(scepterCampaign(), 1, {
+    const s = respond(scepterCampaign(), 2, {
       attackFaces: ['hollowSword', 'hollowSword'],
       defenseFaces: ['shield', 'shield', 'blank', 'blank', 'blank', 'blank', 'blank'],
     });
@@ -454,12 +563,12 @@ describe('campaign — seizing the Grand Scepter (Law §5.5.7; unit 16c)', () =>
     setBoard(s, 2, 0);
     const declared = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
     const out = resolveAction(
-      rollAction(respond(declared, 2), 1, { attackFaces: ['sword', 'sword'], defenseFaces: ['blank', 'blank'] }),
+      respond(declared, 2, { attackFaces: ['sword', 'sword'], defenseFaces: ['blank', 'blank'] }),
       1,
       { sacrifice: 0 },
     );
     checkInvariants(out);
-    expect(out.campaign).toMatchObject({ phase: 'seize' });
+    expect(out.campaign).toBeNull();
     expect(out.grandScepter).toBe(2);
   });
 });

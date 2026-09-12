@@ -226,21 +226,22 @@ export interface CampaignState {
   /** Citizens who have offered to join, via `campaign.ally` (Law §5.5.2). */
   allyVolunteers: number[];
   /**
-   * `'respond'` — the defender's window (skipped straight to `'roll'` when
-   * `defenderSeat === 'bandits'`, since there is no player to respond).
-   * `'roll'` — the attacker submits `campaign.roll`.
-   * `'rolled'` — faces are persisted; the attacker submits `campaign.resolve`
-   * (Law §5.5.5-6; sacrifice, casualties, defeat) — if it's a loss, this
-   * clears the campaign; if a win, moves to `'casualties'` or `'seize'`.
+   * `'respond'` — the defender's window. Skipped straight to `'rolled'`
+   * when `defenderSeat === 'bandits'`, since there is no player to respond.
+   * `'rolled'` — faces are persisted (rolled in the `prepare()` of whichever
+   * action CLOSED the window — `campaign.respond`, or `campaign.declare`
+   * itself against bandits; P3 D51); the attacker submits `campaign.resolve`
+   * (Law §5.5.5-7: sacrifice, defeat, AND the §5.5.7 seizure choices, all
+   * one payload per D50). A loss clears the campaign; a win either finishes
+   * outright or moves to `'casualties'`.
    * `'casualties'` — a defeated force whose kill allocation changes the
    * final position submits `campaign.casualties` (Law §5.5.6's Imperial
    * aside; unit 16a). Skipped entirely whenever the allocation cannot
    * matter, which is every single-destination force — see `campaign.ts`.
-   * `'seize'` — the attacker submits `campaign.seize` (Law §5.5.7's
-   * CHOICE-bearing parts only — placements, banish, burn-favor; taking
-   * relics/banners is mandatory and already happened in `resolve`).
+   * Its chooser is usually ANOTHER seat, which is a real handoff rather
+   * than a batching miss, so it keeps its own phase (P3 unit 4).
    */
-  phase: 'respond' | 'roll' | 'rolled' | 'casualties' | 'seize';
+  phase: 'respond' | 'rolled' | 'casualties';
   attackFaces?: AttackFace[];
   defenseFaces?: DefenseFace[];
   /**
@@ -252,6 +253,16 @@ export interface CampaignState {
    * exactly what was presented.
    */
   casualties?: { force: ForceEntry[]; quota: number };
+  /**
+   * The §5.5.7 seizure choices the winning attacker submitted with
+   * `campaign.resolve`, STASHED here only while a `'casualties'` phase
+   * intervenes (P3 unit 4, D50). The Law's step order is §5.5.6 defeat,
+   * then §5.5.7 spoils, and the casualty allocation is another seat's
+   * decision — so when it is raised, the attacker's already-made seizure
+   * choices wait here and are applied by `campaign.casualties` once the
+   * allocation lands. Absent on every path that finishes inside `resolve`.
+   */
+  seize?: { placements: { siteId: string; warbands: number }[]; banishTo?: string; burnFavor: boolean };
   /** `actionCount` at declare — the pending-decision id's stable anchor. */
   declaredAt: number;
 }
@@ -698,7 +709,7 @@ export function checkInvariants(state: OathState): void {
         fail(`campaign target relic ${t.relicId} is not in the card database`);
       }
     }
-    if (c.phase === 'rolled' || c.phase === 'casualties' || c.phase === 'seize') {
+    if (c.phase === 'rolled' || c.phase === 'casualties') {
       if (!c.attackFaces || c.attackFaces.length !== c.attackDice) {
         fail(`campaign: phase '${c.phase}' must carry exactly attackDice attack faces`);
       }

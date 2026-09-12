@@ -66,9 +66,9 @@ export type Handler = (state: OathState, action: GameAction) => OathState;
  * `midSearchOk: false` (the default) and is rejected. `card.play` itself
  * passes `midSearchOk: true`. Likewise, while a Campaign (unit 12) is in
  * progress, everything is illegal-state except its own three actions;
- * `campaign.roll` (the attacker's move) passes `campaignOk: true`. And an
- * unresolved Wake Phase (unit 17) locks the same way — Law §4.1's steps
- * come before the Act Phase, so everything but `wake.favor` waits.
+ * `campaign.resolve` (the attacker's move) passes `campaignOk: true`. And
+ * an unresolved Wake Phase (unit 17) locks the same way — Law §4.1's steps
+ * come before the Act Phase, so everything but `wake.resolve` waits.
  */
 export function requireActiveSeat(
   state: OathState,

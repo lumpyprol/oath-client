@@ -36,7 +36,6 @@ function act(state: OathState, type: string, actor: number | null, payload: unkn
 }
 const declare = (s: OathState, actor: number | null, p: unknown) => act(s, 'campaign.declare', actor, p);
 const respond = (s: OathState, actor: number | null, p: unknown = {}) => act(s, 'campaign.respond', actor, p);
-const rollAction = (s: OathState, actor: number | null, p: unknown) => act(s, 'campaign.roll', actor, p);
 
 // baseState: seat 1 active, pawn at sites[5] (Hinterland), 2 warbands of
 // their own there (so seat 1 already rules their own site). Board warbands
@@ -164,10 +163,14 @@ describe('campaign.declare (Law §5.5.1-5.5.2)', () => {
         defender: 'bandits',
         targets: [{ kind: 'site', siteId: s.sites[3].id }],
         attackDice: 1,
+        // D51: no player can respond, so declare IS the window-closing
+        // action and carries the faces its own prepare() rolled.
+        attackFaces: ['sword'],
+        defenseFaces: ['blank'],
       });
-      expect(out.campaign).toMatchObject({ defenderSeat: 'bandits', defenseDice: 1, phase: 'roll' });
+      expect(out.campaign).toMatchObject({ defenderSeat: 'bandits', defenseDice: 1, phase: 'rolled' });
       const pending = oath.pending(out);
-      expect(pending[0]).toMatchObject({ seat: 1, kind: 'campaign', resolves: ['campaign.roll'] });
+      expect(pending[0]).toMatchObject({ seat: 1, kind: 'campaign', resolves: ['campaign.resolve'] });
       checkInvariants(out);
     });
   });
@@ -337,79 +340,66 @@ describe('campaign.respond (Law §5.5.3, naive P2 window)', () => {
     return declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 1 });
   }
 
-  it('the defender closes the window, moving pending() to the attacker', () => {
-    const out = respond(responding(), 2);
-    expect(out.campaign).toMatchObject({ phase: 'roll' });
-    const pending = oath.pending(out);
-    expect(pending[0]).toMatchObject({ seat: 1, kind: 'campaign', resolves: ['campaign.roll'] });
-    checkInvariants(out);
-  });
+  const faces = { attackFaces: ['sword'], defenseFaces: ['shield', 'blank'] };
 
-  it('is illegal for anyone but the defender', () => {
-    const s = responding();
-    expect(() => respond(s, 1)).toThrow(IllegalAction);
-    expect(() => respond(s, 0)).toThrow(IllegalAction);
-  });
-
-  it('is illegal when no campaign is awaiting a response', () => {
-    const s = baseState();
-    expect(() => respond(s, 1)).toThrow(IllegalAction);
-  });
-});
-
-describe('campaign.roll (Law §5.5.4-5.5.5)', () => {
-  function rollable() {
-    const s = declareState();
-    const declared = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
-    return respond(declared, 2); // attackDice: 2, defenseDice: 2, phase 'roll'
-  }
-
-  it('stores the persisted faces and advances to phase "rolled"', () => {
-    const out = rollAction(rollable(), 1, {
-      attackFaces: ['sword', 'skull'],
-      defenseFaces: ['shield', 'blank'],
-    });
-    expect(out.campaign).toMatchObject({
-      phase: 'rolled',
-      attackFaces: ['sword', 'skull'],
-      defenseFaces: ['shield', 'blank'],
-    });
+  it('the defender closes the window, moving pending() straight to the attacker to resolve', () => {
+    const out = respond(responding(), 2, faces);
+    // D51: closing the window IS the roll — there is no intermediate
+    // attacker visit to come online and roll dice any more.
+    expect(out.campaign).toMatchObject({ phase: 'rolled', ...faces });
     const pending = oath.pending(out);
     expect(pending[0]).toMatchObject({ seat: 1, kind: 'campaign', resolves: ['campaign.resolve'] });
     checkInvariants(out);
   });
 
-  it('is illegal for anyone but the attacker', () => {
-    const s = rollable();
-    expect(() =>
-      rollAction(s, 2, { attackFaces: ['sword', 'skull'], defenseFaces: ['shield', 'blank'] }),
-    ).toThrow(IllegalAction);
+  it('is illegal for anyone but the defender', () => {
+    const s = responding();
+    expect(() => respond(s, 1, faces)).toThrow(IllegalAction);
+    expect(() => respond(s, 0, faces)).toThrow(IllegalAction);
   });
 
-  it('is illegal before the response window closes', () => {
+  it('is illegal when no campaign is awaiting a response', () => {
+    const s = baseState();
+    expect(() => respond(s, 1, faces)).toThrow(IllegalAction);
+  });
+});
+
+describe('the dice ride the window-closing action (Law §5.5.4-5.5.5; P3 D51)', () => {
+  /** A campaign awaiting its defender's response — attackDice 2, defenseDice 2. */
+  function declared() {
     const s = declareState();
-    const declared = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
-    expect(() =>
-      rollAction(declared, 1, { attackFaces: ['sword', 'skull'], defenseFaces: ['shield', 'blank'] }),
-    ).toThrow(IllegalAction);
+    return declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
+  }
+  const faces = { attackFaces: ['sword', 'skull'], defenseFaces: ['shield', 'blank'] };
+
+  it('stores the faces and advances to phase "rolled" in one action', () => {
+    const out = respond(declared(), 2, faces);
+    expect(out.campaign).toMatchObject({ phase: 'rolled', ...faces });
+    const pending = oath.pending(out);
+    expect(pending[0]).toMatchObject({ seat: 1, kind: 'campaign', resolves: ['campaign.resolve'] });
+    checkInvariants(out);
   });
 
   it('is illegal with the wrong number of faces', () => {
-    const s = rollable();
     expect(() =>
-      rollAction(s, 1, { attackFaces: ['sword'], defenseFaces: ['shield', 'blank'] }),
+      respond(declared(), 2, { attackFaces: ['sword'], defenseFaces: ['shield', 'blank'] }),
     ).toThrow(IllegalAction);
   });
 
   it('is illegal with a face value that is not a real die face', () => {
-    const s = rollable();
     expect(() =>
-      rollAction(s, 1, { attackFaces: ['sword', 'nonsense'], defenseFaces: ['shield', 'blank'] }),
+      respond(declared(), 2, { attackFaces: ['sword', 'nonsense'], defenseFaces: ['shield', 'blank'] }),
     ).toThrow(IllegalAction);
+  });
+
+  it('there is no campaign.roll action left to submit', () => {
+    expect(() => act(respond(declared(), 2, faces), 'campaign.roll', 1, {})).toThrow(
+      /unknown action/,
+    );
   });
 });
 
-describe('campaign.roll — prepare() persists dice; replay reuses them (HLD D14 exit criterion)', () => {
+describe('prepare() persists dice; replay reuses them (HLD D14 exit criterion, via D51)', () => {
   it('folding the log from scratch reproduces the exact same state', () => {
     // FIRST_GAME is fixed at 4 seats; we immediately overwrite its state
     // with our own controlled (3-seat) `declareState()` below anyway.
@@ -427,21 +417,29 @@ describe('campaign.roll — prepare() persists dice; replay reuses them (HLD D14
       actor: 1,
       payload: { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 },
     }).seq;
-    seq = store.appendAction(oath, gameId, seq, {
+    // D51: the DEFENDER's respond closes the window, so its own prepare()
+    // rolls — the faces land in seat 2's payload, not the attacker's. That
+    // the roller of record changed seats is exactly what this test now
+    // guards: the faces are still rolled in a prepare() and persisted, so
+    // replay reuses them rather than re-rolling.
+    const rolled = store.appendAction(oath, gameId, seq, {
       type: 'campaign.respond',
       actor: 2,
       payload: {},
-    }).seq;
-    const rolled = store.appendAction(oath, gameId, seq, {
-      type: 'campaign.roll',
-      actor: 1,
-      payload: {},
     });
+    seq = rolled.seq;
 
     const c = (rolled.state as OathState).campaign!;
+    expect(c.phase).toBe('rolled');
     expect(c.attackFaces).toHaveLength(2);
     expect(c.defenseFaces).toHaveLength(2);
     checkInvariants(rolled.state as OathState);
+
+    // The faces really are in the defender's logged payload — a client
+    // reading the log sees the roll where it happened (dice are public).
+    const respondRow = store.history(gameId).find((a) => a.type === 'campaign.respond')!;
+    expect(respondRow.actor).toBe(2);
+    expect((respondRow.payload as { attackFaces: string[] }).attackFaces).toEqual(c.attackFaces);
 
     const first = store.loadState(oath, gameId).state;
     // Wipe any snapshot taken after our injected opening position (none
@@ -574,6 +572,8 @@ describe('campaign.declare — §2.11 mandatory title defense dice (unit 16c)', 
       defender: 'bandits',
       targets: [{ kind: 'site', siteId: s.sites[3].id }],
       attackDice: 1,
+      attackFaces: ['sword'], // D51: declare closes the window vs bandits
+      defenseFaces: ['blank'],
     });
     expect(out.campaign!.defenseDice).toBe(1); // the site's own die, nothing more
   });

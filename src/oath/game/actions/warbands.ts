@@ -2,7 +2,8 @@
  * `warbands.move` (unit 16b) — Law §6.5, "Move Warbands To/From Your Site",
  * plus the two permission actions its purple asides require. Without this,
  * a site can only ever be garrisoned as the spoils of a Campaign (unit 13's
- * `campaign.seize`), and warbands left on a site can never come home.
+ * seizure, now `campaign.resolve`'s `seize` block), and warbands left on a
+ * site can never come home.
  *
  * All movement is at YOUR site (Glossary §10.30) — the site your pawn is
  * at. Four directions, from §6.5's three paragraphs:

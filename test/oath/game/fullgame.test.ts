@@ -186,12 +186,15 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
       targets: [{ kind: 'site', siteId: 'site:great-slum' }],
       attackDice: 5,
     });
-    expect(r.view.campaign.phase).toBe('roll'); // bandits never respond (§5.5.3)
-    r = await act(ctx, 1, 'campaign.roll', {});
-    r = await act(ctx, 1, 'campaign.resolve', { sacrifice: sacrificeFor(r.view.campaign, 1) });
-    expect(r.view.campaign.phase).toBe('seize');
-    r = await act(ctx, 1, 'campaign.seize', {
-      placements: [{ siteId: 'site:great-slum', warbands: 1 }],
+    // D51: bandits never respond (§5.5.3), so declare closed the window and
+    // its own prepare() rolled the dice — the faces are already here.
+    expect(r.view.campaign.phase).toBe('rolled');
+    // D50: sacrifice and the §5.5.7 seizure choices ride one action, so the
+    // whole campaign is TWO attacker visits (declare, resolve) — it used to
+    // be four (declare, roll, resolve, seize).
+    r = await act(ctx, 1, 'campaign.resolve', {
+      sacrifice: sacrificeFor(r.view.campaign, 1),
+      seize: { placements: [{ siteId: 'site:great-slum', warbands: 1 }] },
     });
     expect(r.view.campaign).toBeNull();
     expect(r.view.sites.find((s: any) => s.id === 'site:great-slum').warbands[1]).toBeGreaterThan(0);
@@ -280,8 +283,10 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     expect(r.view.campaign.phase).toBe('respond'); // a player defender DOES respond
     expect(r.view.campaign.allies).toEqual([]); // §5.5.1 left no Imperial ally
     expect(r.view.campaign.defenseDice).toBe(2); // 1 site + 1 Oathkeeper (§2.11)
+    // D51: the defender's respond closes the window and carries the dice,
+    // so this contested campaign is now attacker 2 visits, defender 1.
     r = await act(ctx, 0, 'campaign.respond', {});
-    r = await act(ctx, 2, 'campaign.roll', {});
+    expect(r.view.campaign.phase).toBe('rolled');
     r = await act(ctx, 2, 'campaign.resolve', { sacrifice: 0 });
     expect(r.view.campaign).toBeNull(); // defeated: §5.5.6 clears it
     await act(ctx, 2, 'turn.rest');
@@ -306,7 +311,7 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
       'search', 'muster', 'trade', 'travel', 'recover', 'campaign.declare',
       'card.play', 'adviser.play', 'warbands.move', 'power.use',
       'citizenship.offer', 'citizenship.accept', 'wake.resolve', 'turn.rest',
-      'campaign.respond', 'campaign.roll', 'campaign.resolve', 'campaign.seize',
+      'campaign.respond', 'campaign.resolve',
     ]) {
       expect(used, `never exercised ${type}`).toContain(type);
     }

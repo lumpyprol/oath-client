@@ -62,18 +62,11 @@
             "siteId": "site:great-slum"
           }
         ],
-        "attackDice": 5
-      }
-    },
-    {
-      "seq": 7,
-      "type": "campaign.roll",
-      "actor": 1,
-      "payload": {
+        "attackDice": 5,
         "attackFaces": [
-          "hollowSword",
-          "hollowSword",
-          "hollowSword",
+          "sword",
+          "sword",
+          "skull",
           "skull",
           "hollowSword"
         ],
@@ -83,34 +76,29 @@
       }
     },
     {
-      "seq": 8,
+      "seq": 7,
       "type": "campaign.resolve",
       "actor": 1,
       "payload": {
-        "sacrifice": 2
+        "sacrifice": 2,
+        "seize": {
+          "placements": [
+            {
+              "siteId": "site:great-slum",
+              "warbands": 1
+            }
+          ]
+        }
       }
     },
     {
-      "seq": 9,
-      "type": "campaign.seize",
-      "actor": 1,
-      "payload": {
-        "placements": [
-          {
-            "siteId": "site:great-slum",
-            "warbands": 1
-          }
-        ]
-      }
-    },
-    {
-      "seq": 10,
+      "seq": 8,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 11,
+      "seq": 9,
       "type": "trade",
       "actor": 2,
       "payload": {
@@ -119,7 +107,7 @@
       }
     },
     {
-      "seq": 12,
+      "seq": 10,
       "type": "power.use",
       "actor": 2,
       "payload": {
@@ -142,7 +130,7 @@
       }
     },
     {
-      "seq": 13,
+      "seq": 11,
       "type": "recover",
       "actor": 2,
       "payload": {
@@ -151,13 +139,13 @@
       }
     },
     {
-      "seq": 14,
+      "seq": 12,
       "type": "turn.rest",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 15,
+      "seq": 13,
       "type": "wake.resolve",
       "actor": 0,
       "payload": {
@@ -169,7 +157,7 @@
       }
     },
     {
-      "seq": 16,
+      "seq": 14,
       "type": "warbands.move",
       "actor": 0,
       "payload": {
@@ -178,7 +166,7 @@
       }
     },
     {
-      "seq": 17,
+      "seq": 15,
       "type": "citizenship.offer",
       "actor": 0,
       "payload": {
@@ -187,13 +175,13 @@
       }
     },
     {
-      "seq": 18,
+      "seq": 16,
       "type": "citizenship.accept",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 19,
+      "seq": 17,
       "type": "power.use",
       "actor": 0,
       "payload": {
@@ -203,13 +191,13 @@
       }
     },
     {
-      "seq": 20,
+      "seq": 18,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}
     },
     {
-      "seq": 21,
+      "seq": 19,
       "type": "adviser.play",
       "actor": 1,
       "payload": {
@@ -218,13 +206,13 @@
       }
     },
     {
-      "seq": 22,
+      "seq": 20,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 23,
+      "seq": 21,
       "type": "campaign.declare",
       "actor": 2,
       "payload": {
@@ -239,25 +227,19 @@
       }
     },
     {
-      "seq": 24,
+      "seq": 22,
       "type": "campaign.respond",
       "actor": 0,
-      "payload": {}
-    },
-    {
-      "seq": 25,
-      "type": "campaign.roll",
-      "actor": 2,
       "payload": {
         "attackFaces": [],
         "defenseFaces": [
-          "shieldX2",
-          "blank"
+          "shield",
+          "doubleShield"
         ]
       }
     },
     {
-      "seq": 26,
+      "seq": 23,
       "type": "campaign.resolve",
       "actor": 2,
       "payload": {
@@ -265,13 +247,13 @@
       }
     },
     {
-      "seq": 27,
+      "seq": 24,
       "type": "turn.rest",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 28,
+      "seq": 25,
       "type": "wake.resolve",
       "actor": 0,
       "payload": {
@@ -283,7 +265,7 @@
       }
     },
     {
-      "seq": 29,
+      "seq": 26,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}

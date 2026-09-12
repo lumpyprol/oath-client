@@ -1,7 +1,18 @@
 /**
  * `campaign` (unit 12) — Law §5.5, Steps 1-2 (declare + collect dice pools)
- * through Steps 4-5 (roll). Three actions share one in-progress sub-state
- * (`state.campaign`, non-null from `declare` until unit 13 clears it):
+ * through Steps 4-7 (roll, resolve, seize). Several actions share one
+ * in-progress sub-state (`state.campaign`, non-null from `declare` until
+ * the resolution clears it).
+ *
+ * P3 unit 4 reshaped the sequence to cost fewer round trips, per D50 and
+ * D51. It is now:
+ *
+ *     declare -> [ally...] -> respond* -> resolve -> [casualties]
+ *
+ * where `respond*` (or `declare` itself against bandits) carries the dice,
+ * and `resolve` carries every post-reveal attacker choice. `campaign.roll`
+ * and `campaign.seize` no longer exist; see their entries below for where
+ * their work went.
  *
  *   campaign.declare — the attacker (must be the active seat). §5.5.1:
  *     spend 2 Supply and choose a defender — any OTHER seat who rules the
@@ -44,8 +55,10 @@
  *     their commitment (0..board warbands, checked against that cap
  *     BEFORE the modifier); the stored `campaign.attackDice` is the
  *     post-modifier pool actually rolled, clamped at 0. Opens a response
- *     window UNLESS the defender is bandits (no player to respond, so
- *     `declare` skips straight to phase `'roll'`).
+ *     window UNLESS the defender is bandits — in which case there is no
+ *     player to respond, so `declare` ITSELF closes the window and, per
+ *     D51, rolls both pools in its own `prepare()`, landing straight in
+ *     phase `'rolled'`.
  *
  *   campaign.ally — an eligible CITIZEN, during the response window (unit
  *     16a part 2). §5.5.2: "any Citizen except the attacker, with the
@@ -72,13 +85,14 @@
  *     at declare) can act inside it. The Law's own order — §5.5.2 join,
  *     then §5.5.3 battle plans — needs the two windows P3 will provide.
  *
- *   campaign.roll — the attacker ONLY, once no response window remains
- *     (`phase === 'roll'`). §5.5.4/5.5.5: rolls `attackDice` attack dice
- *     and `defenseDice` defense dice in `prepare()` (HLD D14) and persists
- *     the FACES, so replay reuses them instead of re-rolling. `reduce`
- *     only stores what `prepare` rolled — turning faces into an attack/
- *     defense TOTAL and declaring a winner is `campaign.resolve`'s job
- *     (unit 13, §5.5.6-8).
+ *   (campaign.roll — DELETED by P3 unit 4, D51. §5.5.4/5.5.5's two pools
+ *     are still rolled in a `prepare()` and persisted as FACES so replay
+ *     reuses them instead of re-rolling (HLD D14, unchanged) — but the
+ *     `prepare()` doing the rolling is now the WINDOW-CLOSING action's:
+ *     `campaign.respond` normally, `campaign.declare` against bandits. The
+ *     roller's identity carries no game meaning, only the faces do, and
+ *     they are public wherever they land. This deleted the attacker's pure
+ *     "come online to roll" submit — see `storeFaces`/`prepareCampaign`.)
  *
  *   campaign.resolve — the attacker ONLY (`phase === 'rolled'`). §5.5.4's
  *     defense total = shields (doubled once per shieldX2 face rolled,
@@ -103,8 +117,16 @@
  *     or the defeat is applied with the default allocation and §5.5.7's
  *     MANDATORY spoils follow immediately: every targeted relic and banner
  *     is taken — a seized banner burns 2 favor/secrets (minimum 1 left)
- *     and, if it's the People's Favor, flips to Mob (§2.5.3) — then phase
- *     advances to `'seize'` for the CHOICE-bearing rest.
+ *     and, if it's the People's Favor, flips to Mob (§2.5.3).
+ *
+ *     P3 unit 4 (D50) folded §5.5.7's CHOICE-bearing rest into this same
+ *     action: the payload's optional `seize` block carries placements,
+ *     banish and burn-favor. No reveal separates them from the sacrifice —
+ *     the faces are already public and the targets were fixed at declare —
+ *     so the attacker decides everything post-reveal in one submit. A
+ *     `seize` block on a LOSS is rejected, not ignored. When a
+ *     `'casualties'` phase intervenes the block waits in `campaign.seize`
+ *     and `campaign.casualties` applies it, preserving the Law's order.
  *
  *   campaign.casualties — the Chancellor ONLY, or the defeated player when
  *     they are not an Imperial player (`casualtyChooser`; `phase ===
@@ -113,20 +135,21 @@
  *     force are killed." Allocates the engine-computed kill quota across
  *     the force's (site, seat) and (board, seat) locations; the quota
  *     itself is never taken from the payload. Then applies §5.5.7's spoils
- *     and advances to `'seize'`, so the Law's step order holds on this
- *     path exactly as it does on the auto-allocated one. The phase is
+ *     and then the attacker's stashed §5.5.7 seizure choices, so the Law's
+ *     step order holds on this path exactly as it does on the
+ *     auto-allocated one. This is the LAST action of such a campaign. The phase is
  *     raised ONLY when the allocation can change the final position —
  *     see `allocationMatters`.
  *
- *   campaign.seize — the attacker ONLY (`phase === 'seize'`, so only
- *     reachable after a win). §5.5.7's remaining choices, all optional:
- *     `placements` — any number (even 0) of the attacker's board warbands
- *     onto any targeted sites; `banishTo` — travel the defender's pawn to
- *     a site of the attacker's choice, spending no Supply (only legal if
- *     pawnFavor was targeted); `burnFavor` — burn half (rounded down) of
- *     the defender's favor (same condition). Clears the campaign.
- *     Oathkeeper/victory-goal consequences of any of this are unit 17's
- *     check, not this action's — it only moves the objects.
+ *   (campaign.seize — DELETED by P3 unit 4, D50; its choices now ride
+ *     `campaign.resolve`'s payload, applied by `applySeizure`. §5.5.7's
+ *     remaining choices, all still optional: `placements` — any number
+ *     (even 0) of the attacker's board warbands onto any targeted sites;
+ *     `banishTo` — travel the defender's pawn to a site of the attacker's
+ *     choice, spending no Supply (only legal if pawnFavor was targeted);
+ *     `burnFavor` — burn half (rounded down) of the defender's favor (same
+ *     condition). Oathkeeper/victory-goal consequences of any of this are
+ *     unit 17's check, not this code's — it only moves the objects.)
  *
  * Dice faces — the Playbook's "Dice Faces" component reference (p.15),
  * NOT the Law text itself (the Law only describes what the symbols DO;
@@ -295,9 +318,24 @@ function bannerFullId(short: 'peoples-favor' | 'darkest-secret'): string {
   return short === 'peoples-favor' ? PEOPLES_FAVOR_ID : DARKEST_SECRET_ID;
 }
 
-function declare(state: OathState, action: GameAction): OathState {
-  const attackerSeat = requireActiveSeat(state, action);
-  const parsed = DeclarePayloadSchema.safeParse(action.payload);
+/**
+ * Everything `campaign.declare` DECIDES, computed purely from the state and
+ * the proposed payload: who defends, which targets are legal, and the two
+ * dice-pool sizes (Law §5.5.1-2 plus §2.11's title dice and §11.4's site
+ * modifiers). Throws `IllegalAction` on any illegal declaration.
+ *
+ * Split out of `declare`'s reducer for D51 (P3 unit 4): against bandits
+ * there is no response window, so `declare` ITSELF is the action that
+ * closes it and must roll the dice in its `prepare()` (HLD D14 — never in a
+ * reducer). `prepare` has no `state.campaign` to read the pool sizes from,
+ * because the campaign does not exist yet — so it calls this to learn them,
+ * exactly as the reducer does moments later. Pure and cheap, so running it
+ * twice on that one path costs nothing and keeps ONE definition of what a
+ * declaration means; a second, prepare-only copy of this arithmetic is
+ * precisely the drift D51 would otherwise buy.
+ */
+function computeDeclaration(state: OathState, attackerSeat: number, payload: unknown) {
+  const parsed = DeclarePayloadSchema.safeParse(payload);
   if (!parsed.success) throw new IllegalAction('campaign.declare: malformed payload');
   const { defender, attackDice, targets } = parsed.data;
   const attacker = state.players[attackerSeat];
@@ -463,18 +501,38 @@ function declare(state: OathState, action: GameAction): OathState {
   const dieModifier = (targetsPlains ? 1 : 0) - (targetsMountain ? 1 : 0);
   const finalAttackDice = Math.max(0, attackDice + dieModifier);
 
-  attacker.supply -= CAMPAIGN_COST;
-  state.campaign = {
-    attackerSeat,
-    defenderSeat: defender,
-    targets: targets.map((t) => (t.kind === 'banner' ? { kind: 'banner', bannerId: bannerFullId(t.bannerId) } : t)),
+  return {
+    defender,
+    targets: targets.map((t) =>
+      t.kind === 'banner' ? { kind: 'banner' as const, bannerId: bannerFullId(t.bannerId) } : t,
+    ) as CampaignState['targets'],
     attackDice: finalAttackDice,
     defenseDice,
-    phase: defender === 'bandits' ? 'roll' : 'respond',
     allies: mandatoryAllies(state, attackerSeat, defender), // Law §5.5.2
+  };
+}
+
+function declare(state: OathState, action: GameAction): OathState {
+  const attackerSeat = requireActiveSeat(state, action);
+  const decl = computeDeclaration(state, attackerSeat, action.payload);
+
+  state.players[attackerSeat].supply -= CAMPAIGN_COST;
+  state.campaign = {
+    attackerSeat,
+    defenderSeat: decl.defender,
+    targets: decl.targets,
+    attackDice: decl.attackDice,
+    defenseDice: decl.defenseDice,
+    // D51: against bandits there is no response window at all, so THIS
+    // action closed it and carries the faces its own `prepare()` rolled.
+    phase: decl.defender === 'bandits' ? 'rolled' : 'respond',
+    allies: decl.allies,
     allyVolunteers: [],
     declaredAt: state.actionCount,
   };
+  if (decl.defender === 'bandits') {
+    storeFaces(state.campaign, action.payload, 'campaign.declare');
+  }
   return state;
 }
 
@@ -522,21 +580,28 @@ function respond(state: OathState, action: GameAction): OathState {
     }
     if (!c.allies.includes(seat)) c.allies.push(seat);
   }
-  c.phase = 'roll';
+  storeFaces(c, action.payload, 'campaign.respond');
   return state;
 }
 
-function roll(state: OathState, action: GameAction): OathState {
-  const seat = requireActiveSeat(state, action, { campaignOk: true });
-  const c = state.campaign;
-  if (!c || c.phase !== 'roll') {
-    throw new IllegalAction('campaign.roll: no campaign is awaiting a roll');
-  }
-  if (seat !== c.attackerSeat) {
-    throw new IllegalAction("campaign.roll: only the campaign's attacker may roll");
-  }
-  const payload = action.payload as { attackFaces?: unknown; defenseFaces?: unknown };
-  const { attackFaces, defenseFaces } = payload;
+/**
+ * D51 (P3 unit 4): validate and persist the faces rolled in the CLOSING
+ * action's `prepare()`, and move to `'rolled'`. Shared by the only two
+ * actions that can close a response window — `campaign.respond` normally,
+ * `campaign.declare` itself against bandits — because the faces mean the
+ * same thing whichever one rolled them.
+ *
+ * Which seat submitted the roll carries no game meaning; only the faces do,
+ * and they are public either way (the log stays as readable as D14 intended
+ * — the faces sit in a payload everyone can see, just a different one).
+ * Validating lengths against the pool sizes fixed at declare is what keeps
+ * a hand-written payload from smuggling in extra dice.
+ */
+function storeFaces(c: CampaignState, payload: unknown, actionName: string): void {
+  const { attackFaces, defenseFaces } = (payload ?? {}) as {
+    attackFaces?: unknown;
+    defenseFaces?: unknown;
+  };
   const validAttack =
     Array.isArray(attackFaces) &&
     attackFaces.length === c.attackDice &&
@@ -546,12 +611,11 @@ function roll(state: OathState, action: GameAction): OathState {
     defenseFaces.length === c.defenseDice &&
     defenseFaces.every((f) => (DEFENSE_DIE as readonly unknown[]).includes(f));
   if (!validAttack || !validDefense) {
-    throw new IllegalAction('campaign.roll: missing or malformed dice faces');
+    throw new IllegalAction(`${actionName}: missing or malformed dice faces`);
   }
   c.attackFaces = attackFaces as AttackFace[];
   c.defenseFaces = defenseFaces as DefenseFace[];
   c.phase = 'rolled';
-  return state;
 }
 
 // ---- resolution (unit 13) -------------------------------------------------
@@ -892,7 +956,26 @@ function applyVictorySpoils(state: OathState, c: CampaignState): OathState {
   return working;
 }
 
-const ResolvePayloadSchema = z.object({ sacrifice: z.number().int().min(0).default(0) });
+const SeizeChoicesSchema = z.object({
+  placements: z.array(z.object({ siteId: z.string(), warbands: z.number().int().min(0) })).default([]),
+  banishTo: z.string().optional(),
+  burnFavor: z.boolean().default(false),
+});
+
+/**
+ * D50 (P3 unit 4): sacrifice and the §5.5.7 seizure choices ride ONE
+ * payload. Nothing is revealed between them — the faces are already public
+ * by the time the attacker is asked, and the seizure targets were fixed at
+ * declare — so the attacker knows, when submitting, exactly whether
+ * `swords + sacrifice > defense` and therefore whether a `seize` block is
+ * theirs to fill in. That is what makes rejecting a seize block on a loss
+ * fair rather than a trap (and rejecting is right: silently dropping a
+ * choice is how a client bug hides).
+ */
+const ResolvePayloadSchema = z.object({
+  sacrifice: z.number().int().min(0).default(0),
+  seize: SeizeChoicesSchema.optional(),
+});
 
 function resolve(state: OathState, action: GameAction): OathState {
   const seat = requireActiveSeat(state, action, { campaignOk: true });
@@ -905,6 +988,7 @@ function resolve(state: OathState, action: GameAction): OathState {
   }
   const parsed = ResolvePayloadSchema.safeParse(action.payload);
   if (!parsed.success) throw new IllegalAction('campaign.resolve: malformed payload');
+  const seizeChoices = parsed.data.seize;
 
   const { swords, skulls } = attackTotal(c.attackFaces!);
   // Both computed from the ORIGINAL (pre-battle) state: the defending force
@@ -932,6 +1016,11 @@ function resolve(state: OathState, action: GameAction): OathState {
   const victorious = swords + sacrifice > defense;
 
   if (!victorious) {
+    if (seizeChoices) {
+      throw new IllegalAction(
+        'campaign.resolve: you were defeated — there is nothing to seize (Law §5.5.7)',
+      );
+    }
     // §5.5.6: the attacker is the defeated party, and their force is just
     // their board — one destination, so the allocation can never matter.
     const own = attackingForce(working, c);
@@ -943,16 +1032,18 @@ function resolve(state: OathState, action: GameAction): OathState {
   const quota = Math.floor(forceTotal(force) / 2);
   if (allocationMatters(state, force, quota)) {
     // §5.5.6's aside: hand the choice over before doing anything else, so
-    // the Law's step order (defeat, then §5.5.7's spoils) still holds.
+    // the Law's step order (defeat, then §5.5.7's spoils) still holds. The
+    // attacker's seizure choices are already made — they wait in the
+    // campaign until the allocation lands (P3 unit 4; see `CampaignState.seize`).
     working.campaign!.phase = 'casualties';
     working.campaign!.casualties = { force, quota };
+    if (seizeChoices) working.campaign!.seize = seizeChoices;
     return working;
   }
 
   working = applyDefeat(working, c.attackerSeat, force, autoAllocate(force, quota));
   working = applyVictorySpoils(working, c);
-  working.campaign!.phase = 'seize';
-  return working;
+  return applySeizure(working, c, seizeChoices);
 }
 
 const CasualtiesPayloadSchema = z.object({
@@ -1018,29 +1109,33 @@ function casualties(state: OathState, action: GameAction): OathState {
 
   let working = applyDefeat(state, chooser, force, kills);
   working = applyVictorySpoils(working, c);
-  working.campaign!.phase = 'seize';
-  delete working.campaign!.casualties;
-  return working;
+  // The attacker's §5.5.7 choices were made back in `campaign.resolve` and
+  // waited here for this allocation (P3 unit 4) — apply them now, in the
+  // Law's order, and the campaign is done.
+  return applySeizure(working, c, working.campaign!.seize);
 }
 
-const SeizePayloadSchema = z.object({
-  placements: z.array(z.object({ siteId: z.string(), warbands: z.number().int().min(0) })).default([]),
-  banishTo: z.string().optional(),
-  burnFavor: z.boolean().default(false),
-});
-
-function seize(state: OathState, action: GameAction): OathState {
-  const seat = requireActiveSeat(state, action, { campaignOk: true });
-  const c = state.campaign;
-  if (!c || c.phase !== 'seize') {
-    throw new IllegalAction('campaign.seize: no campaign is awaiting seizure');
-  }
-  if (seat !== c.attackerSeat) {
-    throw new IllegalAction("campaign.seize: only the campaign's attacker may seize");
-  }
-  const parsed = SeizePayloadSchema.safeParse(action.payload);
-  if (!parsed.success) throw new IllegalAction('campaign.seize: malformed payload');
-  const { placements, banishTo, burnFavor } = parsed.data;
+/**
+ * Law §5.5.7's CHOICE-bearing parts, applied and the campaign cleared.
+ *
+ * No longer its own action (P3 unit 4, D50): the choices arrive in
+ * `campaign.resolve`'s payload and are applied either right there, or — when
+ * a `'casualties'` phase intervened — by `campaign.casualties` once the
+ * allocation lands, from the copy stashed in `campaign.seize`. Either way
+ * this runs strictly AFTER §5.5.6's defeat and §5.5.7's mandatory spoils, so
+ * the Law's step order holds on both paths, and the board-warband check
+ * below sees the post-skull, post-sacrifice, post-defeat board it should.
+ *
+ * `undefined` choices means the attacker declined all three (every one is
+ * optional), which is just an empty seizure.
+ */
+function applySeizure(
+  state: OathState,
+  c: CampaignState,
+  choices: { placements: { siteId: string; warbands: number }[]; banishTo?: string; burnFavor: boolean } | undefined,
+): OathState {
+  const seat = c.attackerSeat;
+  const { placements, banishTo, burnFavor } = choices ?? { placements: [], burnFavor: false };
 
   const siteTargetIds = new Set(c.targets.filter((t) => t.kind === 'site').map((t) => t.siteId));
   const seenSites = new Set<string>();
@@ -1048,9 +1143,9 @@ function seize(state: OathState, action: GameAction): OathState {
   const effects: Effect[] = [];
   for (const p of placements) {
     if (!siteTargetIds.has(p.siteId)) {
-      throw new IllegalAction(`campaign.seize: ${p.siteId} was not targeted (Law §5.5.7)`);
+      throw new IllegalAction(`campaign.resolve: ${p.siteId} was not targeted (Law §5.5.7)`);
     }
-    if (seenSites.has(p.siteId)) throw new IllegalAction(`campaign.seize: duplicate placement for ${p.siteId}`);
+    if (seenSites.has(p.siteId)) throw new IllegalAction(`campaign.resolve: duplicate placement for ${p.siteId}`);
     seenSites.add(p.siteId);
     totalPlaced += p.warbands;
     if (p.warbands > 0) {
@@ -1063,17 +1158,17 @@ function seize(state: OathState, action: GameAction): OathState {
     }
   }
   if (totalPlaced > state.players[seat].warbands.board) {
-    throw new IllegalAction('campaign.seize: not enough board warbands to place');
+    throw new IllegalAction('campaign.resolve: not enough board warbands to place');
   }
 
   const pawnFavorTargeted = c.targets.some((t) => t.kind === 'pawnFavor');
   if ((banishTo !== undefined || burnFavor) && !pawnFavorTargeted) {
     throw new IllegalAction(
-      'campaign.seize: banishing the pawn or burning favor requires a pawnFavor target (Law §5.5.7)',
+      'campaign.resolve: banishing the pawn or burning favor requires a pawnFavor target (Law §5.5.7)',
     );
   }
   if (banishTo !== undefined && !state.sites.find((s) => s.id === banishTo)) {
-    throw new IllegalAction(`campaign.seize: ${banishTo} is not a real site`);
+    throw new IllegalAction(`campaign.resolve: ${banishTo} is not a real site`);
   }
 
   let working = applyEffects(state, seat, effects);
@@ -1099,27 +1194,55 @@ export const CAMPAIGN_HANDLERS: Record<string, Handler> = {
   'campaign.declare': declare,
   'campaign.ally': ally,
   'campaign.respond': respond,
-  'campaign.roll': roll,
   'campaign.resolve': resolve,
   'campaign.casualties': casualties,
-  'campaign.seize': seize,
 };
 
 /**
- * `prepare()` for 'campaign.roll' (HLD D14): roll both pools now, fold the
- * faces into the payload `reduce` will see. Everything else passes through.
+ * `prepare()` for whichever action CLOSES the response window (HLD D14 +
+ * P3's D51): roll both pools now, fold the faces into the payload `reduce`
+ * will see. Two actions can be that closer, and this is the whole of the
+ * difference between them:
+ *
+ *   - `campaign.respond` — the normal case. The campaign already exists, so
+ *     the pool sizes are read straight off it.
+ *   - `campaign.declare` against BANDITS — no player can respond, so there
+ *     is no window and declare closes it by existing. The campaign does not
+ *     exist yet here, so the pools come from `computeDeclaration`, the same
+ *     pure function the reducer is about to run.
+ *
+ * D51 deletes the attacker's separate `campaign.roll` visit this way. Note
+ * what did NOT change: dice are still rolled in a `prepare()` and persisted
+ * as faces, never rolled in a reducer (D14), so replay reuses them exactly.
  */
 export function prepareCampaign(state: OathState, proposed: ProposedAction): unknown {
-  if (proposed.type !== 'campaign.roll') return proposed.payload;
-  const c = state.campaign;
-  if (!c || c.phase !== 'roll') {
-    throw new IllegalAction('campaign.roll: no campaign is awaiting a roll');
-  }
   const base =
     typeof proposed.payload === 'object' && proposed.payload !== null ? proposed.payload : {};
-  return {
-    ...base,
-    attackFaces: rollDice(ATTACK_DIE, c.attackDice),
-    defenseFaces: rollDice(DEFENSE_DIE, c.defenseDice),
-  };
+
+  if (proposed.type === 'campaign.declare') {
+    if (proposed.actor === null) return proposed.payload; // the reducer will reject it
+    // Only a bandits campaign closes its window at declare; every other
+    // declaration opens a real response window and rolls nothing yet.
+    const decl = computeDeclaration(state, proposed.actor, proposed.payload);
+    if (decl.defender !== 'bandits') return proposed.payload;
+    return {
+      ...base,
+      attackFaces: rollDice(ATTACK_DIE, decl.attackDice),
+      defenseFaces: rollDice(DEFENSE_DIE, decl.defenseDice),
+    };
+  }
+
+  if (proposed.type === 'campaign.respond') {
+    const c = state.campaign;
+    if (!c || c.phase !== 'respond') {
+      throw new IllegalAction('campaign.respond: no campaign is awaiting a response');
+    }
+    return {
+      ...base,
+      attackFaces: rollDice(ATTACK_DIE, c.attackDice),
+      defenseFaces: rollDice(DEFENSE_DIE, c.defenseDice),
+    };
+  }
+
+  return proposed.payload;
 }
