@@ -203,7 +203,7 @@ baseline visit numbers are recorded.
 
 ---
 
-## Unit 2 — Decision endpoint, deep links, and pending-since
+## Unit 2 — Decision endpoint, deep links, and pending-since ✅ (completed 2026-09-12)
 
 **Purpose.** Give every stable id something to resolve against: the URL a
 notification will carry (P6) and a client will open (P4). Server-side only.

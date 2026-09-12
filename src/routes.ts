@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { oath } from './oath/game/index.js';
 import { IllegalAction, StaleSeq, type GameDefinition } from './engine/types.js';
 import {
+  actionAt,
   appendAction,
   createGame,
   getGame,
@@ -98,6 +99,64 @@ router.post('/games/:id/actions', (req, res) => {
 });
 
 /**
+ * Unit 2 (Phase 3): a decision id's anchor is an `actionCount`; the
+ * wall-clock moment it arose is that action's own `createdAt`. `since` and
+ * `url` are transport concerns, attached here — the ENGINE's
+ * `PendingDecision` type never changes to carry them (a deliberate D49
+ * line: interrupts stay ordinary, and wall-clock/routing data belongs to
+ * the HTTP layer, not the rules engine).
+ */
+function sinceOf(gameId: string, decisionId: string): string | null {
+  const anchor = Number(decisionId.split(':').pop());
+  return actionAt(gameId, anchor)?.createdAt ?? null;
+}
+
+function urlFor(gameId: string, decisionId: string): string {
+  return `/games/${gameId}/decisions/${decisionId}`;
+}
+
+/** Legal shape of every id `pending()` mints: `` `${kind-prefix}:${seat}:${anchor}` ``. */
+const DECISION_ID_RE = /^[a-zA-Z]+(?:-[a-zA-Z]+)*:\d+:\d+$/;
+
+/**
+ * Resolve a decision id — the URL a notification will carry (P6) and a
+ * client will open (P4). A stale deep link (the decision was resolved or
+ * rolled back away) lands the player on a useful 410, never an error page.
+ */
+router.get('/games/:id/decisions/:decisionId', (req, res) => {
+  const { id: gameId, decisionId } = req.params;
+  if (!DECISION_ID_RE.test(decisionId)) {
+    return res.status(400).json({ error: 'malformed decision id' });
+  }
+
+  const found = defFor(gameId);
+  if (!found) return res.status(404).json({ error: 'no such game' });
+  const { def } = found;
+
+  // Any seat in this game may open a link about someone else's decision —
+  // they see the public framing of it (`yours: false`).
+  const seat = seatOf(req, gameId);
+  if (seat === null) return res.status(401).json({ error: 'missing or invalid player token' });
+
+  const { state, seq } = loadState(def, gameId);
+  const pending = def.pending(state);
+  const decision = pending.find((d) => d.id === decisionId);
+
+  if (!decision) {
+    return res.status(410).json({ gone: true, seq, waitingOnYou: pending.filter((d) => d.seat === seat) });
+  }
+
+  res.json({
+    gameId,
+    seq,
+    decision,
+    yours: decision.seat === seat,
+    view: def.project(state, seat),
+    since: sinceOf(gameId, decisionId),
+  });
+});
+
+/**
  * The decision inbox. This endpoint is what a notification worker polls
  * and what a deep link resolves against.
  */
@@ -116,7 +175,10 @@ router.get('/inbox', (req, res) => {
     gameId: p.game_id,
     seat: p.seat,
     seq,
-    waitingOnYou: def.pending(state).filter((d) => d.seat === p.seat),
+    waitingOnYou: def
+      .pending(state)
+      .filter((d) => d.seat === p.seat)
+      .map((d) => ({ ...d, since: sinceOf(p.game_id, d.id), url: urlFor(p.game_id, d.id) })),
   });
 });
 

@@ -30,6 +30,7 @@ const q = {
      VALUES (?, ?, ?, ?, ?, ?)`,
   ),
   actionsFrom: db.prepare('SELECT * FROM actions WHERE game_id = ? AND seq > ? ORDER BY seq ASC'),
+  actionAt: db.prepare('SELECT * FROM actions WHERE game_id = ? AND seq = ?'),
   latestSnapshot: db.prepare(
     'SELECT seq, state FROM snapshots WHERE game_id = ? AND seq <= ? ORDER BY seq DESC LIMIT 1',
   ),
@@ -217,4 +218,14 @@ export function rollback(gameId: string, toSeq: number): void {
 
 export function history(gameId: string): GameAction[] {
   return (q.actionsFrom.all(gameId, -1) as unknown as ActionRow[]).map(rowToAction);
+}
+
+/**
+ * The single logged action at `seq` (unit 2: a decision id's anchor names an
+ * `actionCount`, and this is how routes.ts turns that into the wall-clock
+ * moment the decision arose — the action's own `createdAt`).
+ */
+export function actionAt(gameId: string, seq: number): GameAction | undefined {
+  const row = q.actionAt.get(gameId, seq) as ActionRow | undefined;
+  return row ? rowToAction(row) : undefined;
 }
