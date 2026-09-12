@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -324,13 +324,34 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     db.prepare('DELETE FROM snapshots WHERE game_id = ? AND seq > 0').run(ctx.gameId);
     expect(store.loadState(oath, ctx.gameId).state).toEqual(before);
 
-    // The log becomes unit 20's audit fixture.
-    const log = store.history(ctx.gameId);
+    // The log becomes unit 20's audit fixture. Strip `gameId` and
+    // `createdAt`: both are fresh every run, so writing them through made
+    // the committed fixture churn on every single `npm test` and left the
+    // tree permanently dirty. Neither is replayable input — the audit
+    // refolds from `seed` with the engine, and needs only what `reduce`
+    // reads (Law-relevant fields), not the store's row metadata.
+    const log = store.history(ctx.gameId).map(({ seq, type, actor, payload }) => ({
+      seq,
+      type,
+      actor,
+      payload,
+    }));
     const fixture = join(import.meta.dirname, '..', '..', 'fixtures', 'fullgame.log.json');
-    const serialized = `${JSON.stringify({ seed: SEED, players: 3, actions: log }, null, 2)}\n`;
     mkdirSync(dirname(fixture), { recursive: true });
-    if (!existsSync(fixture) || readFileSync(fixture, 'utf8') !== serialized) {
-      writeFileSync(fixture, serialized);
+    // Written ONCE and then frozen. This test deliberately does not pin the
+    // dice — it computes against whatever the engine rolled (§5.5.5's exact
+    // sacrifice) — so rewriting the fixture every run left it churning
+    // forever and made the audit depend on file order. A frozen log is also
+    // the better audit input: it is a real recorded game, and it stays the
+    // same game across commits, so an audit regression is a code change and
+    // never a reroll.
+    //
+    // To regenerate deliberately (e.g. after a payload-shape change):
+    //     rm test/fixtures/fullgame.log.json && npm test
+    // If an engine change makes the frozen log unreplayable, audit.test.ts's
+    // first case fails by name and tells you to do exactly that.
+    if (!existsSync(fixture)) {
+      writeFileSync(fixture, `${JSON.stringify({ seed: SEED, players: 3, actions: log }, null, 2)}\n`);
     }
     expect(log.length).toBeGreaterThan(20);
   });
