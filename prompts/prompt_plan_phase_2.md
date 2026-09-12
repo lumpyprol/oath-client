@@ -2484,7 +2484,7 @@ Commit: "Create games from chronicle seeds"
 
 ---
 
-## Unit 19 — Acceptance: a full 3-player game
+## Unit 19 — Acceptance: a full 3-player game ✅ (completed 2026-09-12)
 
 **Purpose.** The phase's headline exit criterion: a 3-player game plays to
 completion through the API with powers declared — and its log becomes the
@@ -2562,6 +2562,41 @@ Commit: "Play a full 3-player game through the API"
 **Done when.** The game completes; the fixture log is committed; every
 card the script touches has a transcribed §7.2 restriction, and the two
 faceup/facedown halves of §7.2's preamble are tested.
+
+## What unit 19 established (as built, 2026-09-12)
+
+- **A third scripting option beat both the plan offered.** The prompt
+  suggested either an adaptive driver or a test-only fixed `OathSetup`
+  through `options`. Unit 18 made a better one available: drive the game
+  from a CHRONICLE SEED. A seeded setup is `ordered`, so deck, relics and
+  board are all fixed, and the only randomness left is dice — which the
+  driver reads back from the persisted faces and adapts to. No test-only
+  backdoor in `setup()`, and unit 18 gets exercised end to end for free.
+- **Ending the game needed the D45 tie ruling to be real.** The run ends
+  on a Visionary Win where every seat rules exactly one site, so the
+  Vision of Conquest's "rules the most sites" is met on a TIE. If D45 had
+  gone the other way the script would simply never end. A decision
+  recorded in RULINGS.md turned out to decide this game, which is the
+  argument for recording them.
+- **Edifices can never be drawn into a hand** (§2.9: they enter play only
+  through the Chronicle, §8.3.1), so an edifice's tree restriction is
+  unreachable from `card.play` by construction. Found by writing a test
+  against Ancient Forge and having `applyEffects` reject it. The §7.2
+  tests use Keep, a denizen carrying the same banner.
+- **§7.2's anchors are what make absence trustworthy.** Of the seven
+  cards read, four carry no banner at all — a result worth nothing
+  without first seeing where the banner sits. Council Seat (chain over
+  person) and Keep/Ancient Forge (chain over tree) are that control, and
+  the file records them as such.
+- **Correction to this unit's own prompt:** it specified one restriction
+  per card (`"site" | "adviser" | "locked" | "none"`). Council Seat is
+  chained AND adviser-only, so the field is an ARRAY. `none` is dropped
+  in favour of an empty array, which keeps the load-bearing distinction
+  sharp: `[]` means read and unrestricted, ABSENT means unread.
+- **Coverage is asserted, not assumed.** The run keeps a set of every
+  action type it submitted and every card it played or binned, then
+  asserts the expected types were all reached and every card's face had
+  been read. Both would otherwise rot silently as the script is edited.
 
 ---
 

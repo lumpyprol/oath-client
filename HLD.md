@@ -7,7 +7,7 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | --- | --- |
 | Started | 2026-09-07 |
 | Last updated | 2026-09-11 |
-| Current phase | P2 (in progress, units 1–18 and 16a–16d done; 19–20 to go) |
+| Current phase | P2 (in progress, units 1–19 and 16a–16d done; 20 to go) |
 | Owner | Ben |
 
 ---
@@ -447,7 +447,9 @@ Law against units 1–16; findings table in the plan). Campaign design
   header
 
 **Exit criteria.**
-- [ ] a 3-player game plays to completion through the API with powers declared
+- [x] a 3-player game plays to completion through the API with powers declared
+      *(unit 19, `fullgame.test.ts` — driven over real in-process HTTP from a
+      chronicle seed, ending on a Visionary Win; its log is unit 20's fixture)*
 - [x] every action has reducer tests for legal, illegal-actor, illegal-state
       (all six, plus `power.use`, as of unit 14)
 - [x] `power.use` rejects infeasible effects (spending favor you lack, moving
@@ -839,7 +841,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a. 16a-16d, 17 done 09-11; 18 done 09-12; next is 19 (full-game acceptance) |
+| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a. 16a-16d, 17 done 09-11; 18-19 done 09-12; next is 20 (audit, cradle removal, docs) |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
