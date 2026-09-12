@@ -23,15 +23,19 @@
  *   4.3.1 Return Favor  — favor on any denizen/edifice (at a site OR as an
  *         adviser) returns to the matching suit's favor bank.
  *   4.3.2 Return Secrets — the resting player's own facedown secrets flip
- *         back up. Secrets on the resting player's OWN adviser cards
- *         return to their board. NOT swept: secrets on SITE cards, because
- *         Law §4.3.2 returns them to "your board" and nothing in state
- *         tracks WHICH seat placed a given token on a shared site card
- *         (only unit 3's `siteCardSecrets` zone exists, with no owner
- *         field) — that ownership question is unit 14/15's to answer, once
- *         `power.use` is what actually places such tokens. Currently
- *         unreachable in any case: no action yet exists that could put a
- *         secret on a site card.
+ *         back up, and secrets on cards return to their board: their own
+ *         advisers AND every card in play at a site. See
+ *         `returnCardSecrets` for what is deliberately left alone and why.
+ *
+ *         (Through units 5-17 this swept advisers only, on the reasoning
+ *         that nothing tracked WHICH seat placed a token on a shared site
+ *         card and that no action could put one there anyway. The second
+ *         half stopped being true in unit 8: Trade §5.3.2.I places a secret
+ *         on a site denizen. The result was a live bug — the secret was
+ *         stranded forever, and since Muster and Trade both require a card
+ *         with no favor or secrets on it, the card was burned for the rest
+ *         of the game. The first half turned out not to need answering:
+ *         §4.3.2 says "to YOUR board", i.e. the resting player's.)
  *   4.3.3 Refresh Supply — Exile/Chancellor: move to the space matching
  *         their warband bank (RULINGS.md: Chancellor 18+/17-11/10-4/3-0 ->
  *         6/5/4/3; Exile 9+/8-4/3-0 -> 6/5/4). Citizen: copy the
@@ -106,15 +110,36 @@ function returnCardFavor(state: OathState): void {
   for (const player of state.players) for (const adviser of player.advisers) returnOne(adviser);
 }
 
-/** Law §4.3.2 (partial — see file header): the resting seat's own adviser secrets. */
-function returnOwnAdviserSecrets(state: OathState, seat: number): void {
+/**
+ * Law §4.3.2: "Move any secret tokens on denizens, edifices, and relics to
+ * your board." Swept into the RESTING seat's ready pool from two places:
+ * their own advisers, and every card in play at a site.
+ *
+ * Deliberately NOT swept, and neither is a silent omission:
+ *   - ANOTHER player's advisers. The Law says "any", but a secret only ever
+ *     arrives on a card as the cost of using its power, and §7.1.1 puts
+ *     another player's advisers out of reach — so one can never be yours to
+ *     take back. Sweeping them would be a steal, not a return. (Contrast
+ *     §4.3.1, which is global precisely because favor goes to the BANKS and
+ *     so belongs to nobody.) See RULINGS.md.
+ *   - relics. `player.relics` is a bare `string[]` with no token fields
+ *     (effects.ts's header has carried this gap since unit 3), so a held
+ *     relic cannot yet carry a secret at all.
+ *
+ * Site cards ARE swept globally, and that is safe rather than generous:
+ * costs are paid on your own turn at your own site (§5.2.1, §5.3.2), and
+ * every turn ends in a Rest, so a secret sitting on a site card is one this
+ * seat placed this turn.
+ */
+function returnCardSecrets(state: OathState, seat: number): void {
   const player = state.players[seat];
-  for (const adviser of player.advisers) {
-    if (adviser.secrets > 0) {
-      player.secrets.ready += adviser.secrets;
-      adviser.secrets = 0;
-    }
-  }
+  const take = (card: { secrets: number } | null) => {
+    if (!card || card.secrets === 0) return;
+    player.secrets.ready += card.secrets;
+    card.secrets = 0;
+  };
+  for (const site of state.sites) for (const card of site.cards) take(card);
+  for (const adviser of player.advisers) take(adviser);
 }
 
 /** Law §4.3.3: the warband-bracket Rest-refresh table (RULINGS.md). */
@@ -137,7 +162,7 @@ function rest(state: OathState, action: GameAction): OathState {
   const player = state.players[seat];
 
   returnCardFavor(state); // Law §4.3.1
-  returnOwnAdviserSecrets(state, seat); // Law §4.3.2 (adviser secrets)
+  returnCardSecrets(state, seat); // Law §4.3.2 (secrets on cards -> your board)
   player.secrets.ready += player.secrets.flipped; // Law §4.3.2 (flip up)
   player.secrets.flipped = 0;
 

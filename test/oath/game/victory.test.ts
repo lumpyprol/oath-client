@@ -11,6 +11,7 @@ import {
 import { oath } from '../../../src/oath/game/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
 import { baseState } from './helpers.js';
+import { FIRST_GAME, init, oathSetup } from '../../../src/oath/game/setup.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-victory-')), 'test.db');
 let store: typeof import('../../../src/actionlog.js');
@@ -543,5 +544,69 @@ describe("§3.3's end die comes from prepare() and survives replay (HLD D14)", (
     );
     store.appendAction(oath, gameId, store.headSeq(gameId), { type: 'turn.rest', actor: 1, payload: {} });
     expect((store.history(gameId).at(-1)!.payload as Record<string, unknown>).endDie).toBeUndefined();
+  });
+});
+
+describe('turn-structure gaps closed 2026-09-12', () => {
+  it("Rest sweeps a secret Trade left on a site card (Law §4.3.2) — it used to strand forever", () => {
+    const s = baseState();
+    const cardId = s.sites[5].cards[0]!.id; // seat 1's own site
+    const secretsBefore = s.players[1].secrets.ready;
+
+    const traded = act(s, 'trade', 1, { for: 'favor', cardId });
+    checkInvariants(traded);
+    expect(traded.sites[5].cards[0]!.secrets).toBe(1); // §5.3.2.I placed it
+    expect(traded.sites[5].cards[0]!.id).toBe(cardId);
+
+    const rested = act(traded, 'turn.rest', 1);
+    checkInvariants(rested);
+    expect(rested.sites[5].cards[0]!.secrets).toBe(0); // ...and §4.3.2 takes it back
+    // Spent, then returned: the ready pool is whole again, and the card is
+    // usable once more (Muster and Trade both need it clear).
+    expect(rested.players[1].secrets.ready).toBe(secretsBefore);
+  });
+
+  it("does not sweep another player's advisers — §7.1.1 puts them out of reach", () => {
+    const s = baseState();
+    s.players[0].advisers[0].secrets = 2; // the Chancellor's adviser
+    const rested = act(s, 'turn.rest', 1); // seat 1 rests
+    checkInvariants(rested);
+    expect(rested.players[0].advisers[0].secrets).toBe(2); // untouched
+  });
+
+  it('§1.13 hands the Chancellor a banner, but only on the two goals that say so', () => {
+    // The People: the Chancellor starts holding the People's Favor.
+    const people = init({ ...oathSetup(4, undefined), spec: { ...FIRST_GAME, oath: 'people' } });
+    checkInvariants(people);
+    expect(people.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.holder).toBe(0);
+    expect(people.banners.find((b) => b.id === DARKEST_SECRET_ID)!.holder).toBeNull();
+
+    // Devotion: the Darkest Secret instead.
+    const devotion = init({ ...oathSetup(4, undefined), spec: { ...FIRST_GAME, oath: 'devotion' } });
+    checkInvariants(devotion);
+    expect(devotion.banners.find((b) => b.id === DARKEST_SECRET_ID)!.holder).toBe(0);
+    expect(devotion.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.holder).toBeNull();
+
+    // Supremacy (FIRST_GAME's own goal) and Protection: neither is granted.
+    const supremacy = init(oathSetup(4, undefined));
+    checkInvariants(supremacy);
+    expect(supremacy.banners.every((b) => b.holder === null)).toBe(true);
+  });
+
+  it('the opening turn gets a Wake Phase too (Law §4.1), not just every turn after a Rest', () => {
+    // A Oathkeeper of the People game: §1.13 gives the Chancellor the
+    // People's Favor, so they owe §4.1.1 maintenance on turn one. The banner
+    // starts at one favor (§1.5), which forces a place — so it resolves
+    // itself rather than asking.
+    const people = init({ ...oathSetup(4, undefined), spec: { ...FIRST_GAME, oath: 'people' } });
+    checkInvariants(people);
+    expect(people.wake).toBeNull(); // forced, so nothing is pending
+    expect(people.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(2);
+    expect(people.players[0].favor).toBe(1); // §1.11 gave them 2; one went on the banner
+
+    // A Supremacy game grants no banner, so there is nothing to resolve.
+    const supremacy = init(oathSetup(4, undefined));
+    expect(supremacy.wake).toBeNull();
+    expect(supremacy.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(1);
   });
 });

@@ -49,10 +49,12 @@
  *     it is a "may", and expressible today as a siteFavor/siteSecrets mover
  *     through `power.use`.
  *
- * NOT run for the very first turn of the game: `init` deals the opening
- * position and seat 0 acts immediately, with no `turn.rest` before them.
- * The only step that could bite is §4.1.1, and only when the Chancellor
- * starts holding the People's Favor (§1.13). Recorded rather than hidden.
+ * The opening turn gets one too. It has no `turn.rest` before it, so `init`
+ * calls `beginWake` directly for seat 0 — which matters exactly when Law
+ * §1.13 hands the Chancellor the People's Favor at setup (a Oathkeeper of
+ * the People game), since they then owe §4.1.1 on turn one. Only §4.1.1 can
+ * do anything there: §4.1.2 and §4.1.3 are Exile-only and seat 0 is always
+ * the Chancellor, so no game can be won before it starts.
  *
  * ---- THE OATHKEEPER TITLE (Law §2.11) -----------------------------------
  *
@@ -410,8 +412,12 @@ function advanceWake(state: OathState): OathState {
   return finishWake(working, working.wake?.seat ?? state.turn.activeSeat);
 }
 
-/** Start `seat`'s Wake Phase (Law §4.1), called when a turn begins. */
-function beginWake(state: OathState, seat: number): OathState {
+/**
+ * Start `seat`'s Wake Phase (Law §4.1), called when a turn begins — from
+ * the pipeline after `turn.rest`, and from `init` for the opening turn,
+ * which has no rest before it.
+ */
+export function beginWake(state: OathState, seat: number): OathState {
   const banner = peoplesFavor(state);
   // §4.1.1 applies only to the holder; §4.1.1.II repeats it once on Mob.
   const steps = banner.holder === seat ? (banner.mob ? 2 : 1) : 0;

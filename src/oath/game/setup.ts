@@ -28,6 +28,7 @@ import { SUITS, type Suit } from '../cards/schema.js';
 import { shuffle } from '../../engine/random.js';
 import { IllegalAction } from '../../engine/types.js';
 import { discardRegion } from './map.js';
+import { beginWake } from './victory.js';
 import {
   CHANCELLOR_WARBANDS,
   DARKEST_SECRET_ID,
@@ -291,9 +292,17 @@ export function init(setup: OathSetup): OathState {
     number
   >;
 
+  // Law §1.5 places one token on each. Law §1.13 then hands one of them to
+  // the Chancellor, but only for two of the four goals: "If playing with
+  // the Oathkeeper of Devotion goal, the Chancellor takes the Darkest
+  // Secret. If playing with the Oathkeeper of the People goal, the
+  // Chancellor takes the People's Favor." Supremacy and Protection grant
+  // neither — which is why this went unnoticed until unit 18 needed seeded
+  // games with other oaths: FIRST_GAME is a Supremacy game (§1.13/Playbook
+  // p.8), so it exercises neither branch.
   const banners: BannerState[] = [
-    { id: PEOPLES_FAVOR_ID, holder: null, tokens: 1, mob: false }, // Law §1.5
-    { id: DARKEST_SECRET_ID, holder: null, tokens: 1 }, // Law §1.5
+    { id: PEOPLES_FAVOR_ID, holder: spec.oath === 'people' ? 0 : null, tokens: 1, mob: false },
+    { id: DARKEST_SECRET_ID, holder: spec.oath === 'devotion' ? 0 : null, tokens: 1 },
   ];
 
   const favorPlaced =
@@ -308,7 +317,7 @@ export function init(setup: OathSetup): OathState {
   // play — but it keeps the count honest for display.
   const sharedSecrets = 20 - 1 - seats;
 
-  return {
+  const state: OathState = {
     seats,
     oath: spec.oath,
     oathkeeper: 0, // Law §1.14: the chancellor takes the title at setup
@@ -340,12 +349,18 @@ export function init(setup: OathSetup): OathState {
     campaign: null,
     citizenshipOffer: null,
     warbandRequest: null,
-    wake: null,
+    wake: null, // seat 0's Wake Phase is started below, once the state exists
     titleChoice: null,
     actionCount: 0,
     complete: false,
     winner: null,
   };
+
+  // Law §4.1: seat 0's turn begins immediately, and a turn begins with its
+  // Wake Phase. Every other turn gets one from `turn.rest`; this one has no
+  // rest before it. Deterministic — `beginWake` only moves favor the Law
+  // forces, and leaves a pending decision when it does not.
+  return beginWake(state, 0);
 }
 
 function buildSiteSlots(s: SetupSiteSpec): SiteState['cards'] {
