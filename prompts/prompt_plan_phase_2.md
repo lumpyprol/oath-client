@@ -2470,11 +2470,17 @@ Commit: "Create games from chronicle seeds"
   degenerate (two Citizens, nothing in play, two relics). Keeping both
   is what forced the §9.3 Reliquary handling to be right rather than
   incidentally fine.
-- **One §1.23.1 choice is defaulted, not asked:** the Chancellor takes
-  the top Cradle site as the Law requires, and the other seats default
-  to the first faceup site rather than choosing. Recorded in the code as
-  P3/P4's to turn into a real setup prompt — it is a genuine decision
-  being made for the player, not a rules simplification.
+- **TWO §1.23 choices are defaulted, not asked** — and the second was
+  only noticed while writing up the first. §1.23.1 lets each
+  non-Chancellor place their pawn on any faceup site (we take the first),
+  and §1.23.2 lets each player choose which of their three drawn cards to
+  keep as a facedown adviser (we keep the first drawn). Both are genuine
+  decisions made FOR the player rather than rules simplifications, and
+  both are now **scheduled in the HLD under P3** (09-12), where the
+  pending-decision machinery lives. They belong together: §1.23 runs in
+  turn order rather than all at once, and the two are coupled, since
+  where a pawn lands decides which pile that seat's two rejected cards
+  are discarded to.
 
 ---
 

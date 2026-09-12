@@ -288,7 +288,8 @@ export function specFromSeed(parsed: ParsedSeed, seats: number): SetupSpec {
   // Law §1.23.1: "The Chancellor must place theirs on the top Cradle site."
   // The other seats may choose ANY faceup site, which is a real decision the
   // engine has nowhere to ask for yet — they default to the first faceup
-  // site, and P3/P4 is where that becomes a setup prompt.
+  // site. Scheduled in the HLD under P3, together with §1.23.2's adviser
+  // choice, which `oathSetup` defaults the same way.
   const firstFaceup = sites.find((s) => !s.facedown);
   if (!firstFaceup) {
     throw new IllegalAction(
@@ -368,6 +369,12 @@ export function oathSetup(seats: number, options?: unknown): OathSetup {
   const discards: Record<Region, string[]> = { cradle: [], provinces: [], hinterland: [] };
   for (const region of REGIONS) discards[region].push(pool[i++]);
 
+  // Law §1.23.2 — "Chooses 1 card as a facedown adviser" — is a PLAYER's
+  // choice, and this keeps the first card drawn instead of asking. Same
+  // deferral as §1.23.1's pawn placement below, and scheduled in the same
+  // place (HLD, P3): both are setup-time pending decisions, they run in
+  // turn order rather than at once, and they are coupled, because the pawn
+  // decides which pile the two rejected cards are discarded to.
   const startingAdviser: string[] = [];
   for (let seat = 0; seat < seats; seat++) {
     const drawn = [pool[i++], pool[i++], pool[i++]];

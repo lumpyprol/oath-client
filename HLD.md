@@ -484,6 +484,21 @@ hardest design work in the project.
   consequential
 - Deep-linkable decision ids: every pending decision resolves to a URL the
   client can open directly
+- **NEEDS DOING — Law §1.23's setup choices, currently made FOR the player
+  (unit 18, 09-12).** Two of them, and they are the same problem: §1.23.1
+  "places their pawn on any one faceup site" (only the Chancellor's is
+  fixed, to the top Cradle site) and §1.23.2 "chooses 1 card as a facedown
+  adviser" of the three they drew. `oathSetup` currently defaults both —
+  first faceup site, first card drawn — which is fine for a first game
+  whose layout the box prescribes, and wrong for a chronicle. They land
+  here rather than in P4 because the machinery is a pending decision, not
+  a rendering problem, and it is an unusual shape: a decision that exists
+  from `init`, before any action, blocking the first turn. Two wrinkles
+  for whoever picks it up — §1.23 is sequential ("starting with the
+  Chancellor, each player IN TURN ORDER does all of the following"), not
+  parallel; and the two choices are coupled, because where a player's pawn
+  lands decides which discard pile their two rejected cards go to
+  (Glossary "Discard")
 
 **Decisions to make in P3.**
 - Whether standing responses can be conditional (per site, per opponent) or
