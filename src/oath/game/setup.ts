@@ -324,6 +324,16 @@ export interface OathSetup {
   discards: Record<Region, string[]>;
   /** The card each seat kept as its first facedown adviser (Law §1.23). */
   startingAdviser: string[];
+  /**
+   * Law §1.22: "Advance the Visions Drawn marker by spaces equal to the
+   * number of Visions drawn, if any." Counted over the cards PLAYERS drew
+   * (§1.20's three each), not §1.19's three placed straight into the
+   * discard piles — §1.19 says "take" where §1.20 says "draws", and
+   * §2.7.1 advances the marker on a Vision "drawn from the world deck".
+   * The §1.19 cards go facedown into discards without anyone seeing them,
+   * so they are not known to be out. See RULINGS.md.
+   */
+  visionsDrawn: number;
   /** Shuffled relic deck order, top = index 0 (Law §1.18). */
   relicDeck: string[];
   /** The Reliquary's 4 relics, drawn from the shuffled pool (Law §1.17). */
@@ -376,8 +386,10 @@ export function oathSetup(seats: number, options?: unknown): OathSetup {
   // turn order rather than at once, and they are coupled, because the pawn
   // decides which pile the two rejected cards are discarded to.
   const startingAdviser: string[] = [];
+  let visionsDrawn = 0; // Law §1.22, over §1.20's player draws only
   for (let seat = 0; seat < seats; seat++) {
     const drawn = [pool[i++], pool[i++], pool[i++]];
+    visionsDrawn += drawn.filter((id) => id.startsWith('vision:')).length;
     const [kept, ...rest] = drawn;
     startingAdviser.push(kept);
     const pawnSite = spec.startingPawnSite[seat];
@@ -396,7 +408,7 @@ export function oathSetup(seats: number, options?: unknown): OathSetup {
   const reliquary = orderedRelics.slice(0, RELIQUARY_SPACES);
   const relicDeck = orderedRelics.slice(RELIQUARY_SPACES);
 
-  return { spec, worldDeck, discards, startingAdviser, relicDeck, reliquary };
+  return { spec, worldDeck, discards, startingAdviser, visionsDrawn, relicDeck, reliquary };
 }
 
 // ---- init: pure assembly ---------------------------------------------------
@@ -554,7 +566,7 @@ export function init(setup: OathSetup): OathState {
     },
     dispossessed: [...spec.dispossessed],
     banners,
-    visionsDrawn: 0,
+    visionsDrawn: setup.visionsDrawn, // Law §1.22
     turn: { activeSeat: 0, round: 1, turnStartedAt: 0 }, // Law §1.2, §4 (Chancellor goes first)
     campaign: null,
     citizenshipOffer: null,
