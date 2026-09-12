@@ -115,17 +115,17 @@ only reactive window there is; the HLD's v2 list gains that line. Peeks
 stay P4. Notification delivery stays P6 — P3 only guarantees what P6 needs:
 stable ids to dedupe on, and a wall-clock "pending since" per decision.
 
-## Decisions needed from you
+## Decisions needed from you — resolved 2026-09-12
 
-- **Q13 — the standing-response starter set.** Unit 6 proposes exactly
-  three global policies: `defense: 'close' | 'ask'` (auto-close my
-  response window), `ally: 'pass' | 'ask'` (never volunteer), and
-  `warbands: 'allow' | 'deny' | 'ask'` (Chancellor's answer to garrison
-  permission requests). Conditional variants (per site, per opponent) are
-  explicitly out until P4 gives them a UI. Veto or extend before unit 6.
-- **Q14 — accept D53's drain rule.** Confirm the games currently on the
-  Fly volume are disposable before unit 4 lands, or say which must survive
-  and unit 4 gains a fold-compat shim for the old campaign shapes.
+- **Q13 — the standing-response starter set: resolved, proposed set
+  stands.** Unit 6 ships exactly three global policies: `defense: 'close'
+  | 'ask'` (auto-close my response window), `ally: 'pass' | 'ask'` (never
+  volunteer), and `warbands: 'allow' | 'deny' | 'ask'` (Chancellor's
+  answer to garrison permission requests). Conditional variants (per site,
+  per opponent) stay out until P4 gives them a UI.
+- **Q14 — D53's drain rule: resolved, disposable.** The games currently on
+  the Fly volume are disposable; unit 4 regenerates the frozen fixture and
+  drains them per D53, no fold-compat shim for the old campaign shapes.
 
 ---
 
@@ -309,7 +309,7 @@ Commit: "Batch the Wake Phase into one visit"
 clock: dice move to the window-closing action, and everything the
 attacker decides after seeing the faces becomes one action.
 
-**Depends on.** Units 1, 3 (pattern). **Q14 must be answered.**
+**Depends on.** Units 1, 3 (pattern). **Q14 resolved: disposable, no shim.**
 
 ```
 Unit 4 of Phase 3: the two-visit campaign.
@@ -432,7 +432,7 @@ no extra visits; every new decision is catalogued.
 principle: a policy is consulted at the exact point a decision would be
 raised, and the raise is short-circuited purely.
 
-**Depends on.** Unit 5. **Q13 must be answered.**
+**Depends on.** Unit 5. **Q13 resolved: proposed set stands.**
 
 ```
 Unit 6 of Phase 3: standing responses.

@@ -579,11 +579,12 @@ responses, one-visit defence); unit 9 is the measured 6-player acceptance.
 - General "anyone want to react?" windows are v2 — in v1 no card text is
   enforced, so the campaign response window is the only reactive window
 
-**Decisions still open.**
-- Q13 — the standing-response starter set (proposed: defense close/ask,
-  ally pass/ask, warbands allow/deny/ask; conditional variants are P4)
-- Q14 — confirm the Fly smoke games are disposable before unit 4 (D53's
-  drain rule), or unit 4 grows a fold-compat shim
+**Decisions resolved 09-12 (during unit 1/2 review).**
+- Q13 — the proposed starter set stands as scoped: `defense: close/ask`,
+  `ally: pass/ask`, `warbands: allow/deny/ask`; conditional (per-site,
+  per-opponent) variants stay P4's
+- Q14 — the Fly smoke games are disposable; unit 4 regenerates the frozen
+  fixture and drains them per D53, no fold-compat shim needed
 
 **Exit criteria.**
 - [ ] a campaign against a defender who has a standing response resolves in
@@ -968,8 +969,8 @@ with `reversed by`.
 | Q9 | ~~Art source?~~ **Resolved 09-08:** composite — Buried Giant card search for faces, Dev Kit for frames, Vassal module for boards (see P1 addendum); filling `ART_DIR` is P4 work | — | — |
 | Q10 | ~~Initial effect vocabulary~~ **Resolved 09-08 in principle (D33):** minimal zone-addressed movers, growth only on need; concrete set designed in P2 unit 3 | — | — |
 | Q11 | Is any phone support required for v1, or is inbox-on-phone a P6 nicety? | P4 | Ben — HLD assumes inbox-on-phone is in P4 |
-| Q13 | Standing-response starter set: `defense: close/ask`, `ally: pass/ask`, `warbands: allow/deny/ask` — veto or extend? Conditional (per-site/per-opponent) variants are explicitly P4 | P3 unit 6 | Ben — proposed set stands unless changed |
-| Q14 | Are the smoke games on the Fly volume disposable? D53's drain rule assumes yes; if any must survive, P3 unit 4 grows a fold-compat shim for the old campaign shapes | P3 unit 4 | Ben |
+| Q13 | ~~Standing-response starter set: `defense: close/ask`, `ally: pass/ask`, `warbands: allow/deny/ask` — veto or extend? Conditional (per-site/per-opponent) variants are explicitly P4~~ **Resolved 09-12:** proposed set stands unchanged | — | — |
+| Q14 | ~~Are the smoke games on the Fly volume disposable? D53's drain rule assumes yes; if any must survive, P3 unit 4 grows a fold-compat shim for the old campaign shapes~~ **Resolved 09-12:** yes, disposable — unit 4 regenerates the fixture and drains them, no shim | — | — |
 | Q12 | ~~Restriction banners (Law §7.2): transcribe a `restriction` field, or leave self-policed until v2?~~ **Resolved 09-12 (D46):** neither wholesale — scoped into unit 19. The 09-12 CDN sweep showed the data is in no machine-readable source, so a full transcription means icon-reading ~204 card faces; unit 19 transcribes only the cards its acceptance game plays, and asserts the script never leans on an unread one | — | — |
 
 ---
