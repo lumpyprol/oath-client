@@ -106,7 +106,8 @@ states no fixture was written for.
 
 **`FIRST_GAME` is not representative.** It's a 4-player Supremacy first
 game: no facedown Cradle top, no ruins, no Citizens, no faceup Opportunity
-Site. Seven of P2's ten rules bugs were invisible for exactly that reason.
+Site. Seven of P2's fifteen rules defects were invisible for exactly that
+reason.
 If the rule you're testing involves a chronicle, ruins, Citizens, or the
 Reliquary, test it against a **seed** (`test/oath/game/seeded-setup.test.ts`
 has two vendored ones) and not against `FIRST_GAME`.
