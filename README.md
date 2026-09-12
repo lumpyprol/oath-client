@@ -1,24 +1,26 @@
 # oath-async
 
 An async-first, append-only server for playing Oath with a private group.
-**P0** (the plumbing, proven end to end with a throwaway toy game) and **P1**
-(the card database) are done. There are no Oath *rules* in here yet — that is
-P2.
+**P0** (the plumbing), **P1** (the card database) and **P2** (the rules
+engine) are done: you can create a game from a chronicle seed and play it
+through to a win over the HTTP API.
 
 Private use, among people who own the game. Card text belongs to Buried
 Giant Studios — keep this repo private and don't publish assets.
 
-## What P0 proves
+## Running it
 
 ```
 npm install
-npm test          # replay determinism, snapshots, concurrency, hidden info, + all of P1
+npm test          # ~600 tests: the engine, the rules, the card data
+npm run typecheck # src + test + scripts (build compiles only src)
 npm run build
-npm run smoke     # 18 checks against a live server, including a hard restart
+npm run smoke     # 23 checks against a live server, including a hard restart
 ```
 
 The smoke test kills the server mid-game and brings it back, then asserts
-the state is byte-identical. That is the whole point of the phase.
+the state is byte-identical. That was the whole point of P0, and it now
+runs against a real Oath game rather than a toy.
 
 ## Vocabulary
 
@@ -66,10 +68,11 @@ src/
   engine/
     types.ts     GameDefinition contract, action shape, error types
     random.ts    one-shot crypto randomness. setup() and prepare() only.
-    cradle.ts    toy game. DELETE once real rules land.
   oath/
     cards/       the P1 card database (see src/oath/cards/README.md)
     chronicle/   seed parsing / serialization (parseSeed, serializeSeed)
+    game/        the P2 rules engine (see src/oath/game/README.md)
+    powers/      registry for engine-enforced card powers. Empty; that's v2.
   db.ts          schema (games, players, setups, actions, snapshots)
   actionlog.ts   append / fold / snapshot / rollback
   routes.ts      HTTP API
@@ -77,6 +80,8 @@ src/
 vendor/oathparser/   upstream card data, pinned + hash-checked
 test/
 scripts/smoke.mjs
+RULINGS.md           every place the Law was ambiguous and we chose
+RULES-COVERAGE.md    every section of the Law, implemented or deferred
 ```
 
 State is `setups` plus a fold over `actions`. Setup is written once and
@@ -96,17 +101,63 @@ reachable by anyone else.
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| `POST` | `/api/games` | `{kind, players: string[]}` → gameId + one token per seat |
+| `POST` | `/api/games` | `{kind, players: string[], options?}` → gameId + one token per seat |
 | `GET` | `/api/games/:id` | redacted view, current `seq`, pending decisions |
 | `POST` | `/api/games/:id/actions` | `{prevSeq, type, payload}` → 201, or 409 if stale |
 | `GET` | `/api/inbox` | what this token's player is on the clock for |
 | `GET` | `/api/games/:id/history` | full action log |
 | `POST` | `/api/games/:id/rollback` | `{toSeq}` — truncate the log. **Gate this.** |
 
+`options` is opaque to the store and handed straight to the game's
+`setup()` (HLD D31). For Oath it carries the chronicle seed:
+`{"kind":"oath","players":["Chancellor","Red","Blue"],"options":{"seed":"0303..."}}`.
+Oath refuses a seatless first game, so a real game always names one.
+
 Rollback is the dispute-resolution mechanism. With a full log and a
 friendly group, "wait, back up" is a rewind button rather than an argument
 about rules — which is why the engine doesn't need to adjudicate card
 powers to be trustworthy.
+
+## Game engine
+
+`src/oath/game/` implements base Oath as a `GameDefinition` — turn
+structure, the six major actions, minor actions, campaigns, Citizenship,
+the Wake phase, titles, and all four win conditions. It plays from a
+chronicle seed to a finished game; `test/oath/game/fullgame.test.ts` does
+exactly that over real HTTP.
+
+**The engine does not know what cards do.** Card powers are *declared*:
+`power.use` names the card and the deltas it produces, and the engine
+checks only that you have access to that power (Law §7.1.1) and that the
+deltas are feasible. It never reads card text. Oath's ~230 cards are the
+entire difficulty of the game; an engine that adjudicated them would be a
+five-year project that is wrong in a hundred places, while one that
+adjudicates *structure* and lets a trusted group declare card effects is
+usable now and wrong nowhere. `src/oath/powers/registry.ts` is the upgrade
+path — a registered implementation replaces the declaration for that card,
+one card at a time, with no change to the rest.
+
+The corollary matters more than the rule: **a power a player can declare is
+not a deferral**. If a declaration can reach a state, that state has to be
+legal and conserved, and "the engine can't do that yet" is a bug rather
+than a note. That is how unit 20 found §10.5 — a declared power could put a
+secret on an adviser that could then never be discarded.
+
+**Rules are cited.** `Law §x.y` refers to <https://rules.buriedgiant.com>,
+product `oath`, printing `p1`. Two documents keep it honest:
+
+- `RULINGS.md` — every place the Law is genuinely ambiguous, the reading we
+  took, and why.
+- `RULES-COVERAGE.md` — every numbered subsection of §1–§11, dispositioned
+  as implemented (naming the file and function), deferred (naming where
+  it's recorded **and** where it will be done), or N/A. "v2" alone is not
+  a home: a deferral names a unit, a phase, or a question.
+
+**Hidden information is enforced server-side**, in `project(state, seat)`.
+`test/oath/game/audit.test.ts` replays a full recorded game and re-audits
+every seat's view plus a spectator's after every action, sweeping the whole
+projection for anything shaped like a card id rather than checking fields
+someone remembered to list.
 
 ## Card data
 
@@ -180,14 +231,16 @@ check assumes one process owns the file.
   sourced from `Vagabottos/OathParser` rather than transcribed by hand,
   validated by zod, with name reconciliation, a text overlay, and seed
   interop. See "Card data" above.
-- **P2** — core loop as a real `GameDefinition` built on the P1 data: turn
-  structure, the six actions (travel, muster, trade, recover, search,
-  campaign), the supply and the favor banks, campaign resolution, and the
-  chronicle roll at game end. Card powers stay player-declared — the action
-  records "used `denizen:sneak-attack`, spent 2 favor, moved these warbands"
-  and applies the stated deltas without the engine knowing what the card
-  does. The card database gives P2 the ids, suits, capacities, and
-  edifice/banner faces it needs; enforcement of powers is explicitly out of
-  scope.
+- **P2** — the core loop as a real `GameDefinition`. ✅ Done. Turn
+  structure, the six major actions, minor actions, campaigns with allies
+  and casualties, Citizenship, the Wake phase, titles, and all four win
+  conditions, playable from a chronicle seed to a win. Card powers stay
+  player-declared. See "Game engine" above and `src/oath/game/README.md`.
 - **P3** — interrupts. Batched defender prompts, standing pre-commitments.
-  The hardest design work in the project.
+  The hardest design work in the project. Also picks up the two setup
+  choices P2 defaulted (§1.23.1 each player's starting site, §1.23.2 the
+  choice of starting adviser) and §5.5.3's Citizen-ally battle window.
+- **P4** — the Peek family (§6.3/§6.4), which needs persistent per-seat
+  memory and a projection that can reveal to one seat only.
+- **P5** — writing the chronicle (§8): vowing an Oath, building edifices,
+  rebuilding the world deck, and saving the boards back out to a seed.
