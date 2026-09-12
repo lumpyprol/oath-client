@@ -137,8 +137,8 @@ as fine", so a review that re-reads our own notes is worthless.
 | 5.3.1–5.3.2 | Trade, both options | **DONE** `trade.ts` |
 | 5.4.1–5.4.4 | Recover: target, cost, take, resolve banner | **DONE** `recover.ts` incl. §5.4.1's Darkest Secret restriction |
 | 5.5.1 | Choose defender; §5.5.1's Imperial carve-out | **DONE** `campaign.ts declare`, `rule.ts imperialExclusionFor` |
-| 5.5.2 | Declare targets, dice pools, Allies, title dice | **DONE** targets (incl. the Grand Scepter), Ally joining, §2.11 dice. "Activate all Campaign modifiers": **DEFER** → v2 |
-| 5.5.3 | Battle plans | **DEFER (window half DONE)** — who may act in the window is enforced (`power.ts`); the plans themselves and the once-each bookkeeping → v2. A Citizen Ally cannot reach the window with one response phase: **P3** |
+| 5.5.2 | Declare targets, dice pools, Allies, title dice | **DONE** targets (incl. the Grand Scepter), §2.11 dice, and Ally joining in its own window — `campaign.ally` (owed by every eligible Citizen) then `campaign.permit` (the defender's half), P3 unit 5. "Activate all Campaign modifiers": **DEFER** → v2 |
+| 5.5.3 | Battle plans | **DEFER (window half DONE)** — who may act in the window is enforced (`power.ts`); the plans themselves and the once-each bookkeeping → v2. The P2 gap is **CLOSED** (P3 unit 5): §5.5.2's join window now precedes §5.5.3's plan window (`campaign.ally` → `campaign.permit` → `campaign.respond`), so a permitted Citizen Ally is in `c.allies` while the plan window is open and can act in it |
 | 5.5.4 | Roll defense; site/board/Ally warbands; shield doubling | **DONE** `defenseTotal`, `defendingForce` |
 | 5.5.5 | Roll attack; skulls; exact sacrifice | **DONE** `resolve`, per §9.5; dice rolled in the window-closing action's `prepare` (P3 D51) |
 | 5.5.6 | Resolve defeat; the Chancellor allocates an Imperial force's losses | **DONE** `applyDefeat`, `campaign.casualties` |

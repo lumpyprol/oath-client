@@ -218,14 +218,35 @@ export interface CampaignState {
    * Imperial Allies fighting alongside the defender (Law §5.5.2; unit 16a
    * part 2). The Chancellor is here from `declare` whenever an Imperial
    * player other than themselves is defending — that join is mandatory and
-   * unconditional. Citizens are added by `campaign.respond`, from among
-   * those who offered (`allyVolunteers`), which is the Law's "with the
+   * unconditional. Citizens are added by `campaign.permit`, from among
+   * those who joined (`allyVolunteers`), which is the Law's "with the
    * defender's permission". Always empty against bandits or an Exile.
    */
   allies: number[];
-  /** Citizens who have offered to join, via `campaign.ally` (Law §5.5.2). */
+  /**
+   * The Citizens who owe an answer in the `'join'` window, FROZEN at declare
+   * (P3 unit 5). Frozen rather than recomputed because the set of people who
+   * owe an answer must not shift under them mid-window — a pawn moving
+   * elsewhere should not silently retract a question already asked.
+   */
+  allyEligible: number[];
+  /** Of `allyEligible`, those who have answered at all (either way). */
+  allyAnswered: number[];
+  /** Of `allyAnswered`, those who answered `join: true` (Law §5.5.2). */
   allyVolunteers: number[];
   /**
+   * P3 unit 5 splits P2's single response window into the two the Law's own
+   * order requires — §5.5.2 join, THEN §5.5.3 battle plans — which is what
+   * finally lets a Citizen Ally act inside the plan window (with one window,
+   * their permission arrived in the very action that closed it).
+   *
+   * `'join'` — §5.5.2. Every eligible Citizen (`allyEligible`) owes a
+   * `campaign.ally { join }`. Closes automatically once all have answered;
+   * skipped entirely when none are eligible, which is every 3-player game
+   * and so costs the common case nothing.
+   * `'permit'` — §5.5.2's "with the defender's permission". Raised at the
+   * join window's close ONLY IF somebody joined; the defender names a
+   * subset via `campaign.permit`. Skipped when nobody joined.
    * `'respond'` — the defender's window. Skipped straight to `'rolled'`
    * when `defenderSeat === 'bandits'`, since there is no player to respond.
    * `'rolled'` — faces are persisted (rolled in the `prepare()` of whichever
@@ -241,7 +262,7 @@ export interface CampaignState {
    * Its chooser is usually ANOTHER seat, which is a real handoff rather
    * than a batching miss, so it keeps its own phase (P3 unit 4).
    */
-  phase: 'respond' | 'rolled' | 'casualties';
+  phase: 'join' | 'permit' | 'respond' | 'rolled' | 'casualties';
   attackFaces?: AttackFace[];
   defenseFaces?: DefenseFace[];
   /**

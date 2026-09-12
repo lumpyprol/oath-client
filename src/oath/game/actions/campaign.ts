@@ -4,15 +4,30 @@
  * in-progress sub-state (`state.campaign`, non-null from `declare` until
  * the resolution clears it).
  *
- * P3 unit 4 reshaped the sequence to cost fewer round trips, per D50 and
- * D51. It is now:
+ * P3 units 4 and 5 reshaped the sequence. It is now:
  *
- *     declare -> [ally...] -> respond* -> resolve -> [casualties]
+ *     declare -> [ally x N -> permit] -> respond* -> resolve -> [casualties]
  *
  * where `respond*` (or `declare` itself against bandits) carries the dice,
  * and `resolve` carries every post-reveal attacker choice. `campaign.roll`
- * and `campaign.seize` no longer exist; see their entries below for where
- * their work went.
+ * and `campaign.seize` no longer exist (unit 4, D50/D51); `campaign.ally`
+ * and `campaign.permit` are unit 5's two windows. See each entry below.
+ *
+ * VISIT ACCOUNTING, since unit 5 is the one unit in the phase that ADDS
+ * visits rather than removing them, and that is deliberate:
+ *
+ *   - Worst case it costs one visit per eligible Citizen (the join window)
+ *     plus one for the defender's `permit`. Nobody is eligible in a
+ *     3-player game, so the common case is unchanged: `declare` lands
+ *     straight in `'respond'` and neither window ever opens.
+ *   - Unit 6's standing responses erase the Citizen visits — `ally: 'pass'`
+ *     answers the join decision at raise time — and unit 7 erases the
+ *     defender's, `defense: 'close'` auto-permitting nobody and closing
+ *     both windows.
+ *
+ * The DESIGN allows one-visit defence; the POLICY delivers it. What this
+ * unit buys in exchange is the thing P2 could not do at all: a Citizen Ally
+ * who can actually act inside §5.5.3's battle-plan window.
  *
  *   campaign.declare — the attacker (must be the active seat). §5.5.1:
  *     spend 2 Supply and choose a defender — any OTHER seat who rules the
@@ -60,30 +75,31 @@
  *     D51, rolls both pools in its own `prepare()`, landing straight in
  *     phase `'rolled'`.
  *
- *   campaign.ally — an eligible CITIZEN, during the response window (unit
- *     16a part 2). §5.5.2: "any Citizen except the attacker, with the
- *     defender's permission, may choose to join as an Ally if their pawn
- *     is at a targeted site or the site of the attacker's pawn." This is
- *     the Citizen's half of that — offering. The defender's half is
- *     `campaign.respond`'s `allies` payload, which must name a subset of
- *     those who offered, so both consents are explicit actions in the log
- *     without a third phase. The Chancellor needs neither: their join is
+ *   campaign.ally — an eligible CITIZEN, in §5.5.2's JOIN window (unit 16a
+ *     part 2; reshaped by P3 unit 5). §5.5.2: "any Citizen except the
+ *     attacker, with the defender's permission, may choose to join as an
+ *     Ally if their pawn is at a targeted site or the site of the
+ *     attacker's pawn." This is the Citizen's half — and since unit 5 it is
+ *     an OWED answer (`{ join: boolean }`), not an optional offer: every
+ *     seat in the frozen `allyEligible` answers, and the window closes on
+ *     the last answer. The Chancellor needs no window at all: their join is
  *     mandatory and recorded at `declare` (see `mandatoryAllies`).
  *
+ *   campaign.permit — the defender ONLY, at the join window's close, and
+ *     ONLY IF somebody joined (P3 unit 5). §5.5.2's "with the defender's
+ *     permission", split out of `campaign.respond` so that it lands BEFORE
+ *     §5.5.3's window opens. That ordering is the entire point: a permitted
+ *     Citizen is in `c.allies` while the plan window is open, so
+ *     `power.ts`'s membership test finally lets them act in it.
+ *
  *   campaign.respond — the defender ONLY (not necessarily the active
- *     seat — turn order doesn't pass during a campaign). Grants Ally
- *     permission, then closes the response window. The real rule (§5.5.3,
- *     battle plans) is a card-power interaction; this unit's naive P2
- *     window is just: the defender AND their permitted Allies may
- *     `power.use` first (unit 14 wires that action to check
+ *     seat — turn order doesn't pass during a campaign). Closes §5.5.3's
+ *     battle-plan window. The real rule (battle plans) is a card-power
+ *     interaction; v1's window is just: the defender AND their permitted
+ *     Allies may `power.use` first (unit 14 wires that action to check
  *     `state.campaign` so its window-owner timing rule has something to
  *     check against), then the defender submits this action to move on.
- *     P3 will batch interrupts like this into fewer round trips — which is
- *     also what would let a CITIZEN Ally use a battle plan: with one
- *     window, a Citizen's permission arrives in the very action that
- *     closes it, so in practice only the mandatory Chancellor Ally (joined
- *     at declare) can act inside it. The Law's own order — §5.5.2 join,
- *     then §5.5.3 battle plans — needs the two windows P3 will provide.
+ *     Its `prepare()` rolls the dice (D51).
  *
  *   (campaign.roll — DELETED by P3 unit 4, D51. §5.5.4/5.5.5's two pools
  *     are still rolled in a `prepare()` and persisted as FACES so replay
@@ -196,8 +212,8 @@
  * load-bearing), and §5.5.3's window membership.
  *
  * DEFERRED (documented, not silently dropped):
- *   - A Citizen Ally acting inside the battle-plan window — see
- *     `campaign.respond` above; it needs P3's two windows, not more rules.
+ *   - (CLOSED by P3 unit 5: a Citizen Ally acting inside the battle-plan
+ *     window. It needed the two windows, not more rules.)
  *   - Battle plans (§5.5.3, §5.5.8) — card powers; v1 defers all power
  *     text, including "if you're victorious"/"if you're defeated"/"at
  *     end, discard" battle-plan triggers, §5.5.3's "a specific battle plan
@@ -517,50 +533,128 @@ function declare(state: OathState, action: GameAction): OathState {
   const decl = computeDeclaration(state, attackerSeat, action.payload);
 
   state.players[attackerSeat].supply -= CAMPAIGN_COST;
-  state.campaign = {
+  const campaign: CampaignState = {
     attackerSeat,
     defenderSeat: decl.defender,
     targets: decl.targets,
     attackDice: decl.attackDice,
     defenseDice: decl.defenseDice,
-    // D51: against bandits there is no response window at all, so THIS
-    // action closed it and carries the faces its own `prepare()` rolled.
-    phase: decl.defender === 'bandits' ? 'rolled' : 'respond',
+    // D51: against bandits there is no window of any kind, so THIS action
+    // closed it and carries the faces its own `prepare()` rolled.
+    phase: 'respond',
     allies: decl.allies,
+    allyEligible: [],
+    allyAnswered: [],
     allyVolunteers: [],
     declaredAt: state.actionCount,
   };
+  state.campaign = campaign;
+
   if (decl.defender === 'bandits') {
-    storeFaces(state.campaign, action.payload, 'campaign.declare');
+    storeFaces(campaign, action.payload, 'campaign.declare');
+    return state;
   }
+
+  // P3 unit 5: §5.5.2's join window comes BEFORE §5.5.3's plan window.
+  // Frozen here (see `allyEligible`) — and when nobody is eligible the
+  // window never opens at all, so a 3-player game pays nothing for it.
+  campaign.allyEligible = state.players
+    .map((_, seat) => seat)
+    .filter((seat) => mayVolunteerAsAlly(state, campaign, seat));
+  if (campaign.allyEligible.length > 0) campaign.phase = 'join';
   return state;
 }
 
-/** Law §5.5.2's Citizen half: offering to join. The defender still has to accept. */
+/**
+ * Close the §5.5.2 join window once every eligible Citizen has answered.
+ * If anybody joined, the defender owes a `campaign.permit` (the Law's "with
+ * the defender's permission"); if nobody did, there is nothing to permit
+ * and we go straight on to §5.5.3's plan window.
+ */
+function closeJoinWindow(c: CampaignState): void {
+  if (c.allyAnswered.length < c.allyEligible.length) return;
+  c.phase = c.allyVolunteers.length > 0 ? 'permit' : 'respond';
+}
+
+const AllyPayloadSchema = z.object({ join: z.boolean() });
+
+/**
+ * Law §5.5.2's Citizen half, now an OWED answer rather than an optional
+ * offer (P3 unit 5). P2's shape was fire-and-forget — a Citizen could offer
+ * or stay silent, and the defender's `campaign.respond` closed the window
+ * over whoever had not spoken up, which is why a Citizen Ally could never
+ * reach §5.5.3's plan window. Every eligible Citizen now answers yes or no,
+ * and the window closes on the last answer.
+ *
+ * The defender still has to accept a joiner — `campaign.permit`.
+ */
 function ally(state: OathState, action: GameAction): OathState {
   if (state.complete) throw new IllegalAction('campaign.ally: the game is already complete');
   const c = state.campaign;
-  if (!c || c.phase !== 'respond') {
-    throw new IllegalAction('campaign.ally: no campaign is open to Allies');
+  if (!c || c.phase !== 'join') {
+    throw new IllegalAction('campaign.ally: no campaign is in its join window (Law §5.5.2)');
   }
   if (action.actor === null) throw new IllegalAction('campaign.ally requires a seated actor');
-  if (c.allyVolunteers.includes(action.actor)) {
-    throw new IllegalAction('campaign.ally: you have already offered to join');
-  }
-  if (!mayVolunteerAsAlly(state, c, action.actor)) {
+  if (!c.allyEligible.includes(action.actor)) {
     throw new IllegalAction(
       `campaign.ally: seat ${action.actor} cannot join this Campaign as an Ally (Law §5.5.2)`,
     );
   }
-  c.allyVolunteers.push(action.actor);
+  if (c.allyAnswered.includes(action.actor)) {
+    throw new IllegalAction('campaign.ally: you have already answered');
+  }
+  const parsed = AllyPayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('campaign.ally: malformed payload');
+
+  c.allyAnswered.push(action.actor);
+  if (parsed.data.join) c.allyVolunteers.push(action.actor);
+  closeJoinWindow(c);
   return state;
 }
 
-const RespondPayloadSchema = z.object({
-  /** Law §5.5.2's "with the defender's permission" — a subset of the volunteers. */
+const PermitPayloadSchema = z.object({
+  /** Law §5.5.2's "with the defender's permission" — a subset of the joiners. */
   allies: z.array(z.number().int().min(0)).default([]),
 });
 
+/**
+ * Law §5.5.2's defender half (P3 unit 5), split out of `campaign.respond`
+ * into its own action at the join window's close. Raised ONLY when somebody
+ * actually joined, so a defender with no volunteers pays no visit for it.
+ *
+ * Splitting it is what makes §5.5.3 work: permission now lands BEFORE the
+ * plan window opens, so a permitted Citizen Ally is already in `c.allies`
+ * when `power.use` checks who may act inside it.
+ */
+function permit(state: OathState, action: GameAction): OathState {
+  if (state.complete) throw new IllegalAction('campaign.permit: the game is already complete');
+  const c = state.campaign;
+  if (!c || c.phase !== 'permit') {
+    throw new IllegalAction('campaign.permit: no campaign is awaiting Ally permission');
+  }
+  if (action.actor !== c.defenderSeat) {
+    throw new IllegalAction("campaign.permit: only the campaign's defender grants Ally permission");
+  }
+  const parsed = PermitPayloadSchema.safeParse(action.payload ?? {});
+  if (!parsed.success) throw new IllegalAction('campaign.permit: malformed payload');
+  for (const seat of parsed.data.allies) {
+    if (!c.allyVolunteers.includes(seat)) {
+      throw new IllegalAction(
+        `campaign.permit: seat ${seat} did not join as an Ally (Law §5.5.2)`,
+      );
+    }
+    if (!c.allies.includes(seat)) c.allies.push(seat);
+  }
+  c.phase = 'respond';
+  return state;
+}
+
+/**
+ * Law §5.5.3's plan window closes. Carries no `allies` any more (P3 unit
+ * 5): permission is `campaign.permit`'s job, settled one phase earlier, so
+ * that a permitted Citizen Ally is inside `c.allies` while this window is
+ * OPEN and can actually use a battle plan in it.
+ */
 function respond(state: OathState, action: GameAction): OathState {
   if (state.complete) throw new IllegalAction('campaign.respond: the game is already complete');
   const c = state.campaign;
@@ -569,16 +663,6 @@ function respond(state: OathState, action: GameAction): OathState {
   }
   if (action.actor !== c.defenderSeat) {
     throw new IllegalAction("campaign.respond: only the campaign's defender may respond");
-  }
-  const parsed = RespondPayloadSchema.safeParse(action.payload ?? {});
-  if (!parsed.success) throw new IllegalAction('campaign.respond: malformed payload');
-  for (const seat of parsed.data.allies) {
-    if (!c.allyVolunteers.includes(seat)) {
-      throw new IllegalAction(
-        `campaign.respond: seat ${seat} did not offer to join as an Ally (Law §5.5.2)`,
-      );
-    }
-    if (!c.allies.includes(seat)) c.allies.push(seat);
   }
   storeFaces(c, action.payload, 'campaign.respond');
   return state;
@@ -691,12 +775,15 @@ function mayVolunteerAsAlly(state: OathState, c: CampaignState, seat: number): b
   return boardBonusApplies(state, c, seat); // the same pawn test, stated once
 }
 
-/** Citizens who could still offer to join this campaign (drives `pending()`). */
+/**
+ * Citizens who still owe a join answer (drives `pending()`). Reads the
+ * FROZEN `allyEligible` list rather than recomputing eligibility, so a
+ * question already asked cannot evaporate under the person answering it
+ * (P3 unit 5).
+ */
 export function eligibleAllyVolunteers(state: OathState, c: CampaignState): number[] {
-  if (c.phase !== 'respond') return [];
-  return state.players
-    .map((_, seat) => seat)
-    .filter((seat) => !c.allyVolunteers.includes(seat) && mayVolunteerAsAlly(state, c, seat));
+  if (c.phase !== 'join') return [];
+  return c.allyEligible.filter((seat) => !c.allyAnswered.includes(seat));
 }
 
 /**
@@ -1193,6 +1280,7 @@ function applySeizure(
 export const CAMPAIGN_HANDLERS: Record<string, Handler> = {
   'campaign.declare': declare,
   'campaign.ally': ally,
+  'campaign.permit': permit,
   'campaign.respond': respond,
   'campaign.resolve': resolve,
   'campaign.casualties': casualties,

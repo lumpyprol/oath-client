@@ -185,6 +185,37 @@ export const oath: GameDefinition<OathState, OathSetup> = {
     // whose move it is depends on the campaign's phase, not activeSeat.
     if (state.campaign) {
       const c = state.campaign;
+      // Law §5.5.2's join window (P3 unit 5). Every eligible Citizen OWES an
+      // answer — no longer a racy optional offer — and the window closes on
+      // the last one. The defender owes nothing yet.
+      if (c.phase === 'join') {
+        return [
+          ...citizenshipDecision,
+          ...eligibleAllyVolunteers(state, c).map((seat) => ({
+            id: `campaign-ally:${seat}:${c.declaredAt}`,
+            seat,
+            kind: 'campaign',
+            prompt: `Seat ${c.attackerSeat} is attacking an Imperial player — join as an Ally, or decline (Law §5.5.2).`,
+            resolves: ['campaign.ally'],
+          })),
+        ];
+      }
+      // Law §5.5.2's "with the defender's permission" — raised only because
+      // somebody joined, so this visit is never spent for nothing.
+      if (c.phase === 'permit') {
+        return [
+          ...citizenshipDecision,
+          {
+            id: `campaign-permit:${c.defenderSeat}:${c.declaredAt}`,
+            seat: c.defenderSeat as number, // numeric — bandits never reach this phase
+            kind: 'campaign',
+            prompt:
+              `Seats ${c.allyVolunteers.join(', ')} offered to join your defence as Allies — ` +
+              `name which of them you permit (Law §5.5.2).`,
+            resolves: ['campaign.permit'],
+          },
+        ];
+      }
       if (c.phase === 'respond') {
         return [
           ...citizenshipDecision,
@@ -195,16 +226,6 @@ export const oath: GameDefinition<OathState, OathSetup> = {
             prompt: `Seat ${c.attackerSeat} declared a Campaign against you — respond to close the window (Law §5.5.3).`,
             resolves: ['campaign.respond'],
           },
-          // Law §5.5.2 (unit 16a part 2): eligible Citizens may offer to join
-          // as Allies. Optional and racy by design — the defender responding
-          // closes the window on any that went unanswered. P3 batches these.
-          ...eligibleAllyVolunteers(state, c).map((seat) => ({
-            id: `campaign-ally:${seat}:${c.declaredAt}`,
-            seat,
-            kind: 'campaign',
-            prompt: `Seat ${c.attackerSeat} is attacking an Imperial player — you may offer to join as an Ally (Law §5.5.2).`,
-            resolves: ['campaign.ally'],
-          })),
         ];
       }
       if (c.phase === 'rolled') {

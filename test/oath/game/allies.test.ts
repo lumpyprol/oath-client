@@ -457,21 +457,24 @@ describe('unit 16a part 2 — §5.5.4\'s per-Ally board bonus', () => {
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 3,
     });
-    const offered = act(declared, 'campaign.ally', 2);
-    expect(offered.campaign!.allyVolunteers).toEqual([2]);
-    expect(offered.campaign!.allies).toEqual([]); // offering is not joining
+    // P3 unit 5: the join window opens first, and seat 2 answers it.
+    expect(declared.campaign!.phase).toBe('join');
+    const joined = act(declared, 'campaign.ally', 2, { join: true });
+    expect(joined.campaign!.allyVolunteers).toEqual([2]);
+    expect(joined.campaign!.allies).toEqual([]); // joining is not yet permission
+    expect(joined.campaign!.phase).toBe('permit'); // the last answer closed it
 
     // 3 defense faces: 2 from pawnFavor + 1 for §2.11's title die (the
     // Chancellor defends and holds the Oathkeeper). Blanks, so 0 shields.
     const faces = { attackFaces: ['sword', 'sword', 'sword'], defenseFaces: ['blank', 'blank', 'blank'] };
 
     // Declined: the force is the Chancellor's 3 board warbands alone.
-    const declined = act(offered, 'campaign.respond', 0, { allies: [], ...faces });
+    const declined = act(act(joined, 'campaign.permit', 0, { allies: [] }), 'campaign.respond', 0, faces);
     expect(declined.campaign!.allies).toEqual([]);
     expect(() => act(declined, 'campaign.resolve', 1, { sacrifice: 2 })).toThrow(/must be exactly 1\b/);
 
     // Permitted: + the Citizen's 4 = 7.
-    const permitted = act(offered, 'campaign.respond', 0, { allies: [2], ...faces });
+    const permitted = act(act(joined, 'campaign.permit', 0, { allies: [2] }), 'campaign.respond', 0, faces);
     expect(permitted.campaign!.allies).toEqual([2]);
     expect(() => act(permitted, 'campaign.resolve', 1, { sacrifice: 2 })).toThrow(/must be exactly 5\b/);
   });
@@ -492,10 +495,18 @@ describe('unit 16a part 2 — joining is illegal without both consents', () => {
       prompt: expect.stringContaining('Ally'),
       resolves: ['campaign.ally'],
     });
-    // Once offered, the decision is gone (naive one-at-a-time; P3 batches).
-    const offered = act(declared, 'campaign.ally', 2);
-    expect(oath.pending(offered).filter((d) => d.resolves.includes('campaign.ally'))).toEqual([]);
-    expect(() => act(offered, 'campaign.ally', 2)).toThrow(/already offered/);
+    // The defender owes NOTHING yet — §5.5.2's join comes before §5.5.3.
+    expect(oath.pending(declared).filter((d) => d.seat === 0)).toEqual([]);
+
+    // Once answered, the decision is gone and cannot be answered twice.
+    const answered = act(declared, 'campaign.ally', 2, { join: true });
+    expect(oath.pending(answered).filter((d) => d.resolves.includes('campaign.ally'))).toEqual([]);
+    // Seat 2 was the only eligible Citizen, so their answer CLOSED the join
+    // window — a second answer has no window to land in.
+    expect(answered.campaign!.phase).toBe('permit');
+    expect(() => act(answered, 'campaign.ally', 2, { join: true })).toThrow(
+      /no campaign is in its join window/,
+    );
   });
 
   it('rejects a volunteer whose pawn is at neither a targeted site nor the attacker\'s site', () => {
@@ -506,7 +517,7 @@ describe('unit 16a part 2 — joining is illegal without both consents', () => {
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 2,
     });
-    expect(() => act(declared, 'campaign.ally', 2)).toThrow(IllegalAction);
+    expect(() => act(declared, 'campaign.ally', 2, { join: true })).toThrow(IllegalAction);
   });
 
   it('rejects the attacker and any Exile as a volunteer', () => {
@@ -516,9 +527,9 @@ describe('unit 16a part 2 — joining is illegal without both consents', () => {
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 2,
     });
-    expect(() => act(declared, 'campaign.ally', 1)).toThrow(IllegalAction); // the attacker
+    expect(() => act(declared, 'campaign.ally', 1, { join: true })).toThrow(IllegalAction); // the attacker
     // Positive control: as a Citizen, seat 2 IS eligible in this same state.
-    expect(act(declared, 'campaign.ally', 2).campaign!.allyVolunteers).toEqual([2]);
+    expect(act(declared, 'campaign.ally', 2, { join: true }).campaign!.allyVolunteers).toEqual([2]);
 
     const s2 = chancellorDefendsState();
     s2.players[2].citizenship = 'exile'; // an Exile cannot be an Imperial Ally
@@ -529,17 +540,23 @@ describe('unit 16a part 2 — joining is illegal without both consents', () => {
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 2,
     });
-    expect(() => act(declared2, 'campaign.ally', 2)).toThrow(IllegalAction);
+    expect(() => act(declared2, 'campaign.ally', 2, { join: true })).toThrow(IllegalAction);
   });
 
-  it('rejects permission for a seat that never offered', () => {
+  it('rejects permission for a seat that declined to join', () => {
     const s = chancellorDefendsState();
     const declared = act(s, 'campaign.declare', 1, {
       defender: 0,
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 2,
     });
-    expect(() => act(declared, 'campaign.respond', 0, { allies: [2] })).toThrow(/did not offer/);
+    // Seat 2 answers NO, so there is nobody to permit and no permit window.
+    const declinedAll = act(declared, 'campaign.ally', 2, { join: false });
+    expect(declinedAll.campaign!.phase).toBe('respond');
+    expect(declinedAll.campaign!.allyVolunteers).toEqual([]);
+    expect(() => act(declinedAll, 'campaign.permit', 0, { allies: [2] })).toThrow(
+      /no campaign is awaiting Ally permission/,
+    );
   });
 
   it('closes the window: no offers once the defender has responded', () => {
@@ -549,11 +566,137 @@ describe('unit 16a part 2 — joining is illegal without both consents', () => {
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 2,
     });
-    const responded = act(declared, 'campaign.respond', 0, {
-      attackFaces: ['sword', 'sword'],
-      defenseFaces: ['blank', 'blank', 'blank'],
+    const responded = act(
+      act(act(declared, 'campaign.ally', 2, { join: true }), 'campaign.permit', 0, { allies: [] }),
+      'campaign.respond',
+      0,
+      { attackFaces: ['sword', 'sword'], defenseFaces: ['blank', 'blank', 'blank'] },
+    );
+    expect(() => act(responded, 'campaign.ally', 2, { join: true })).toThrow(IllegalAction);
+  });
+});
+
+describe('P3 unit 5 — two windows: §5.5.2 join, then §5.5.3 battle plans', () => {
+  function declaredAtChancellor(): OathState {
+    const s = chancellorDefendsState();
+    return act(s, 'campaign.declare', 1, {
+      defender: 0,
+      targets: [{ kind: 'pawnFavor' }],
+      attackDice: 2,
     });
-    expect(() => act(responded, 'campaign.ally', 2)).toThrow(IllegalAction);
+  }
+  const faces = { attackFaces: ['sword', 'sword'], defenseFaces: ['blank', 'blank', 'blank'] };
+
+  /**
+   * THE REGRESSION P2 DOCUMENTED AND COULD NOT FIX (RULES-COVERAGE §5.5.3,
+   * campaign.ts's own header): with a single response window, a Citizen's
+   * permission arrived in the very action that closed it, so only the
+   * mandatory Chancellor Ally could ever act inside. Two windows fix it.
+   */
+  it('a permitted Citizen Ally can use a battle plan in the plan window — the §5.5.3 gap, closed', () => {
+    const declared = declaredAtChancellor();
+    expect(declared.campaign!.phase).toBe('join');
+
+    const joined = act(declared, 'campaign.ally', 2, { join: true });
+    const permitted = act(joined, 'campaign.permit', 0, { allies: [2] });
+    expect(permitted.campaign!.phase).toBe('respond');
+    expect(permitted.campaign!.allies).toContain(2);
+
+    // Seat 2 is a Citizen Ally, permitted, and the plan window is OPEN.
+    const cardId = permitted.players[2].relics[0];
+    const used = act(permitted, 'power.use', 2, { cardId, effects: [] });
+    checkInvariants(used);
+    expect(used.campaign!.phase).toBe('respond'); // still open; respond closes it
+  });
+
+  it('the join window closes on the last answer; declining skips the permit window entirely', () => {
+    const declined = act(declaredAtChancellor(), 'campaign.ally', 2, { join: false });
+    expect(declined.campaign!.phase).toBe('respond'); // straight past 'permit'
+    expect(declined.campaign!.allyVolunteers).toEqual([]);
+    expect(declined.campaign!.allies).toEqual([]); // the Chancellor defends in their own right
+    // ...and the plan window is the defender's alone to close.
+    const rolled = act(declined, 'campaign.respond', 0, faces);
+    expect(rolled.campaign!.phase).toBe('rolled');
+    checkInvariants(rolled);
+  });
+
+  it('permit is subset-validated, and only the defender may grant it', () => {
+    const joined = act(declaredAtChancellor(), 'campaign.ally', 2, { join: true });
+    expect(() => act(joined, 'campaign.permit', 0, { allies: [1] })).toThrow(/did not join/);
+    expect(() => act(joined, 'campaign.permit', 2, { allies: [2] })).toThrow(/only the campaign's defender/);
+    expect(() => act(joined, 'campaign.permit', 1, { allies: [2] })).toThrow(IllegalAction);
+  });
+
+  it('the defender cannot respond while the join or permit window is still open', () => {
+    const declared = declaredAtChancellor();
+    expect(() => act(declared, 'campaign.respond', 0, faces)).toThrow(/awaiting a response/);
+    const joined = act(declared, 'campaign.ally', 2, { join: true });
+    expect(() => act(joined, 'campaign.respond', 0, faces)).toThrow(/awaiting a response/);
+  });
+
+  it('a bandits campaign skips BOTH windows — unit 4 behaviour intact', () => {
+    const s = chancellorDefendsState();
+    s.players[1].pawnSite = s.sites[3].id; // Barren Coast, unruled
+    const out = act(s, 'campaign.declare', 1, {
+      defender: 'bandits',
+      targets: [{ kind: 'site', siteId: s.sites[3].id }],
+      attackDice: 2,
+      attackFaces: ['sword', 'sword'],
+      defenseFaces: ['blank'],
+    });
+    expect(out.campaign!.phase).toBe('rolled');
+    expect(out.campaign!.allyEligible).toEqual([]);
+    checkInvariants(out);
+  });
+
+  it('a game with no eligible Citizens opens no join window at all — the common 3p case pays nothing', () => {
+    // baseState is three Exiles; seat 2 defends. No Citizen exists, so §5.5.2
+    // has nobody to ask and declare lands straight in the plan window.
+    const s = baseState();
+    s.players[2].pawnSite = s.sites[5].id;
+    const out = act(s, 'campaign.declare', 1, {
+      defender: 2,
+      targets: [{ kind: 'pawnFavor' }],
+      attackDice: 2,
+    });
+    expect(out.campaign!.phase).toBe('respond');
+    expect(out.campaign!.allyEligible).toEqual([]);
+    // ...and exactly one pending decision: the defender's, as in unit 4.
+    expect(oath.pending(out)).toHaveLength(1);
+    expect(oath.pending(out)[0]).toMatchObject({ seat: 2, resolves: ['campaign.respond'] });
+  });
+
+  it('the eligible set is FROZEN at declare — a pawn wandering off cannot retract the question', () => {
+    const declared = declaredAtChancellor();
+    expect(declared.campaign!.allyEligible).toEqual([2]);
+    // Move seat 2's pawn away mid-window; they still owe the answer they
+    // were asked for, and can still give it.
+    const wandered = structuredClone(declared);
+    wandered.players[2].pawnSite = wandered.sites[2].id;
+    expect(oath.pending(wandered).some((d) => d.seat === 2 && d.resolves.includes('campaign.ally'))).toBe(
+      true,
+    );
+    const joined = act(wandered, 'campaign.ally', 2, { join: true });
+    expect(joined.campaign!.phase).toBe('permit');
+  });
+
+  it('join and permit carry distinct stable ids, so a P6 deduper cannot confuse them', () => {
+    // Only one Citizen fits at 3 seats (attacker + defender take the other
+    // two), so the simultaneous-joiners case is unit 9's 6-player game.
+    const declared = declaredAtChancellor();
+    const anchor = declared.campaign!.declaredAt;
+    expect(oath.pending(declared)).toContainEqual(
+      expect.objectContaining({ id: `campaign-ally:2:${anchor}`, seat: 2, resolves: ['campaign.ally'] }),
+    );
+    expect(oath.pending(declared)).toEqual(oath.pending(declared)); // purity
+
+    const joined = act(declared, 'campaign.ally', 2, { join: true });
+    expect(oath.pending(joined)[0].id).toBe(`campaign-permit:0:${anchor}`);
+
+    // ...and the plan window's decision is distinct from BOTH of those,
+    // though it shares the permit's seat and anchor.
+    const permitted = act(joined, 'campaign.permit', 0, { allies: [2] });
+    expect(oath.pending(permitted)[0].id).toBe(`campaign:0:${anchor}`);
   });
 });
 
@@ -582,9 +725,13 @@ describe('unit 16a part 2 — §5.5.3\'s battle-plan window membership', () => {
       targets: [{ kind: 'pawnFavor' }],
       attackDice: 2,
     });
-    const offered = act(declared, 'campaign.ally', 2);
-    const cardId = offered.players[2].relics[0];
-    expect(() => act(offered, 'power.use', 2, { cardId, effects: [] })).toThrow(IllegalAction);
+    // Seat 2 joins, but the defender permits nobody — so when §5.5.3's plan
+    // window opens they are not in `allies` and may not act in it.
+    const joined = act(declared, 'campaign.ally', 2, { join: true });
+    const unpermitted = act(joined, 'campaign.permit', 0, { allies: [] });
+    expect(unpermitted.campaign!.phase).toBe('respond');
+    const cardId = unpermitted.players[2].relics[0];
+    expect(() => act(unpermitted, 'power.use', 2, { cardId, effects: [] })).toThrow(IllegalAction);
   });
 });
 
@@ -628,10 +775,13 @@ describe('unit 16a — a full Imperial defence, end to end through the store', (
     };
 
     append('campaign.declare', 1, { defender: 0, targets: [{ kind: 'pawnFavor' }], attackDice: 0 });
-    append('campaign.ally', 2, {});
-    // D51: the DEFENDER's respond is what closes the window, so its own
+    // P3 unit 5: §5.5.2's join window, then the defender's permission, then
+    // §5.5.3's plan window.
+    append('campaign.ally', 2, { join: true });
+    append('campaign.permit', 0, { allies: [2] });
+    // D51: the DEFENDER's respond is what closes the plan window, so its own
     // prepare() rolls the dice and the faces land in ITS payload.
-    const rolled = append('campaign.respond', 0, { allies: [2] });
+    const rolled = append('campaign.respond', 0, {});
     expect(rolled.campaign!.phase).toBe('rolled'); // no separate roll action any more
 
     // Force: the Chancellor's 3 board warbands + the Ally Citizen's 4 = 7.

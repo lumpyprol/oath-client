@@ -165,7 +165,20 @@ function campaignAllyState(): { before: OathState; after: OathState } {
     attackDice: 2,
   });
   checkInvariants(before);
-  const after = act(before, 'campaign.ally', 2);
+  const after = act(before, 'campaign.ally', 2, { join: true });
+  checkInvariants(after);
+  return { before, after };
+}
+
+/**
+ * ...and on one step, to §5.5.2's permission decision (P3 unit 5). Raised
+ * only because seat 2 actually joined above, so this is the same scenario
+ * carried one action further rather than a second setup.
+ */
+function campaignPermitState(): { before: OathState; after: OathState } {
+  const before = campaignAllyState().after;
+  expect(before.campaign!.phase).toBe('permit');
+  const after = act(before, 'campaign.permit', 0, { allies: [2] });
   checkInvariants(after);
   return { before, after };
 }
@@ -229,6 +242,7 @@ const handBuilt = [
   titleChoiceState(),
   warbandsRequestState(),
   campaignAllyState(),
+  campaignPermitState(),
   wakeTakeState(),
   campaignCasualtiesState(),
 ];

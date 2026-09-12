@@ -384,7 +384,7 @@ defender one, replay exact, fixture regenerated and audited.
 
 ---
 
-## Unit 5 — The two campaign windows (§5.5.3)
+## Unit 5 — The two campaign windows (§5.5.3) ✅ (completed 2026-09-12)
 
 **Purpose.** Close P2's known gap: a Citizen Ally can never act inside the
 single window. The Law's order — §5.5.2 join, THEN §5.5.3 battle plans —
