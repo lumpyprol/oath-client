@@ -43,8 +43,9 @@ import { byId } from '../../cards/index.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import { discardRegion } from '../map.js';
+import { stripDiscardedTokens } from '../discard.js';
 import { isRestricted } from '../restrictions.js';
-import { ADVISER_LIMIT, CONSPIRACY_ID, type OathState, type Region } from '../state.js';
+import { ADVISER_LIMIT, CONSPIRACY_ID, type CardInPlay, type OathState, type Region } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
 
@@ -88,6 +89,8 @@ function play(state: OathState, action: GameAction): OathState {
   }));
 
   let effects: Effect[];
+  /** Cards this play will bin that are carrying tokens (Glossary §10.5). */
+  const tokensToStrip: CardInPlay[] = [];
 
   switch (payload.as) {
     case 'discard': {
@@ -157,12 +160,7 @@ function play(state: OathState, action: GameAction): OathState {
         if (!dropped.facedown && isRestricted(dropped.id, 'locked')) {
           throw new IllegalAction(`card.play: ${dropped.id} is locked and cannot be discarded (Law §7.2.2)`);
         }
-        if (dropped.favor > 0 || dropped.secrets > 0) {
-          throw new IllegalAction(
-            'card.play: discarding an adviser carrying favor/secrets is not yet supported ' +
-              '(Glossary "Discard" + the unit 3 flipped-secret gap) — see v2',
-          );
-        }
+        if (dropped.favor > 0 || dropped.secrets > 0) tokensToStrip.push(dropped);
         effects.push({
           kind: 'card',
           id: dropped.id,
@@ -223,7 +221,18 @@ function play(state: OathState, action: GameAction): OathState {
     }
   }
 
-  return applyEffects(state, seat, effects);
+  // Glossary §10.5: a discarded card's favor goes to its matching suit bank
+  // and its secrets to the acting player's board, FACEDOWN. Applied before
+  // the movers run, while the card is still where it started.
+  let working = state;
+  if (tokensToStrip.length > 0) {
+    working = applyEffects(state, seat, []); // clone; applyEffects is pure
+    for (const card of tokensToStrip) {
+      const live = working.players[seat].advisers.find((a) => a.id === card.id);
+      if (live) stripDiscardedTokens(working, seat, live);
+    }
+  }
+  return applyEffects(working, seat, effects);
 }
 
 export const PLAY_HANDLERS: Record<string, Handler> = {

@@ -3,7 +3,7 @@
   "players": 3,
   "actions": [
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 0,
       "type": "game.created",
       "actor": null,
@@ -11,20 +11,20 @@
         "seats": 3,
         "kind": "oath"
       },
-      "createdAt": "2026-09-12T07:15:32.114Z"
+      "createdAt": "2026-09-12T16:32:43.971Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 1,
       "type": "search",
       "actor": 0,
       "payload": {
         "from": "deck"
       },
-      "createdAt": "2026-09-12T07:15:32.274Z"
+      "createdAt": "2026-09-12T16:32:44.002Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 2,
       "type": "card.play",
       "actor": 0,
@@ -32,38 +32,38 @@
         "handIndex": 0,
         "as": "site"
       },
-      "createdAt": "2026-09-12T07:15:32.398Z"
+      "createdAt": "2026-09-12T16:32:44.021Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 3,
       "type": "turn.rest",
       "actor": 0,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:32.414Z"
+      "createdAt": "2026-09-12T16:32:44.031Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 4,
       "type": "muster",
       "actor": 1,
       "payload": {
         "cardId": "denizen:peace-envoy"
       },
-      "createdAt": "2026-09-12T07:15:32.421Z"
+      "createdAt": "2026-09-12T16:32:44.036Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 5,
       "type": "travel",
       "actor": 1,
       "payload": {
         "siteId": "site:great-slum"
       },
-      "createdAt": "2026-09-12T07:15:32.429Z"
+      "createdAt": "2026-09-12T16:32:44.043Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 6,
       "type": "campaign.declare",
       "actor": 1,
@@ -77,39 +77,39 @@
         ],
         "attackDice": 5
       },
-      "createdAt": "2026-09-12T07:15:32.437Z"
+      "createdAt": "2026-09-12T16:32:44.050Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 7,
       "type": "campaign.roll",
       "actor": 1,
       "payload": {
         "attackFaces": [
-          "hollowSword",
-          "hollowSword",
           "sword",
+          "skull",
           "hollowSword",
-          "sword"
+          "hollowSword",
+          "hollowSword"
         ],
         "defenseFaces": [
-          "blank"
+          "shield"
         ]
       },
-      "createdAt": "2026-09-12T07:15:32.448Z"
+      "createdAt": "2026-09-12T16:32:44.057Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 8,
       "type": "campaign.resolve",
       "actor": 1,
       "payload": {
-        "sacrifice": 0
+        "sacrifice": 1
       },
-      "createdAt": "2026-09-12T07:15:32.460Z"
+      "createdAt": "2026-09-12T16:32:44.062Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 9,
       "type": "campaign.seize",
       "actor": 1,
@@ -121,18 +121,18 @@
           }
         ]
       },
-      "createdAt": "2026-09-12T07:15:32.475Z"
+      "createdAt": "2026-09-12T16:32:44.069Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 10,
       "type": "turn.rest",
       "actor": 1,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:32.495Z"
+      "createdAt": "2026-09-12T16:32:44.079Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 11,
       "type": "trade",
       "actor": 2,
@@ -140,10 +140,10 @@
         "for": "favor",
         "cardId": "denizen:peace-envoy"
       },
-      "createdAt": "2026-09-12T07:15:32.510Z"
+      "createdAt": "2026-09-12T16:32:44.084Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 12,
       "type": "power.use",
       "actor": 2,
@@ -165,10 +165,10 @@
           }
         ]
       },
-      "createdAt": "2026-09-12T07:15:32.528Z"
+      "createdAt": "2026-09-12T16:32:44.091Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 13,
       "type": "recover",
       "actor": 2,
@@ -176,28 +176,28 @@
         "target": "relic",
         "relicId": "relic:horned-mask"
       },
-      "createdAt": "2026-09-12T07:15:32.548Z"
+      "createdAt": "2026-09-12T16:32:44.097Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 14,
       "type": "turn.rest",
       "actor": 2,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:32.560Z"
+      "createdAt": "2026-09-12T16:32:44.104Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 15,
       "type": "wake.favor",
       "actor": 0,
       "payload": {
         "choice": "place"
       },
-      "createdAt": "2026-09-12T07:15:32.615Z"
+      "createdAt": "2026-09-12T16:32:44.119Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 16,
       "type": "warbands.move",
       "actor": 0,
@@ -205,10 +205,10 @@
         "direction": "toSite",
         "count": 1
       },
-      "createdAt": "2026-09-12T07:15:32.630Z"
+      "createdAt": "2026-09-12T16:32:44.124Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 17,
       "type": "citizenship.offer",
       "actor": 0,
@@ -216,18 +216,18 @@
         "exile": 2,
         "relicId": "relic:cup-of-plenty"
       },
-      "createdAt": "2026-09-12T07:15:32.653Z"
+      "createdAt": "2026-09-12T16:32:44.132Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 18,
       "type": "citizenship.accept",
       "actor": 2,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:32.674Z"
+      "createdAt": "2026-09-12T16:32:44.137Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 19,
       "type": "power.use",
       "actor": 0,
@@ -236,18 +236,18 @@
         "note": "declared: a second power, this one a no-op",
         "effects": []
       },
-      "createdAt": "2026-09-12T07:15:32.714Z"
+      "createdAt": "2026-09-12T16:32:44.146Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 20,
       "type": "turn.rest",
       "actor": 0,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:32.831Z"
+      "createdAt": "2026-09-12T16:32:44.152Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 21,
       "type": "adviser.play",
       "actor": 1,
@@ -255,18 +255,18 @@
         "adviserIndex": 0,
         "as": "faceup"
       },
-      "createdAt": "2026-09-12T07:15:32.848Z"
+      "createdAt": "2026-09-12T16:32:44.159Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 22,
       "type": "turn.rest",
       "actor": 1,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:32.899Z"
+      "createdAt": "2026-09-12T16:32:44.166Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 23,
       "type": "campaign.declare",
       "actor": 2,
@@ -280,18 +280,18 @@
         ],
         "attackDice": 0
       },
-      "createdAt": "2026-09-12T07:15:32.913Z"
+      "createdAt": "2026-09-12T16:32:44.173Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 24,
       "type": "campaign.respond",
       "actor": 0,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:32.928Z"
+      "createdAt": "2026-09-12T16:32:44.181Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 25,
       "type": "campaign.roll",
       "actor": 2,
@@ -299,46 +299,46 @@
         "attackFaces": [],
         "defenseFaces": [
           "doubleShield",
-          "blank"
+          "shield"
         ]
       },
-      "createdAt": "2026-09-12T07:15:32.962Z"
+      "createdAt": "2026-09-12T16:32:44.190Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 26,
       "type": "campaign.resolve",
       "actor": 2,
       "payload": {
         "sacrifice": 0
       },
-      "createdAt": "2026-09-12T07:15:32.971Z"
+      "createdAt": "2026-09-12T16:32:44.192Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 27,
       "type": "turn.rest",
       "actor": 2,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:32.993Z"
+      "createdAt": "2026-09-12T16:32:44.194Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 28,
       "type": "wake.favor",
       "actor": 0,
       "payload": {
         "choice": "place"
       },
-      "createdAt": "2026-09-12T07:15:33.004Z"
+      "createdAt": "2026-09-12T16:32:44.197Z"
     },
     {
-      "gameId": "5d148086-8a7c-41f0-9525-e8f750d9e1a0",
+      "gameId": "42321e12-061c-4158-8848-4be48f3d5afa",
       "seq": 29,
       "type": "turn.rest",
       "actor": 0,
       "payload": {},
-      "createdAt": "2026-09-12T07:15:33.013Z"
+      "createdAt": "2026-09-12T16:32:44.201Z"
     }
   ]
 }

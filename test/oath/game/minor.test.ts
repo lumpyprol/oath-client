@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { checkInvariants, CONSPIRACY_ID, type OathState } from '../../../src/oath/game/state.js';
 import { oath } from '../../../src/oath/game/index.js';
-import { cards } from '../../../src/oath/cards/index.js';
+import { byId, cards } from '../../../src/oath/cards/index.js';
+import type { Suit } from '../../../src/oath/cards/schema.js';
 import { discardRegion } from '../../../src/oath/game/map.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
 import { baseState } from './helpers.js';
@@ -450,5 +451,48 @@ describe('§7.2 restriction banners (unit 19, scoped data — Q12/D46)', () => {
     expect(restrictionsOf(unread)).toBeNull();
     const s = inHand(unread);
     checkInvariants(act(s, 'card.play', 1, { handIndex: 0, as: 'site' }));
+  });
+});
+
+describe('Glossary §10.5 — a discarded card\'s tokens (unit 20 rules review)', () => {
+  it("sends favor to its suit bank and secrets to the acting seat's board, FACEDOWN", () => {
+    const s = baseState();
+    const adviser = s.players[1].advisers[0];
+    adviser.favor = 1;
+    adviser.secrets = 2;
+    s.sharedBank.favor -= 1; // source it (conservation)
+    const suit = (byId(adviser.id) as { suit: Suit }).suit;
+    const bankBefore = s.favorBanks[suit];
+    const flippedBefore = s.players[1].secrets.flipped;
+    checkInvariants(s);
+
+    const out = act(s, 'adviser.play', 1, { adviserIndex: 0, as: 'discard' });
+    checkInvariants(out);
+    expect(out.favorBanks[suit]).toBe(bankBefore + 1); // §10.5, to the MATCHING bank
+    expect(out.players[1].secrets.flipped).toBe(flippedBefore + 2); // facedown, not ready
+    expect(out.players[1].secrets.ready).toBe(s.players[1].secrets.ready);
+  });
+
+  it('also applies to §5.1.4.2\'s adviser-limit discard, which used to refuse outright', () => {
+    const s = baseState();
+    s.players[1].advisers = [
+      { id: s.worldDeck[0], facedown: true, favor: 0, secrets: 1 },
+      { id: s.worldDeck[1], facedown: true, favor: 0, secrets: 0 },
+      { id: s.worldDeck[2], facedown: true, favor: 0, secrets: 0 },
+    ];
+    s.players[1].hand = [s.worldDeck[3]];
+    s.players[1].handDrawnAt = s.actionCount;
+    s.worldDeck = s.worldDeck.slice(4);
+    checkInvariants(s);
+
+    const out = act(s, 'card.play', 1, {
+      handIndex: 0,
+      as: 'adviser',
+      facedown: true,
+      discardAdviserIndex: 0,
+    });
+    checkInvariants(out);
+    expect(out.players[1].secrets.flipped).toBe(s.players[1].secrets.flipped + 1);
+    expect(out.players[1].advisers).toHaveLength(3);
   });
 });

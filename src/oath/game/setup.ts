@@ -454,14 +454,17 @@ export function init(setup: OathSetup): OathState {
   const siteFavor = sites.reduce((sum, s) => sum + s.favor, 0);
   const siteSecrets = sites.reduce((sum, s) => sum + s.secrets, 0);
 
-  // Warband placement (Law §1.12): 2 on the Cradle's topmost faceup site,
-  // 1 on each other faceup site with at least one denizen/intact edifice.
-  const cradleSites = sites.filter((s) => s.region === 'cradle');
-  const topCradle = cradleSites[0];
+  // Warband placement (Law §1.12): 2 on "the topmost FACEUP site in the
+  // Cradle", 1 on each other faceup site with at least one denizen or
+  // INTACT edifice. Both qualifiers only bite in a chronicle — a first
+  // game has no facedown Cradle top and no ruins — which is why this read
+  // as correct until unit 20's rules review.
+  const topCradle = sites.find((s) => s.region === 'cradle' && !s.facedown);
   if (topCradle) topCradle.warbands[0] += 2;
   for (const s of sites) {
-    if (s === topCradle) continue;
-    if (!s.facedown && s.cards.some((c) => c !== null)) s.warbands[0] += 1;
+    if (s === topCradle || s.facedown) continue;
+    // A ruined edifice has no suit and is not an "intact edifice" (§2.9).
+    if (s.cards.some((c) => c !== null && !c.ruined)) s.warbands[0] += 1;
   }
   const placedOnMap = sites.reduce((sum, s) => sum + s.warbands[0], 0);
 

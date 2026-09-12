@@ -43,6 +43,7 @@ import { z } from 'zod';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import { discardRegion } from '../map.js';
+import { stripDiscardedTokens } from '../discard.js';
 import { isRestricted } from '../restrictions.js';
 import { CONSPIRACY_ID, type OathState } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
@@ -72,19 +73,14 @@ function play(state: OathState, action: GameAction): OathState {
   const isVision = cardId.startsWith('vision:');
 
   if (as === 'discard') {
-    if (adviser.favor > 0 || adviser.secrets > 0) {
-      // Same gap `card.play` documents: Glossary "Discard" routes a
-      // discarded card's favor to its suit bank and its secrets to the
-      // acting player's board, facedown — and unit 3 has no flipped-secret
-      // zone. Unreachable today (a facedown adviser has no power to pay a
-      // cost onto), but it fails loudly rather than silently dropping them.
-      throw new IllegalAction(
-        'adviser.play: discarding an adviser carrying favor/secrets is not yet supported ' +
-          '(Glossary "Discard" + the unit 3 flipped-secret gap) — see v2',
-      );
-    }
     const region = state.sites.find((s) => s.id === player.pawnSite)!.region;
-    return applyEffects(state, seat, [
+    // Glossary §10.5: strip the card's tokens first — favor to its matching
+    // suit bank, secrets to this seat's board FACEDOWN. (Until unit 20 this
+    // refused outright, which left a declared power able to put a secret on
+    // an adviser that could then never be discarded.)
+    const working = applyEffects(state, seat, []); // clone; applyEffects is pure
+    stripDiscardedTokens(working, seat, working.players[seat].advisers[adviserIndex]);
+    return applyEffects(working, seat, [
       {
         kind: 'card',
         id: cardId,
