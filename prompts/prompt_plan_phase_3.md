@@ -439,7 +439,7 @@ no extra visits; every new decision is catalogued.
 
 ---
 
-## Unit 6 — Standing responses
+## Unit 6 — Standing responses ✅ (completed 2026-09-12)
 
 **Purpose.** D52's machinery plus the first three policies (Q13). The
 principle: a policy is consulted at the exact point a decision would be

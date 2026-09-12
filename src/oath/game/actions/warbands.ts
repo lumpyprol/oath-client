@@ -55,6 +55,7 @@ import { applyEffects, type Effect } from '../effects.js';
 import { chancellorSeatOf, rulersOf } from '../rule.js';
 import type { OathState, WarbandRequest } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
+import { consultStanding } from '../standing.js';
 
 const MovePayloadSchema = z.object({
   direction: z.enum(['toBoard', 'toSite', 'give', 'take']),
@@ -174,6 +175,20 @@ function move(state: OathState, action: GameAction): OathState {
 
   const approver = approverFor(state, seat, direction, target);
   if (approver === null) return applyEffects(state, seat, effects);
+
+  // P3 unit 6 (D52), consult point 2 of 2: the approver may have decided in
+  // advance. Either way the answer lands in THIS action's reduce, appending
+  // nothing and costing the approver zero visits — an allowed move simply
+  // applies, and a denied one bounces at the asker (so it never reaches the
+  // log at all, which is the same thing `moveEffects` does above for a move
+  // that was illegal on its face).
+  const policy = consultStanding(state, approver, 'warbands');
+  if (policy === 'allow') return applyEffects(state, seat, effects);
+  if (policy === 'deny') {
+    throw new IllegalAction(
+      `warbands.move: seat ${approver} has a standing response denying this permission (Law §6.5)`,
+    );
+  }
 
   if (state.warbandRequest) {
     throw new IllegalAction('warbands.move: a warband permission request is already pending');

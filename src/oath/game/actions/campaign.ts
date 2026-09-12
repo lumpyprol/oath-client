@@ -240,6 +240,7 @@ import {
   type OathState,
 } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
+import { consultStanding } from '../standing.js';
 
 const CAMPAIGN_COST = 2; // Supply (Law §5.5.1)
 const PAWN_FAVOR_DICE = 2; // Law §5.5.2 (fixed, "as shown by the shield on their board")
@@ -561,7 +562,18 @@ function declare(state: OathState, action: GameAction): OathState {
   campaign.allyEligible = state.players
     .map((_, seat) => seat)
     .filter((seat) => mayVolunteerAsAlly(state, campaign, seat));
-  if (campaign.allyEligible.length > 0) campaign.phase = 'join';
+  if (campaign.allyEligible.length === 0) return state;
+
+  campaign.phase = 'join';
+  // P3 unit 6 (D52), consult point 1 of 2: a Citizen whose standing policy
+  // is `ally: 'pass'` has already answered `{ join: false }`, so their
+  // decision is never raised — recorded here, in THIS action's reduce,
+  // appending nothing. With every eligible Citizen passing, the join window
+  // opens and closes inside `campaign.declare` alone.
+  for (const seat of campaign.allyEligible) {
+    if (consultStanding(state, seat, 'ally') === 'pass') campaign.allyAnswered.push(seat);
+  }
+  closeJoinWindow(campaign);
   return state;
 }
 

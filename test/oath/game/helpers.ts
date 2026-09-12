@@ -21,6 +21,7 @@ import {
   PEOPLES_FAVOR_ID,
   DARKEST_SECRET_ID,
   RELIQUARY_MODIFIERS,
+  DEFAULT_STANDING,
   type ReliquarySpace,
 } from '../../../src/oath/game/state.js';
 
@@ -78,6 +79,7 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
     warbands: { bank: 0, board: 3 },
     supply: 4,
     relics: [],
+    standing: { ...DEFAULT_STANDING }, // P3 unit 6: all channels 'ask'
     ...p,
   });
 

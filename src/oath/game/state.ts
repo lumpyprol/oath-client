@@ -157,7 +157,48 @@ export interface PlayerState {
   supply: number;
   /** Relics held in the personal bank (Law §2.2.3). */
   relics: string[];
+  /** This seat's standing responses (P3 unit 6, D52). See `StandingPolicy`. */
+  standing: StandingPolicy;
 }
+
+/**
+ * A seat's STANDING RESPONSES (P3 unit 6; HLD D52) — not a rule of the Law
+ * but a property of playing asynchronously. Each field names a point where
+ * the engine would otherwise raise a pending decision for this seat, and
+ * says how to answer it without asking:
+ *
+ *   defense  — `'close'` auto-closes my Campaign response window (unit 7).
+ *   ally     — `'pass'` answers §5.5.2's join question with `{ join: false }`.
+ *   warbands — `'allow'`/`'deny'` answers §6.5's permission requests.
+ *
+ * `'ask'` everywhere is the default and is byte-for-byte the pre-unit-6
+ * behaviour: the decision is raised and waits for a real action.
+ *
+ * GLOBAL ONLY in P3, deliberately (D52's "start global"). Conditional
+ * variants — per site, per opponent — are P4's, once a UI exists to author
+ * them; extending this object is additive when that lands.
+ *
+ * The policy is STATE, written by a logged `standing.set`. That is what
+ * makes a short-circuit replayable: the engine consults the policy at the
+ * raise point and never appends a synthetic action, so a refold reproduces
+ * the same skip from the same log, and a rollback across the `standing.set`
+ * restores the old behaviour like any other action.
+ */
+export interface StandingPolicy {
+  defense: 'close' | 'ask';
+  ally: 'pass' | 'ask';
+  warbands: 'allow' | 'deny' | 'ask';
+}
+
+/** Every channel at `'ask'` — identical to how the engine behaved before unit 6. */
+export const DEFAULT_STANDING: StandingPolicy = { defense: 'ask', ally: 'ask', warbands: 'ask' };
+
+/** The legal answers per channel, in one place (drives both the reducer's zod schema and `checkInvariants`). */
+export const STANDING_CHANNELS = {
+  defense: ['close', 'ask'],
+  ally: ['pass', 'ask'],
+  warbands: ['allow', 'deny', 'ask'],
+} as const;
 
 export interface BannerState {
   id: string; // PEOPLES_FAVOR_ID or DARKEST_SECRET_ID
@@ -626,6 +667,33 @@ export function checkInvariants(state: OathState): void {
         `players[${i}] has ${p.advisers.length} advisers; the limit is ` +
           `${ADVISER_LIMIT} (Law §2.2.2)`,
       );
+    }
+  });
+
+  // -- standing responses are well-formed (P3 unit 6, D52) -----------------
+  // Not a rule of the Law, so it cites none: this guards the shape of a
+  // policy the engine will consult at raise points, where a typo'd channel
+  // would silently mean "ask" forever.
+  players.forEach((p, i) => {
+    const standing = p.standing as unknown as Record<string, unknown> | undefined;
+    if (!standing || typeof standing !== 'object') {
+      fail(`players[${i}] has no standing-response policy`);
+      return;
+    }
+    const channels = Object.keys(STANDING_CHANNELS) as (keyof typeof STANDING_CHANNELS)[];
+    for (const channel of channels) {
+      const allowed = STANDING_CHANNELS[channel] as readonly string[];
+      if (!allowed.includes(standing[channel] as string)) {
+        fail(
+          `players[${i}].standing.${channel} is ${JSON.stringify(standing[channel])}; ` +
+            `expected one of ${allowed.join(', ')}`,
+        );
+      }
+    }
+    for (const key of Object.keys(standing)) {
+      if (!(channels as string[]).includes(key)) {
+        fail(`players[${i}].standing has an unknown channel ${JSON.stringify(key)}`);
+      }
     }
   });
 

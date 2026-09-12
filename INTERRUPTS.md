@@ -31,17 +31,53 @@ Citizen's opportunity to volunteer as an Ally).
 
 | Kind | Raised when | Owning seat | Resolves | Locking | Id anchor | Batching (P3) | Standing (P3) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `turn` | Default — no Wake, Campaign, or mid-Search hand is blocking `state.turn.activeSeat` | `turn.activeSeat` | `turn.rest`, `card.play`, `muster`, `trade`, `travel`, `search`, `recover`, `campaign.declare`, `campaign.ally`, `campaign.permit`, `campaign.respond`, `campaign.resolve`, `campaign.casualties`, `power.use`, `citizenship.offer`, `citizenship.accept`, `citizenship.decline`, `citizenship.exile`, `citizenship.selfExile`, `adviser.play`, `warbands.move`, `warbands.allow`, `warbands.deny`, `wake.resolve`, `oathkeeper.grant` | no (the default; replaced by any row below that applies) | `turn.turnStartedAt` | naive | naive |
-| `play` | `state.players[seat].hand` is non-empty — a Search's drawn cards await Law §5.1.4's play/discard step | active seat | `card.play` | yes (replaces `turn`) | `player.handDrawnAt` | naive (Search stays two actions per D50 — the draw is a reveal) | naive |
-| `wake` | `state.wake` is set — Law §4.1.1's People's Favor maintenance is still owed, and/or the waking seat is standing on an unclaimed Opportunity Site (Law §4.1.4) | `state.wake.seat` | `wake.resolve` | yes (replaces `turn`) | `state.wake.startedAt` | **batched** (unit 3): every owed §4.1.1 step (up to 2, Mob side) and, if owed, the §4.1.4 take all ride one `wake.resolve` — at most one visit; fully forced/no-Opportunity Wakes stay zero, as before | naive |
-| `campaign` | `state.campaign.phase === 'join'`, once per eligible Citizen not yet in `allyAnswered` (Law §5.5.2) | each Citizen in the frozen `allyEligible` | `campaign.ally` | yes (replaces `turn`) | `state.campaign.declaredAt` | **owed, not optional** (unit 5): every eligible Citizen answers `{ join }` and the window closes on the last answer. Skipped entirely when nobody is eligible, so a 3p game pays nothing | naive (unit 6 target: `ally: 'pass'` answers `{ join: false }` at raise time) |
+| `turn` | Default — no Wake, Campaign, or mid-Search hand is blocking `state.turn.activeSeat` | `turn.activeSeat` | `turn.rest`, `card.play`, `muster`, `trade`, `travel`, `search`, `recover`, `campaign.declare`, `campaign.ally`, `campaign.permit`, `campaign.respond`, `campaign.resolve`, `campaign.casualties`, `power.use`, `citizenship.offer`, `citizenship.accept`, `citizenship.decline`, `citizenship.exile`, `citizenship.selfExile`, `adviser.play`, `warbands.move`, `warbands.allow`, `warbands.deny`, `standing.set`, `wake.resolve`, `oathkeeper.grant` | no (the default; replaced by any row below that applies) | `turn.turnStartedAt` | naive | **never** — it is your turn; there is nothing to default |
+| `play` | `state.players[seat].hand` is non-empty — a Search's drawn cards await Law §5.1.4's play/discard step | active seat | `card.play` | yes (replaces `turn`) | `player.handDrawnAt` | naive (Search stays two actions per D50 — the draw is a reveal) | **never** (Q13) — consequential, and looking at the draw is the point |
+| `wake` | `state.wake` is set — Law §4.1.1's People's Favor maintenance is still owed, and/or the waking seat is standing on an unclaimed Opportunity Site (Law §4.1.4) | `state.wake.seat` | `wake.resolve` | yes (replaces `turn`) | `state.wake.startedAt` | **batched** (unit 3): every owed §4.1.1 step (up to 2, Mob side) and, if owed, the §4.1.4 take all ride one `wake.resolve` — at most one visit; fully forced/no-Opportunity Wakes stay zero, as before | **never** (Q13) — consequential: a §4.1.1 step spends your own favor, and §4.1.4 draws on a supply that is never replenished |
+| `campaign` | `state.campaign.phase === 'join'`, once per eligible Citizen not yet in `allyAnswered` (Law §5.5.2) | each Citizen in the frozen `allyEligible` | `campaign.ally` | yes (replaces `turn`) | `state.campaign.declaredAt` | **owed, not optional** (unit 5): every eligible Citizen answers `{ join }` and the window closes on the last answer. Skipped entirely when nobody is eligible, so a 3p game pays nothing | **`ally: 'pass'`** (unit 6) answers `{ join: false }` at raise time, inside `campaign.declare`'s own reduce |
 | `campaign` | `state.campaign.phase === 'permit'` — the join window closed with at least one joiner (Law §5.5.2's "with the defender's permission") | `state.campaign.defenderSeat` | `campaign.permit` | yes (replaces `turn`) | `state.campaign.declaredAt` | raised ONLY when somebody joined, so the visit is never spent for nothing (unit 5) | naive (unit 7 target: `defense: 'close'` auto-permits nobody) |
 | `campaign` | `state.campaign.phase === 'respond'` — §5.5.3's battle-plan window (Law §5.5.3) | `state.campaign.defenderSeat` (numeric — bandits skip this phase) | `campaign.respond` | yes (replaces `turn`) | `state.campaign.declaredAt` | **closes the window and rolls** (unit 4, D51): the dice roll in this action's `prepare()`, deleting the attacker's old `campaign.roll` visit. Against bandits there is no window and `campaign.declare` itself rolls | naive (unit 7 target: `defense: 'close'`) |
-| `campaign` | `state.campaign.phase === 'rolled'` — the attacker resolves sacrifice, victory AND the §5.5.7 seizure (Law §5.5.5-5.5.7) | `state.campaign.attackerSeat` | `campaign.resolve` | yes (replaces `turn`) | `state.campaign.declaredAt` | **batched** (unit 4, D50): sacrifice + placements/banish/burn in one payload; the old separate `campaign.seize` visit is gone | naive |
-| `campaign` | `state.campaign.phase === 'casualties'` — the defeated force's kill allocation matters (Law §5.5.6's Imperial aside) | `casualtyChooser(state, campaign)` — usually the Chancellor, but the defeated player themselves when not Imperial | `campaign.casualties` | yes (replaces `turn`) | `state.campaign.declaredAt` | naive (a real handoff, not a batching miss — unit 4 leaves this phase alone) | naive |
-| `citizenshipOffer` | `state.citizenshipOffer` is set, from `citizenship.offer` until accepted or declined (Law §6.6.1) | `state.citizenshipOffer.exile` | `citizenship.accept`, `citizenship.decline` | no | `state.citizenshipOffer.offeredAt` | naive | naive (negotiated — stays 'ask' per Q13's expected outcome) |
-| `warbands` | `state.warbandRequest` is set — a Citizen's move off-site, or an Imperial give/take, awaiting the required permission (Law §6.5) | `state.warbandRequest.approver` | `warbands.allow`, `warbands.deny` | no | `state.warbandRequest.requestedAt` | naive | naive (unit 6/16b target: `warbands: 'allow'\|'deny'\|'ask'`) |
-| `oathkeeper` | `state.titleChoice` is set — several other seats meet the current Oath's goal and the holder does not (Law §2.11) | `state.titleChoice.holder` | `oathkeeper.grant` | no | `state.titleChoice.raisedAt` | naive | naive (consequential — stays 'ask' per Q13's expected outcome) |
+| `campaign` | `state.campaign.phase === 'rolled'` — the attacker resolves sacrifice, victory AND the §5.5.7 seizure (Law §5.5.5-5.5.7) | `state.campaign.attackerSeat` | `campaign.resolve` | yes (replaces `turn`) | `state.campaign.declaredAt` | **batched** (unit 4, D50): sacrifice + placements/banish/burn in one payload; the old separate `campaign.seize` visit is gone | **never** (Q13) — consequential, and it is the attacker's own campaign |
+| `campaign` | `state.campaign.phase === 'casualties'` — the defeated force's kill allocation matters (Law §5.5.6's Imperial aside) | `casualtyChooser(state, campaign)` — usually the Chancellor, but the defeated player themselves when not Imperial | `campaign.casualties` | yes (replaces `turn`) | `state.campaign.declaredAt` | naive (a real handoff, not a batching miss — unit 4 leaves this phase alone) | **never** (Q13) — consequential: the allocation decides which warbands die and where survivors land |
+| `citizenshipOffer` | `state.citizenshipOffer` is set, from `citizenship.offer` until accepted or declined (Law §6.6.1) | `state.citizenshipOffer.exile` | `citizenship.accept`, `citizenship.decline` | no | `state.citizenshipOffer.offeredAt` | naive | **never** (Q13) — negotiated: the terms differ every time, so a standing answer cannot mean anything |
+| `warbands` | `state.warbandRequest` is set — a Citizen's move off-site, or an Imperial give/take, awaiting the required permission (Law §6.5) | `state.warbandRequest.approver` | `warbands.allow`, `warbands.deny` | no | `state.warbandRequest.requestedAt` | naive | **`warbands: 'allow'\|'deny'`** (unit 6) resolves the request inside the requester's own `warbands.move` — allowed applies, denied bounces; zero approver visits |
+| `oathkeeper` | `state.titleChoice` is set — several other seats meet the current Oath's goal and the holder does not (Law §2.11) | `state.titleChoice.holder` | `oathkeeper.grant` | no | `state.titleChoice.raisedAt` | naive | **never** (Q13) — consequential: it hands the Oathkeeper title to a named rival |
+
+## Standing responses (unit 6, D52)
+
+The **Standing** column above is the Q13 outcome, decided 2026-09-12: three
+global policies, written by a logged `standing.set` and consulted at the
+exact point a decision would otherwise be raised.
+
+| Channel | Answers | Consulted in | Wired |
+| --- | --- | --- | --- |
+| `ally` | `'pass'` → `{ join: false }` | `campaign.declare` | unit 6 |
+| `warbands` | `'allow'` / `'deny'` | `warbands.move` | unit 6 |
+| `defense` | `'close'` | the campaign windows | **unit 7** |
+
+Every other row is marked **never**, and that is a decision rather than a
+backlog: those decisions are *consequential* (they spend your own
+resources, kill your own warbands, or hand a title to a rival) or
+*negotiated* (a Citizenship offer's terms differ every time), so a standing
+answer could not mean anything. Conditional policies — per site, per
+opponent — are P4's, once a UI exists to author them.
+
+Two properties hold for every channel, and `standing.test.ts` asserts both:
+
+- **The short-circuit never appends an action.** The log shows the raising
+  action and a state in which the decision never existed. Replay is
+  identical because the policy is *state*, reached by folding the same log;
+  the cause of a skipped window is visible earlier in that log as its own
+  `standing.set`. Rollback across it restores the old behaviour for free.
+- **Same outcome.** A short-circuited path lands in exactly the state the
+  explicit action would have, modulo `actionCount` and the decision-id
+  anchors stamped from it — which differ precisely because one path logged
+  one fewer action.
+
+`standing.set` is the one action legal outside your turn and outside a
+Campaign's locks. It resolves no decision and touches no game object, and
+gating it on `requireActiveSeat` would break the case it exists for: you
+suppress a question *while someone else's turn is what keeps asking it*.
 
 ## Catalogue (planned)
 

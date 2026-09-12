@@ -67,6 +67,17 @@ interface PlayerView {
   warbands: PlayerState['warbands'];
   supply: number;
   relics: string[]; // held relics are faceup once recovered (Law §5.4.3) — always public
+  /**
+   * Your OWN standing responses (P3 unit 6), `null` for every other seat.
+   *
+   * Self-only, on the same footing as `hand`: a policy is not a game object
+   * anyone can see on the table, and knowing that a rival has
+   * `defense: 'close'` would tell you they will not use a battle plan
+   * before you commit your dice. Its EFFECTS are public — a join window
+   * that closes instantly is visible in the phase — but that is inference
+   * from public facts, which is fine; handing over the policy itself is not.
+   */
+  standing: PlayerState['standing'] | null;
 }
 
 interface CardInPlayView {
@@ -162,6 +173,7 @@ function projectPlayer(p: PlayerState, isSelf: boolean): PlayerView {
     warbands: { ...p.warbands },
     supply: p.supply,
     relics: [...p.relics], // always public
+    standing: isSelf ? { ...p.standing } : null, // self-only — see PlayerView
   };
 }
 

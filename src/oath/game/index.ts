@@ -28,6 +28,7 @@ import { POWER_HANDLERS, preparePower } from './actions/power.js';
 import { CITIZENSHIP_HANDLERS } from './actions/citizenship.js';
 import { ADVISER_HANDLERS } from './actions/adviser.js';
 import { WARBAND_HANDLERS } from './actions/warbands.js';
+import { STANDING_HANDLERS } from './actions/standing.js';
 import { VICTORY_HANDLERS, afterAction, prepareRest } from './victory.js';
 import { project } from './project.js';
 
@@ -46,6 +47,7 @@ const HANDLERS: Record<string, Handler> = {
   ...CITIZENSHIP_HANDLERS,
   ...ADVISER_HANDLERS,
   ...WARBAND_HANDLERS,
+  ...STANDING_HANDLERS,
   ...VICTORY_HANDLERS,
 };
 

@@ -33,6 +33,7 @@ import { beginWake } from './victory.js';
 import {
   CHANCELLOR_WARBANDS,
   DARKEST_SECRET_ID,
+  DEFAULT_STANDING,
   EXILE_WARBANDS,
   LEFTMOST_SUPPLY,
   PEOPLES_FAVOR_ID,
@@ -504,6 +505,9 @@ export function init(setup: OathSetup): OathState {
       warbands: { bank: totalWarbands - boardWarbands - onMap, board: boardWarbands },
       supply: isChancellor ? CHANCELLOR_STARTING_SUPPLY : EXILE_STARTING_SUPPLY,
       relics: [],
+      // P3 unit 6: every seat starts asking about everything, which is
+      // exactly how the engine behaved before standing responses existed.
+      standing: { ...DEFAULT_STANDING },
     };
   });
 
