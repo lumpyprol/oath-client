@@ -224,7 +224,7 @@ as fine", so a review that re-reads our own notes is worthless.
 
 ## What this pass changed
 
-Three findings, all fixed in unit 20 (findings 8–10 of P2's ten):
+Three findings, all fixed in unit 20:
 
 1. **§1.12** placed the Chancellor's 2 warbands on the topmost Cradle site
    rather than the topmost **faceup** one.
@@ -235,6 +235,6 @@ Three findings, all fixed in unit 20 (findings 8–10 of P2's ten):
    secret on an adviser today, so this was a live breach of the v1 bargain,
    not a deferral. Now `discard.ts`.
 
-All three were invisible from `FIRST_GAME`, like most of this phase's bugs:
-a chronicle can start with a facedown Cradle top and with ruins on the map,
-and a first game has neither.
+The first two were invisible from `FIRST_GAME`, like seven of this phase's
+fifteen rules defects: a chronicle can start with a facedown Cradle top and
+with ruins on the map, and a first game has neither.
