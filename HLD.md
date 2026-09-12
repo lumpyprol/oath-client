@@ -516,6 +516,17 @@ from a projected view, shows the decision inbox, and submits actions with
 - Action composer per action type, including the declared-power form
 - Conflict handling: 409 refetches and re-presents
 - History view with rollback (gated to players in the game)
+- **The Peek family (Law §6.3/§6.4)**, which lands here because this is
+  where it first does anything: peeking is only meaningful once a client
+  can show the result. Needs PERSISTENT per-seat memory, not a momentary
+  reveal — §6.3 says "if you have ever peeked at a specific relic, you
+  may peek at it again from any site" — plus two actions (§6.3 at your
+  site; §6.4 the Grand Scepter holder into the Imperial Reliquary) and a
+  `project.ts` change revealing exactly those ids to exactly that seat.
+  Note for whoever picks it up: it introduces a THIRD visibility class.
+  Until now every id is public or private to all; a peeked relic is
+  privately known to one seat, which is why unit 20's audit is written to
+  take a per-seat known set rather than a single public/private split
 - Cards and sites render with real art from the P1 manifest; card text
   overlay available as a tap-through for legibility on small screens
 - Board art: the table layout, site backgrounds, banks, and player areas
@@ -713,10 +724,11 @@ they go.
   engine, still unnecessary since a pending offer's relic is public to
   the deciding party regardless.
 - **Law review (09-11, D43) — the sweep that added plan units 16b–16d.**
-  Newly recorded deferrals: the **Peek family (§6.3/§6.4)** now has a
-  home — it needs peek-memory state plus a projection change
+  Newly recorded deferrals: the **Peek family (§6.3/§6.4)** is
+  **scheduled into P4 (09-12)**, not merely parked near it — see P4's
+  scope. It needs persistent peek-memory state plus a projection change
   (`project.ts` carries the "revisit when a peek action exists" marker)
-  and is only useful with a client, so it sits on the v2/P4 boundary;
+  and is only useful once a client can show the result;
   the **opportunity-site Wake take (§4.1.4/§11.1)** was listed here as
   "stays declared" — **wrong, and closed 09-12 (D47)**: the tokens are a
   fixed supply placed once at reveal and never replenished, so leaving

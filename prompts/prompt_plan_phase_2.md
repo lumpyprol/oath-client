@@ -2537,6 +2537,12 @@ Unit 20 of Phase 2: audit and close.
        ids, facedown adviser ids of other seats, undrawn world deck ids,
        relic-deck ids, dispossessed ids — minus any id the rulebook
        makes public knowledge in that position
+     - make the hidden set PER SEAT, not one shared public/private
+       split. Nothing in P2 needs the distinction, but P4's Peek family
+       (§6.3/§6.4) makes a facedown relic privately known to one seat and
+       nobody else, and an audit written around "public or hidden to
+       all" has to be reopened to express that. Take a
+       `knownTo(seat): Set<string>` and subtract it, empty for now
      - JSON.stringify(project(state, seat)) must contain NONE of them
      - the projection also must not encode order info for hidden zones
        (counts are numbers, never arrays of anything id-like)
