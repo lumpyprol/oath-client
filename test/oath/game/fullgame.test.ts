@@ -232,10 +232,10 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     // LOCKS the Act Phase until answered (§4.1 precedes §4.2).
     let pending = (await view(ctx, 0)).pending;
     expect(pending).toContainEqual(
-      expect.objectContaining({ seat: 0, kind: 'wake', resolves: ['wake.favor'] }),
+      expect.objectContaining({ seat: 0, kind: 'wake', resolves: ['wake.resolve'] }),
     );
     await expect(act(ctx, 0, 'turn.rest')).rejects.toThrow(/Wake Phase/);
-    r = await act(ctx, 0, 'wake.favor', { choice: 'place' });
+    r = await act(ctx, 0, 'wake.resolve', { steps: [{ choice: 'place' }] });
     expect(r.view.banners.find((b: any) => b.id === 'banner:peoples-favor').tokens).toBe(3);
 
     // Garrison the home site harder (§6.5's toSite half), then hand seat 2
@@ -287,7 +287,7 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     await act(ctx, 2, 'turn.rest');
 
     // ---- Round 3, seat 0: one more wake, then hand over --------------
-    await act(ctx, 0, 'wake.favor', { choice: 'place' });
+    await act(ctx, 0, 'wake.resolve', { steps: [{ choice: 'place' }] });
     r = await act(ctx, 0, 'turn.rest');
 
     // ...and seat 1's Wake Phase ends the game: §3.2's Visionary Win, with
@@ -305,7 +305,7 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     for (const type of [
       'search', 'muster', 'trade', 'travel', 'recover', 'campaign.declare',
       'card.play', 'adviser.play', 'warbands.move', 'power.use',
-      'citizenship.offer', 'citizenship.accept', 'wake.favor', 'turn.rest',
+      'citizenship.offer', 'citizenship.accept', 'wake.resolve', 'turn.rest',
       'campaign.respond', 'campaign.roll', 'campaign.resolve', 'campaign.seize',
     ]) {
       expect(used, `never exercised ${type}`).toContain(type);

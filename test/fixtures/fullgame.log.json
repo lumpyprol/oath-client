@@ -72,13 +72,13 @@
       "payload": {
         "attackFaces": [
           "hollowSword",
-          "sword",
-          "sword",
-          "sword",
-          "sword"
+          "hollowSword",
+          "hollowSword",
+          "skull",
+          "hollowSword"
         ],
         "defenseFaces": [
-          "blank"
+          "doubleShield"
         ]
       }
     },
@@ -87,7 +87,7 @@
       "type": "campaign.resolve",
       "actor": 1,
       "payload": {
-        "sacrifice": 0
+        "sacrifice": 2
       }
     },
     {
@@ -158,10 +158,14 @@
     },
     {
       "seq": 15,
-      "type": "wake.favor",
+      "type": "wake.resolve",
       "actor": 0,
       "payload": {
-        "choice": "place"
+        "steps": [
+          {
+            "choice": "place"
+          }
+        ]
       }
     },
     {
@@ -247,8 +251,8 @@
       "payload": {
         "attackFaces": [],
         "defenseFaces": [
-          "shield",
-          "shield"
+          "shieldX2",
+          "blank"
         ]
       }
     },
@@ -268,10 +272,14 @@
     },
     {
       "seq": 28,
-      "type": "wake.favor",
+      "type": "wake.resolve",
       "actor": 0,
       "payload": {
-        "choice": "place"
+        "steps": [
+          {
+            "choice": "place"
+          }
+        ]
       }
     },
     {

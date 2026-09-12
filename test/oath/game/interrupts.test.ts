@@ -188,7 +188,7 @@ function wakeTakeState(): { before: OathState; after: OathState } {
   checkInvariants(s);
   const before = act(s, 'turn.rest', 1); // seat 1 rests; seat 2 (holding no People's Favor step) wakes onto the site
   checkInvariants(before);
-  const after = act(before, 'wake.take', 2, { take: 'favor' });
+  const after = act(before, 'wake.resolve', 2, { steps: [], take: { take: 'favor' } });
   checkInvariants(after);
   return { before, after };
 }

@@ -193,15 +193,15 @@ describe("the Wake Phase's People's Favor maintenance (Law §4.1.1)", () => {
     checkInvariants(waking);
     expect(waking.wake).toMatchObject({ seat: 2, stepsRemaining: 1 });
     expect(oath.pending(waking)).toContainEqual(
-      expect.objectContaining({ seat: 2, kind: 'wake', resolves: ['wake.favor'] }),
+      expect.objectContaining({ seat: 2, kind: 'wake', resolves: ['wake.resolve'] }),
     );
 
-    const placed = act(waking, 'wake.favor', 2, { choice: 'place' });
+    const placed = act(waking, 'wake.resolve', 2, { steps: [{ choice: 'place' }] });
     checkInvariants(placed);
     expect(placed.wake).toBeNull();
     expect(placed.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(4);
 
-    const returned = act(waking, 'wake.favor', 2, { choice: 'return', bank: 'hearth' });
+    const returned = act(waking, 'wake.resolve', 2, { steps: [{ choice: 'return', bank: 'hearth' }] });
     checkInvariants(returned);
     expect(returned.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(2);
     expect(returned.favorBanks.hearth).toBe(s.favorBanks.hearth + 1);
@@ -220,10 +220,10 @@ describe("the Wake Phase's People's Favor maintenance (Law §4.1.1)", () => {
     s.favorBanks.beast = 0;
     s.sharedBank.favor += 3;
     const waking = rest(s, 1);
-    expect(() => act(waking, 'wake.favor', 2, { choice: 'return', bank: 'hearth' })).toThrow(
-      /least-full/,
-    );
-    const ok = act(waking, 'wake.favor', 2, { choice: 'return', bank: 'beast' });
+    expect(() =>
+      act(waking, 'wake.resolve', 2, { steps: [{ choice: 'return', bank: 'hearth' }] }),
+    ).toThrow(/least-full/);
+    const ok = act(waking, 'wake.resolve', 2, { steps: [{ choice: 'return', bank: 'beast' }] });
     checkInvariants(ok);
     expect(ok.favorBanks.beast).toBe(1);
   });
@@ -233,9 +233,9 @@ describe("the Wake Phase's People's Favor maintenance (Law §4.1.1)", () => {
     mob.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.mob = true;
     const first = rest(mob, 1);
     expect(first.wake).toMatchObject({ seat: 2, stepsRemaining: 2 }); // two owed
-    const second = act(first, 'wake.favor', 2, { choice: 'place' });
-    expect(second.wake).toMatchObject({ stepsRemaining: 1 }); // still one to go
-    const done = act(second, 'wake.favor', 2, { choice: 'place' });
+    // Unit 3: both Mob-side steps ride the SAME `wake.resolve` — one visit,
+    // not two — even though each is individually a genuine choice.
+    const done = act(first, 'wake.resolve', 2, { steps: [{ choice: 'place' }, { choice: 'place' }] });
     checkInvariants(done);
     expect(done.wake).toBeNull();
     expect(done.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(5);
@@ -244,7 +244,7 @@ describe("the Wake Phase's People's Favor maintenance (Law §4.1.1)", () => {
     // favor in hand the step is a free choice, so it has to be answered.
     const toSix = rest(holderWakes(5, 2), 1);
     expect(toSix.wake).toMatchObject({ seat: 2, stepsRemaining: 1 });
-    const out = act(toSix, 'wake.favor', 2, { choice: 'place' });
+    const out = act(toSix, 'wake.resolve', 2, { steps: [{ choice: 'place' }] });
     checkInvariants(out);
     expect(out.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(6);
     expect(out.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.mob).toBe(true);
@@ -256,6 +256,31 @@ describe("the Wake Phase's People's Favor maintenance (Law §4.1.1)", () => {
     const out = rest(s, 1); // seat 2 wakes, holding nothing
     checkInvariants(out);
     expect(out.wake).toBeNull();
+  });
+
+  it('rejects a `wake.resolve` whose steps array is the wrong length (unit 3)', () => {
+    const mob = holderWakes(3, 4);
+    mob.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.mob = true;
+    const waking = rest(mob, 1); // owes 2 steps
+    expect(() => act(waking, 'wake.resolve', 2, { steps: [{ choice: 'place' }] })).toThrow(
+      /expected 2 .* step\(s\), got 1/,
+    );
+    expect(() =>
+      act(waking, 'wake.resolve', 2, {
+        steps: [{ choice: 'place' }, { choice: 'place' }, { choice: 'place' }],
+      }),
+    ).toThrow(/expected 2 .* step\(s\), got 3/);
+  });
+
+  it('one action batches every owed step (unit 3, D50) — an empty-board Mob wake is still zero visits', () => {
+    // stepsRemaining === 0 (no holder) still auto-resolves in one non-event,
+    // same as before batching — the common case must stay zero visits.
+    const s = quietBoard();
+    s.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.holder = null;
+    const out = rest(s, 1);
+    checkInvariants(out);
+    expect(out.wake).toBeNull();
+    expect(oath.pending(out).some((d) => d.kind === 'wake')).toBe(false);
   });
 });
 
@@ -652,12 +677,12 @@ describe('§4.1.4 Opportunity Sites — a fixed supply, offered at Wake', () => 
     checkInvariants(waking);
     expect(waking.wake).toMatchObject({ seat: 2, stepsRemaining: 0, opportunity: 'site:mine' });
     expect(oath.pending(waking)).toContainEqual(
-      expect.objectContaining({ seat: 2, kind: 'wake', resolves: ['wake.take'] }),
+      expect.objectContaining({ seat: 2, kind: 'wake', resolves: ['wake.resolve'] }),
     );
     // It locks the Act Phase like any other Wake step (§4.1 precedes §4.2).
     expect(() => act(waking, 'turn.rest', 2)).toThrow(/Wake Phase first/);
 
-    const took = act(waking, 'wake.take', 2, { take: 'favor' });
+    const took = act(waking, 'wake.resolve', 2, { steps: [], take: { take: 'favor' } });
     checkInvariants(took);
     expect(took.sites.find((x) => x.id === 'site:mine')!.favor).toBe(2); // drawn down
     expect(took.players[2].favor).toBe(s.players[2].favor + 1);
@@ -666,7 +691,7 @@ describe('§4.1.4 Opportunity Sites — a fixed supply, offered at Wake', () => 
 
   it('may be declined — it is a "may" (§4.1.4)', () => {
     const s = wakingAt('site:mine', 3);
-    const declined = act(rest(s, 1), 'wake.take', 2, { take: 'none' });
+    const declined = act(rest(s, 1), 'wake.resolve', 2, { steps: [], take: { take: 'none' } });
     checkInvariants(declined);
     expect(declined.sites.find((x) => x.id === 'site:mine')!.favor).toBe(3); // untouched
     expect(declined.wake).toBeNull();
@@ -675,10 +700,23 @@ describe('§4.1.4 Opportunity Sites — a fixed supply, offered at Wake', () => 
   it('lets Salt Flats choose between favor and secret, and refuses what is gone', () => {
     const s = wakingAt('site:salt-flats', 1, 0); // only favor left
     const waking = rest(s, 1);
-    expect(() => act(waking, 'wake.take', 2, { take: 'secret' })).toThrow(/no secret left/);
-    const took = act(waking, 'wake.take', 2, { take: 'favor' });
+    expect(() =>
+      act(waking, 'wake.resolve', 2, { steps: [], take: { take: 'secret' } }),
+    ).toThrow(/no secret left/);
+    const took = act(waking, 'wake.resolve', 2, { steps: [], take: { take: 'favor' } });
     checkInvariants(took);
     expect(took.sites.find((x) => x.id === 'site:salt-flats')!.favor).toBe(0);
+  });
+
+  it('rejects a take when not at an Opportunity Site, and rejects a missing one when owed (unit 3)', () => {
+    const ordinary = rest(wakingAt('site:fertile-valley'), 1);
+    // steps===0 and opportunity===null here auto-resolves with NO decision
+    // at all (see the describe block below), so there is nothing to submit
+    // a take against in the first place.
+    expect(() => act(ordinary, 'wake.resolve', 2, { steps: [] })).toThrow(/no Wake Phase is pending/);
+
+    const owed = rest(wakingAt('site:mine', 3), 1);
+    expect(() => act(owed, 'wake.resolve', 2, { steps: [] })).toThrow(/an Opportunity Site take is owed/);
   });
 
   it('is not offered at an ordinary site, nor at a drained Opportunity Site', () => {

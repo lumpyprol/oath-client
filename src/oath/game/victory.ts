@@ -7,7 +7,7 @@
  * This module is a PIPELINE, not an action module in the usual sense: most
  * of it runs after every action (`afterAction`, wired in `index.ts`), so
  * nothing here is triggered by a player naming it. The two exceptions are
- * the decisions the Law explicitly hands to a player — `wake.favor` and
+ * the decisions the Law explicitly hands to a player — `wake.resolve` and
  * `oathkeeper.grant` — which are ordinary handlers.
  *
  * ---- THE WAKE PHASE (Law §4.1), "resolve 4.1.1-4.1.4 in order" ----------
@@ -20,8 +20,12 @@
  *   §4.1.1 The People's Favor holder's mandatory maintenance. Either place
  *     one favor on it, or move one favor from it to the favor bank with the
  *     least favor. Forced outcomes resolve themselves; a genuine choice
- *     raises a pending decision for the waking seat. Three clauses, each
- *     load-bearing:
+ *     raises a pending decision for the waking seat — ONE decision for the
+ *     whole Wake (unit 3, Phase 3's D50): every owed step (up to two, on
+ *     the Mob side) and, if owed, the §4.1.4 take all ride one
+ *     `wake.resolve` action, because nothing between them is a reveal the
+ *     player had to see first (dice faces, drawn cards) — the batching
+ *     floor D50 sets. Three clauses, each load-bearing:
  *       - "If it only has one favor on it, you must place one favor on it
  *         UNLESS YOU HAVE NO FAVOR" — so at one favor the choice collapses
  *         to placing, but a player with nothing to place falls back to the
@@ -47,8 +51,9 @@
  *
  *   §4.1.4 "If your pawn is at the Salt Flats, Mine, or Drowned City, you
  *     may take one favor or secret from it." A "may", so it is OFFERED
- *     (`wake.take`, with a 'none' answer) rather than applied — but it is
- *     the engine's to offer rather than a power to declare, because the
+ *     (`wake.resolve`'s `take` field, with a 'none' answer) rather than
+ *     applied — but it is the engine's to offer rather than a power to
+ *     declare, because the
  *     tokens are a FIXED supply: placed once when the site is revealed
  *     (§1.16 at setup, §5.6.2 on Travel) and never replenished. Five of the
  *     game's 36 favor and three of its secrets sit on these sites, so
@@ -391,12 +396,6 @@ function applyWakeStep(state: OathState, seat: number, step: WakeStep): OathStat
 }
 
 /**
- * Law §4.1.1.III, then §4.1.2, then §4.1.3 — everything after the favor
- * maintenance. Reached from both `beginWake` (when nothing was owed, or
- * every step resolved itself) and `wake.favor` (when a player answered the
- * last one), so the Law's order holds whichever way the wake completed.
- */
-/**
  * Law §4.1.4: "If your pawn is at the Salt Flats, Mine, or Drowned City,
  * you may take one favor or secret from it." A "may", so it is offered
  * rather than applied — but offered rather than left to the players,
@@ -405,6 +404,12 @@ function applyWakeStep(state: OathState, seat: number, step: WakeStep): OathStat
  * of the game's 36 favor sit on these sites at reveal; leaving them
  * unclaimed because nobody remembered to declare a power is a real change
  * to the economy, not a rounding error.
+ *
+ * Independent of every §4.1.1 favor step: it reads only `pawnSite` and the
+ * site's own tokens, neither of which a favor placement or return touches.
+ * That is what makes it safe to check BEFORE the steps are even answered
+ * (unit 3's `beginWake`, to decide whether a decision must be raised at
+ * all) as well as after (`wake.resolve`, to decide what it actually owes).
  */
 function offerOpportunity(state: OathState, seat: number): string | null {
   const siteId = state.players[seat].pawnSite;
@@ -413,9 +418,16 @@ function offerOpportunity(state: OathState, seat: number): string | null {
   return site.favor > 0 || site.secrets > 0 ? siteId : null;
 }
 
-function finishWake(state: OathState, seat: number): OathState {
-  state.wake = null;
-
+/**
+ * Law §4.1.1.III, then §4.1.2, then §4.1.3 — everything between the favor
+ * steps and the Opportunity Site take. Split out on its own (unit 3) so
+ * `beginWake`'s auto-resolve path and `wake.resolve`'s submitted path share
+ * one implementation; both reach it only once every §4.1.1 step is
+ * genuinely settled. A win here returns a COMPLETE state — the caller must
+ * check `.complete` before going on to §4.1.4, exactly as the old
+ * `finishWake` did by returning early.
+ */
+function wakeMidEpilogue(state: OathState, seat: number): OathState {
   // §4.1.1.III: "If the People's Favor has six favor or more, it flips to
   // its Mob side if it is not on that side."
   const banner = peoplesFavor(state);
@@ -430,120 +442,164 @@ function finishWake(state: OathState, seat: number): OathState {
     // for why that order is the whole Usurper clock.
     if (state.oathkeeper === seat) state.usurper = true;
   }
-
-  // §4.1.4, the last step, and the only one that is not Exile-only.
-  const opportunity = offerOpportunity(state, seat);
-  if (opportunity !== null) {
-    state.wake = { seat, stepsRemaining: 0, opportunity, startedAt: state.actionCount };
-  }
   return state;
 }
 
-/** Resolve as many §4.1.1 steps as the Law forces, then finish or wait. */
-function advanceWake(state: OathState): OathState {
+/**
+ * Applies as many §4.1.1 steps as the Law forces, stopping the instant a
+ * genuine choice (or an impossible one, Law §9.2) appears. `forced: false`
+ * means the WHOLE sequence needs a player's answer — unit 3 raises one
+ * decision for it rather than resolving what it can and asking only for
+ * the rest, so `wake.resolve`'s payload always declares every owed step
+ * from the first, even ones that turn out forced (the reducer re-derives
+ * and re-validates each one anyway).
+ */
+function resolveForcedSteps(
+  state: OathState,
+  seat: number,
+  steps: number,
+): { working: OathState; forced: boolean } {
   let working = state;
-  while (working.wake && working.wake.stepsRemaining > 0) {
-    const seat = working.wake.seat;
+  for (let i = 0; i < steps; i++) {
     const o = wakeOptions(working, seat);
-    if (!o.canPlace && !o.canReturn) break; // nothing is possible: skip the step (§9.2)
+    if (!o.canPlace && !o.canReturn) break; // nothing is possible: skip the rest (§9.2)
     const forced = forcedWakeStep(working, seat);
-    if (!forced) return working; // a genuine choice — leave it pending
+    if (!forced) return { working, forced: false };
     working = applyWakeStep(working, seat, forced);
-    working.wake = { ...working.wake!, stepsRemaining: working.wake!.stepsRemaining - 1 };
   }
-  return finishWake(working, working.wake?.seat ?? state.turn.activeSeat);
+  return { working, forced: true };
 }
 
 /**
  * Start `seat`'s Wake Phase (Law §4.1), called when a turn begins — from
  * the pipeline after `turn.rest`, and from `init` for the opening turn,
  * which has no rest before it.
+ *
+ * Unit 3 (D50): the whole Wake is at most ONE pending decision. If every
+ * §4.1.1 step the Law owes is forced, they resolve themselves here with no
+ * decision raised at all — that must stay true for a seat who does not
+ * hold the People's Favor (`steps === 0` vacuously satisfies it) exactly
+ * as before. Only once the favor steps are behind us do we run the §4.1.2
+ * win check and, if the game didn't just end, offer §4.1.4 — so an
+ * Opportunity Site never gets asked about on a turn that already won
+ * (Law's own order, and an existing exit criterion this preserves).
  */
 export function beginWake(state: OathState, seat: number): OathState {
   const banner = peoplesFavor(state);
   // §4.1.1 applies only to the holder; §4.1.1.II repeats it once on Mob.
   const steps = banner.holder === seat ? (banner.mob ? 2 : 1) : 0;
-  const working = applyEffects(state, seat, []);
-  working.wake =
-    steps > 0 ? { seat, stepsRemaining: steps, opportunity: null, startedAt: working.actionCount } : null;
-  return advanceWake(working);
+  const opened = applyEffects(state, seat, []);
+
+  const { working: afterSteps, forced } = resolveForcedSteps(opened, seat, steps);
+  if (!forced) {
+    // A genuine §4.1.1 choice exists somewhere in the sequence — raise ONE
+    // decision covering every step from the first. `opportunity` here is a
+    // same-turn HINT for the prompt (see `offerOpportunity`'s header for
+    // why it's safe to compute before the steps are answered); `wake.resolve`
+    // re-derives it for real once it knows the game hasn't already ended.
+    opened.wake = {
+      seat,
+      stepsRemaining: steps,
+      opportunity: offerOpportunity(opened, seat),
+      startedAt: opened.actionCount,
+    };
+    return opened;
+  }
+
+  afterSteps.wake = null;
+  const epilogued = wakeMidEpilogue(afterSteps, seat);
+  if (epilogued.complete) return epilogued; // §4.1.2 fired first; §4.1.4 is moot
+
+  const opportunity = offerOpportunity(epilogued, seat);
+  if (opportunity !== null) {
+    epilogued.wake = { seat, stepsRemaining: 0, opportunity, startedAt: epilogued.actionCount };
+  }
+  return epilogued;
 }
 
-const WakeFavorPayloadSchema = z.discriminatedUnion('choice', [
+const WakeStepSchema = z.discriminatedUnion('choice', [
   z.object({ choice: z.literal('place') }),
   z.object({ choice: z.literal('return'), bank: z.enum(SUITS) }),
 ]);
 
-function wakeFavor(state: OathState, action: GameAction): OathState {
+const WakeResolvePayloadSchema = z.object({
+  /** Every §4.1.1 step owed, in order — length must equal `wake.stepsRemaining` exactly. */
+  steps: z.array(WakeStepSchema),
+  /** Present iff an Opportunity Site take is owed once the steps (and any win check) are behind us. */
+  take: z.object({ take: z.enum(['favor', 'secret', 'none']) }).optional(),
+});
+
+/**
+ * Unit 3: the WHOLE Wake Phase in one action — every §4.1.1 step this seat
+ * owes, then (Law's own order) the win check, then, if the game didn't
+ * just end, the §4.1.4 Opportunity Site take. Replaces the old
+ * `wake.favor`/`wake.take` pair (D50: no reveal separates any of these
+ * steps, so batching them is not an optimization of the rules, it's the
+ * batching floor itself).
+ */
+function wakeResolve(state: OathState, action: GameAction): OathState {
   const seat = requireActiveSeat(state, action, { wakeOk: true });
   const wake = state.wake;
-  if (!wake || wake.stepsRemaining <= 0) {
-    throw new IllegalAction('wake.favor: no Wake Phase favor step is pending');
-  }
+  if (!wake) throw new IllegalAction('wake.resolve: no Wake Phase is pending');
   if (seat !== wake.seat) {
-    throw new IllegalAction("wake.favor: only the waking seat resolves their own Wake Phase (Law §4.1)");
+    throw new IllegalAction("wake.resolve: only the waking seat resolves their own Wake Phase (Law §4.1)");
   }
-  const parsed = WakeFavorPayloadSchema.safeParse(action.payload);
-  if (!parsed.success) throw new IllegalAction('wake.favor: malformed payload');
-  const step = parsed.data;
+  const parsed = WakeResolvePayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('wake.resolve: malformed payload');
+  const { steps, take } = parsed.data;
 
-  const o = wakeOptions(state, seat);
-  if (step.choice === 'place' && !o.canPlace) {
-    throw new IllegalAction('wake.favor: you have no favor to place (Law §4.1.1)');
+  if (steps.length !== wake.stepsRemaining) {
+    throw new IllegalAction(
+      `wake.resolve: expected ${wake.stepsRemaining} People's Favor step(s), got ${steps.length} (Law §4.1.1)`,
+    );
   }
-  if (step.choice === 'return') {
-    if (!o.canReturn) throw new IllegalAction('wake.favor: the People\'s Favor has no favor to return (Law §4.1.1)');
-    if (o.mustPlace) {
-      throw new IllegalAction(
-        "wake.favor: at one favor you must place, not return (Law §4.1.1)",
-      );
+
+  let working: OathState = state;
+  for (const step of steps) {
+    const o = wakeOptions(working, seat);
+    if (!o.canPlace && !o.canReturn) break; // §9.2: nothing possible; any remaining entries are moot
+    if (step.choice === 'place' && !o.canPlace) {
+      throw new IllegalAction('wake.resolve: you have no favor to place (Law §4.1.1)');
     }
-    if (!o.banks.includes(step.bank)) {
-      throw new IllegalAction(
-        `wake.favor: ${step.bank} is not among the least-full favor banks (Law §4.1.1)`,
-      );
+    if (step.choice === 'return') {
+      if (!o.canReturn) {
+        throw new IllegalAction("wake.resolve: the People's Favor has no favor to return (Law §4.1.1)");
+      }
+      if (o.mustPlace) {
+        throw new IllegalAction('wake.resolve: at one favor you must place, not return (Law §4.1.1)');
+      }
+      if (!o.banks.includes(step.bank)) {
+        throw new IllegalAction(
+          `wake.resolve: ${step.bank} is not among the least-full favor banks (Law §4.1.1)`,
+        );
+      }
     }
+    working = applyWakeStep(working, seat, step);
   }
 
-  let working = applyWakeStep(state, seat, step);
-  working.wake = { ...working.wake!, stepsRemaining: working.wake!.stepsRemaining - 1 };
-  return advanceWake(working);
-}
+  working.wake = null;
+  working = wakeMidEpilogue(working, seat);
+  if (working.complete) return working; // §4.1.2 fired; a supplied `take` would be moot — ignored, not rejected
 
-const WakeTakePayloadSchema = z.object({ take: z.enum(['favor', 'secret', 'none']) });
-
-/** Law §4.1.4: take one favor or secret from your Opportunity Site, or decline. */
-function wakeTake(state: OathState, action: GameAction): OathState {
-  const seat = requireActiveSeat(state, action, { wakeOk: true });
-  const wake = state.wake;
-  if (!wake || wake.opportunity === null) {
-    throw new IllegalAction('wake.take: no Opportunity Site take is pending');
-  }
-  if (seat !== wake.seat) {
-    throw new IllegalAction('wake.take: only the waking seat resolves their own Wake Phase (Law §4.1)');
-  }
-  const parsed = WakeTakePayloadSchema.safeParse(action.payload);
-  if (!parsed.success) throw new IllegalAction('wake.take: malformed payload');
-  const { take } = parsed.data;
-
-  const siteId = wake.opportunity;
-  const site = state.sites.find((s) => s.id === siteId)!;
-  if (take !== 'none') {
-    const available = take === 'favor' ? site.favor : site.secrets;
-    if (available <= 0) {
-      throw new IllegalAction(`wake.take: ${siteId} has no ${take} left to take (Law §4.1.4)`);
+  const opportunity = offerOpportunity(working, seat);
+  if (opportunity !== null) {
+    if (!take) throw new IllegalAction('wake.resolve: an Opportunity Site take is owed (Law §4.1.4)');
+    if (take.take !== 'none') {
+      const site = working.sites.find((s) => s.id === opportunity)!;
+      const available = take.take === 'favor' ? site.favor : site.secrets;
+      if (available <= 0) {
+        throw new IllegalAction(`wake.resolve: ${opportunity} has no ${take.take} left to take (Law §4.1.4)`);
+      }
+      working = applyEffects(working, seat, [
+        take.take === 'favor'
+          ? { kind: 'favor', from: { kind: 'siteFavor', siteId: opportunity }, to: { kind: 'seatFavor', seat }, amount: 1 }
+          : { kind: 'secret', from: { kind: 'siteSecrets', siteId: opportunity }, to: { kind: 'seatSecrets', seat }, amount: 1 },
+      ]);
     }
+  } else if (take) {
+    throw new IllegalAction('wake.resolve: no Opportunity Site take is available to answer (Law §4.1.4)');
   }
 
-  const working =
-    take === 'none'
-      ? applyEffects(state, seat, [])
-      : applyEffects(state, seat, [
-          take === 'favor'
-            ? { kind: 'favor', from: { kind: 'siteFavor', siteId }, to: { kind: 'seatFavor', seat }, amount: 1 }
-            : { kind: 'secret', from: { kind: 'siteSecrets', siteId }, to: { kind: 'seatSecrets', seat }, amount: 1 },
-        ]);
-  working.wake = null; // §4.1.4 is the last step of the Wake Phase
   return working;
 }
 
@@ -635,7 +691,6 @@ export function prepareRest(state: OathState, proposed: ProposedAction): unknown
 }
 
 export const VICTORY_HANDLERS: Record<string, Handler> = {
-  'wake.favor': wakeFavor,
-  'wake.take': wakeTake,
+  'wake.resolve': wakeResolve,
   'oathkeeper.grant': grant,
 };

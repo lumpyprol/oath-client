@@ -100,7 +100,7 @@ as fine", so a review that re-reads our own notes is worthless.
 
 | § | Rule | Disposition |
 | --- | --- | --- |
-| 3.1 | Usurper Win | **DONE** `finishWake` |
+| 3.1 | Usurper Win | **DONE** `wakeMidEpilogue` |
 | 3.2 | Visionary Win, incl. the three-Vision floor | **DONE** `visionGoalMet`, `VISION_FLOOR` |
 | 3.3 | Stable Regime, rounds 5–7, die faces | **DONE** `roundEnd`, `STABLE_REGIME_TARGET`; die from `prepareRest` (D14) |
 | 3.3.1 | Successor goals (crossed against the oath) | **DONE** `meetsSuccessorGoal` |
@@ -111,11 +111,11 @@ as fine", so a review that re-reads our own notes is worthless.
 | § | Rule | Disposition |
 | --- | --- | --- |
 | 4 | Rounds, turn order, round end, Stable Regime check, advance marker | **DONE** `turn.ts rest`, `victory.ts afterAction` |
-| 4.1 | Wake Phase resolved in order | **DONE** `beginWake`/`advanceWake`/`finishWake`; also run for the opening turn from `init` |
-| 4.1.1 | People's Favor maintenance, Mob repeat, flip at 6 | **DONE** `wakeOptions`, `wake.favor` |
-| 4.1.2 | Check for Win (Exiles) | **DONE** `finishWake` — before 4.1.3, which is the Usurper clock |
-| 4.1.3 | Flip to Usurper | **DONE** `finishWake` |
-| 4.1.4 | Opportunity Site take | **DONE** `offerOpportunity`, `wake.take` — was wrongly deferred until 09-12 (finding 4, D47) |
+| 4.1 | Wake Phase resolved in order | **DONE** `beginWake`/`resolveForcedSteps`/`wakeMidEpilogue`; also run for the opening turn from `init`. P3 unit 3 batched the whole phase into one `wake.resolve` action (D50) |
+| 4.1.1 | People's Favor maintenance, Mob repeat, flip at 6 | **DONE** `wakeOptions`, `wake.resolve` |
+| 4.1.2 | Check for Win (Exiles) | **DONE** `wakeMidEpilogue` — before 4.1.3, which is the Usurper clock |
+| 4.1.3 | Flip to Usurper | **DONE** `wakeMidEpilogue` |
+| 4.1.4 | Opportunity Site take | **DONE** `offerOpportunity`, `wake.resolve` — was wrongly deferred until 09-12 (finding 4, D47) |
 | 4.2 | Act Phase; one action at a time; Supply spent by moving the marker | **DONE** `requireActiveSeat` (mid-Search, Campaign and Wake locks); Supply decremented per action |
 | 4.3.1 | Return favor on denizens/edifices to their banks | **DONE** `turn.ts returnCardFavor` |
 | 4.3.2 | Return secrets to your board; flip facedown ones up | **DONE** `turn.ts returnCardSecrets` — site cards were never swept until 09-12 (finding 1). Scoping reading in RULINGS.md |

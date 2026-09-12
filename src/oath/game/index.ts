@@ -152,29 +152,29 @@ export const oath: GameDefinition<OathState, OathSetup> = {
       });
     }
     // An unresolved Wake Phase (unit 17) preempts the active seat's turn:
-    // Law §4.1 is resolved in full before the Act Phase begins.
+    // Law §4.1 is resolved in full before the Act Phase begins. Unit 3
+    // (Phase 3, D50): ONE decision for the whole thing — every owed §4.1.1
+    // step and, if owed, the §4.1.4 take all resolve in one `wake.resolve`.
     if (state.wake) {
+      const w = state.wake;
+      const stepsPart =
+        w.stepsRemaining > 0
+          ? `resolve the People's Favor (${w.stepsRemaining} step(s): place one favor on it, or return ` +
+            `one to the least-full favor bank, Law §4.1.1)`
+          : null;
+      const takePart =
+        w.opportunity !== null
+          ? `you may take one favor or secret from ${w.opportunity} (Law §4.1.4) — its supply is never replenished`
+          : null;
       return [
         ...citizenshipDecision,
-        state.wake.opportunity !== null
-          ? {
-              id: `wake:${state.wake.seat}:${state.wake.startedAt}`,
-              seat: state.wake.seat,
-              kind: 'wake',
-              prompt:
-                `Wake Phase: you may take one favor or secret from ${state.wake.opportunity} ` +
-                `(Law §4.1.4) — its supply is never replenished.`,
-              resolves: ['wake.take'],
-            }
-          : {
-              id: `wake:${state.wake.seat}:${state.wake.startedAt}`,
-              seat: state.wake.seat,
-              kind: 'wake',
-              prompt:
-                `Wake Phase: resolve the People's Favor — place one favor on it, or return one ` +
-                `to the least-full favor bank (Law §4.1.1).`,
-              resolves: ['wake.favor'],
-            },
+        {
+          id: `wake:${w.seat}:${w.startedAt}`,
+          seat: w.seat,
+          kind: 'wake',
+          prompt: `Wake Phase: ${[stepsPart, takePart].filter((p) => p !== null).join(', then ')}.`,
+          resolves: ['wake.resolve'],
+        },
       ];
     }
     // A Campaign (unit 12) preempts the normal turn decision entirely —

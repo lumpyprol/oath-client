@@ -251,7 +251,7 @@ a useful 410, with wall-clock age attached.
 
 ---
 
-## Unit 3 — Batch the Wake Phase
+## Unit 3 — Batch the Wake Phase ✅ (completed 2026-09-12)
 
 **Purpose.** The simplest locking flow becomes one visit, establishing
 D50's pattern (one decision, one action, all owed choices in the payload)
