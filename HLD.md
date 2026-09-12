@@ -598,8 +598,22 @@ responses, one-visit defence); unit 9 is the measured 6-player acceptance.
 - [x] standing responses are actions in the log and roll back cleanly
       *(unit 6: `standing.set`; rollback past it restores ask-behaviour,
       asserted through the store)*
-- [ ] a simulated 6-player game's round-trip count per turn is measured and
-      recorded here *(unit 9)*
+- [x] a simulated 6-player game's round-trip count per turn is measured and
+      recorded here *(unit 9: `test/fixtures/sixplayer.log.json`, a scripted
+      6-player game — Chancellor, 2 Citizens, 3 Exiles — through round 3.*
+      ***Visits per turn: 2.56 average, 7 maximum, over 18 turns.*** *Visits
+      per campaign by flavour: **7** allied with nobody on a policy, **1**
+      against a standing defence, **6** allied with one Citizen back on
+      'ask'. Full table and the max-7 finding in INTERRUPTS.md)*
+
+      The max of 7 is above the plan's threshold of 3 and was investigated
+      rather than accepted: both 7s are irreducible by batching — six
+      sequential §1.23 setup choices in one bucket (and setup is not really
+      a turn), and six DIFFERENT seats acting in a fully-asking allied
+      campaign. P3's mitigation is standing responses, measured at 1 visit
+      for the same campaign in the same game. The floor is excellent; the
+      ceiling belongs to whether players set policies, which P4's client
+      should make easy.
 - [x] §1.23's setup choices are the players' own (P2 hand-off; plan unit 8)
       *(unit 8: a from-`init` pending decision, sequential in turn order,
       batched into one `setup.choose`; D54's `setupChoices` flag keeps every

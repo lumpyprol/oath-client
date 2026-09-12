@@ -64,17 +64,31 @@ export function computeVisitMetrics(log: LoggedAction[]): VisitMetrics {
   }
   if (turn.length > 0) turnBuckets.push(turn);
 
+  // A campaign spans from `campaign.declare` to the end of the campaign, and
+  // COUNTS EVERYTHING IN BETWEEN — including actions that are not
+  // `campaign.*` at all.
+  //
+  // That last part was a real flaw, found by unit 9's six-player game: a
+  // Citizen Ally using a battle plan inside §5.5.3's window submits a
+  // `power.use`, which used to split one campaign into two buckets and
+  // undercount both. The whole point of unit 5 is that an Ally CAN act in
+  // that window, so the metric has to treat their action as part of the
+  // campaign it happens inside — otherwise the number gets better the more
+  // interruption there is, which is backwards.
+  //
+  // A campaign always resolves inside the attacker's own turn, so
+  // `turn.rest` is a safe terminator for the span.
   const campaignBuckets: LoggedAction[][] = [];
-  let campaign: LoggedAction[] = [];
-  for (const a of real) {
-    if (a.type.startsWith('campaign.')) {
-      campaign.push(a);
-    } else if (campaign.length > 0) {
-      campaignBuckets.push(campaign);
-      campaign = [];
+  for (let i = 0; i < real.length; i++) {
+    if (real[i].type !== 'campaign.declare') continue;
+    let end = i;
+    for (let j = i + 1; j < real.length; j++) {
+      if (real[j].type === 'turn.rest' || real[j].type === 'campaign.declare') break;
+      if (real[j].type.startsWith('campaign.')) end = j; // the last campaign action in the span
     }
+    campaignBuckets.push(real.slice(i, end + 1));
+    i = end;
   }
-  if (campaign.length > 0) campaignBuckets.push(campaign);
 
   return {
     turns: turnBuckets.map(visitsIn),

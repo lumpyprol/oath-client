@@ -164,6 +164,61 @@ a visit the defender's policy cannot remove, because it is not the
 defender's question to answer. That is correct rather than a gap, and it is
 why unit 9's six-player measurement is the number that finally matters.
 
+### The six-player measurement (unit 9) — the phase's recorded result
+
+Measured by `computeVisitMetrics` over the frozen
+`test/fixtures/sixplayer.log.json`: a scripted 6-player game (Chancellor,
+2 Citizens, 3 Exiles) played through round 3, with three campaigns of
+different flavours. `sixplayer.test.ts` asserts these exact values, so a
+change that moves them fails there before it reaches this table.
+
+| Metric | Values | Avg | Max |
+| --- | --- | --- | --- |
+| Visits per turn | `[7,3,3,7,1,1,3,1,4,1,1,1,3,1,1,1,1,6]` (18 turns) | **2.56** | **7** |
+| Visits per campaign | `[7, 1, 6]` | 4.67 | 7 |
+
+By campaign flavour:
+
+| Flavour | Actions | **Visits** |
+| --- | --- | --- |
+| Allied, nobody has a policy — 2 Citizens answer, defender permits, an Ally uses a battle plan, defender responds | 7 | **7** |
+| **Standing defence** — defender `close`, every Citizen `pass` | 2 | **1** |
+| Allied, one Citizen back on `ask` after revoking | 6 | **6** |
+
+The middle row is the phase's headline exit criterion, re-proven at six
+seats: `campaign.declare/4`, `campaign.resolve/4`, and nothing in between.
+
+#### Finding: visits/turn max is 7, above the plan's threshold of 3
+
+The plan said to treat a max above 3 as a finding and either fix it as a
+batching miss or record it. It is **not a batching miss**, and here is the
+decomposition of both 7s:
+
+1. **The setup prologue (7).** Six sequential `setup.choose` actions plus
+   the Chancellor's Wake and Rest. Law §1.23 is explicitly sequential —
+   "starting with the Chancellor, in turn order" — and each choice is that
+   seat's own, so no batching can touch it. It is also a **metric
+   artifact**: setup is not a turn, it just lands in the first bucket
+   because the metric splits at `turn.rest`.
+2. **The fully-asking allied campaign (7).** Six *different* seats act:
+   attacker declares, two Citizens answer the join window, the defender
+   permits, an Ally uses a battle plan, the defender responds, the attacker
+   resolves. Every adjacent pair is a different actor, so there is nothing
+   to batch. The defender's two visits (permit, then respond) are split by
+   the Ally's battle plan — and collapsing them would put permission back
+   inside the window-closing action, which is exactly the §5.5.3 bug unit 5
+   existed to fix.
+
+So the number is **irreducible by batching**, and the mitigation is the one
+P3 built: standing responses. The same game measures that mitigation at
+**1 visit** for an identical campaign. The honest summary is that P3 made
+the *floor* excellent and left the *ceiling* to policy — a table where
+nobody sets a policy still pays for every question they asked to be asked.
+
+Nothing here is deferred to a Q: the behaviour is understood, intended, and
+measured. What P4 could improve is making policies easy to set (a UI at
+game creation), which is a client concern, not an engine one.
+
 ### Where the dice roll now
 
 D14 says dice roll in a `prepare()` and never in a reducer. D51 moved the

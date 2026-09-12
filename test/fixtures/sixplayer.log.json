@@ -1,0 +1,540 @@
+{
+  "seed": "030100000710Empire and Exile00180234152011FFFFFF21FFFFFF0AFFFFFF25FFFFFF1FFFFFFF05FFFFFF2EFFFFFF2AFFFFFF4107D313A90BC301411BD4B96FBF0509399EA684173132A89AD6D223D53F107F481214751F438CA3352F2A64614B080AAFA20F1D8A727D1EC0332D55605B2C8B3E211E110C222E201A290D261502242803192B2718253004341606000E4A971CAB02E8DE",
+  "players": 6,
+  "actions": [
+    {
+      "seq": 0,
+      "type": "game.created",
+      "actor": null,
+      "payload": {
+        "seats": 6,
+        "kind": "oath"
+      }
+    },
+    {
+      "seq": 1,
+      "type": "setup.choose",
+      "actor": 0,
+      "payload": {
+        "siteId": "site:drowned-city",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 2,
+      "type": "setup.choose",
+      "actor": 1,
+      "payload": {
+        "siteId": "site:drowned-city",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 3,
+      "type": "setup.choose",
+      "actor": 2,
+      "payload": {
+        "siteId": "site:drowned-city",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 4,
+      "type": "setup.choose",
+      "actor": 3,
+      "payload": {
+        "siteId": "site:drowned-city",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 5,
+      "type": "setup.choose",
+      "actor": 4,
+      "payload": {
+        "siteId": "site:drowned-city",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 6,
+      "type": "setup.choose",
+      "actor": 5,
+      "payload": {
+        "siteId": "site:drowned-city",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 7,
+      "type": "wake.resolve",
+      "actor": 0,
+      "payload": {
+        "steps": [],
+        "take": {
+          "take": "secret"
+        }
+      }
+    },
+    {
+      "seq": 8,
+      "type": "turn.rest",
+      "actor": 0,
+      "payload": {}
+    },
+    {
+      "seq": 9,
+      "type": "wake.resolve",
+      "actor": 1,
+      "payload": {
+        "steps": [],
+        "take": {
+          "take": "secret"
+        }
+      }
+    },
+    {
+      "seq": 10,
+      "type": "warbands.move",
+      "actor": 1,
+      "payload": {
+        "direction": "toSite",
+        "count": 2
+      }
+    },
+    {
+      "seq": 11,
+      "type": "warbands.move",
+      "actor": 1,
+      "payload": {
+        "direction": "toBoard",
+        "count": 1
+      }
+    },
+    {
+      "seq": 12,
+      "type": "warbands.allow",
+      "actor": 0,
+      "payload": {}
+    },
+    {
+      "seq": 13,
+      "type": "turn.rest",
+      "actor": 1,
+      "payload": {}
+    },
+    {
+      "seq": 14,
+      "type": "wake.resolve",
+      "actor": 2,
+      "payload": {
+        "steps": [],
+        "take": {
+          "take": "secret"
+        }
+      }
+    },
+    {
+      "seq": 15,
+      "type": "standing.set",
+      "actor": 0,
+      "payload": {
+        "warbands": "allow"
+      }
+    },
+    {
+      "seq": 16,
+      "type": "warbands.move",
+      "actor": 2,
+      "payload": {
+        "direction": "toSite",
+        "count": 2
+      }
+    },
+    {
+      "seq": 17,
+      "type": "warbands.move",
+      "actor": 2,
+      "payload": {
+        "direction": "toBoard",
+        "count": 1
+      }
+    },
+    {
+      "seq": 18,
+      "type": "turn.rest",
+      "actor": 2,
+      "payload": {}
+    },
+    {
+      "seq": 19,
+      "type": "campaign.declare",
+      "actor": 3,
+      "payload": {
+        "defender": 0,
+        "targets": [
+          {
+            "kind": "site",
+            "siteId": "site:drowned-city"
+          }
+        ],
+        "attackDice": 2
+      }
+    },
+    {
+      "seq": 20,
+      "type": "campaign.ally",
+      "actor": 1,
+      "payload": {
+        "join": true
+      }
+    },
+    {
+      "seq": 21,
+      "type": "campaign.ally",
+      "actor": 2,
+      "payload": {
+        "join": false
+      }
+    },
+    {
+      "seq": 22,
+      "type": "campaign.permit",
+      "actor": 0,
+      "payload": {
+        "allies": [
+          1
+        ]
+      }
+    },
+    {
+      "seq": 23,
+      "type": "power.use",
+      "actor": 1,
+      "payload": {
+        "cardId": "site:drowned-city",
+        "note": "declared: a battle plan the Ally rules (v1 declares, does not enforce)",
+        "effects": []
+      }
+    },
+    {
+      "seq": 24,
+      "type": "campaign.respond",
+      "actor": 0,
+      "payload": {
+        "attackFaces": [
+          "sword",
+          "sword"
+        ],
+        "defenseFaces": [
+          "doubleShield",
+          "blank"
+        ]
+      }
+    },
+    {
+      "seq": 25,
+      "type": "campaign.resolve",
+      "actor": 3,
+      "payload": {
+        "sacrifice": 0
+      }
+    },
+    {
+      "seq": 26,
+      "type": "turn.rest",
+      "actor": 3,
+      "payload": {}
+    },
+    {
+      "seq": 27,
+      "type": "travel",
+      "actor": 4,
+      "payload": {
+        "siteId": "site:wastes"
+      }
+    },
+    {
+      "seq": 28,
+      "type": "turn.rest",
+      "actor": 4,
+      "payload": {}
+    },
+    {
+      "seq": 29,
+      "type": "search",
+      "actor": 5,
+      "payload": {
+        "from": "deck"
+      }
+    },
+    {
+      "seq": 30,
+      "type": "card.play",
+      "actor": 5,
+      "payload": {
+        "handIndex": 0,
+        "as": "adviser",
+        "facedown": false
+      }
+    },
+    {
+      "seq": 31,
+      "type": "turn.rest",
+      "actor": 5,
+      "payload": {}
+    },
+    {
+      "seq": 32,
+      "type": "citizenship.offer",
+      "actor": 0,
+      "payload": {
+        "exile": 3,
+        "relicId": "relic:circlet-of-command",
+        "give": {
+          "favor": 1
+        }
+      }
+    },
+    {
+      "seq": 33,
+      "type": "citizenship.accept",
+      "actor": 3,
+      "payload": {}
+    },
+    {
+      "seq": 34,
+      "type": "turn.rest",
+      "actor": 0,
+      "payload": {}
+    },
+    {
+      "seq": 35,
+      "type": "standing.set",
+      "actor": 1,
+      "payload": {
+        "ally": "pass"
+      }
+    },
+    {
+      "seq": 36,
+      "type": "turn.rest",
+      "actor": 1,
+      "payload": {}
+    },
+    {
+      "seq": 37,
+      "type": "standing.set",
+      "actor": 2,
+      "payload": {
+        "ally": "pass"
+      }
+    },
+    {
+      "seq": 38,
+      "type": "standing.set",
+      "actor": 0,
+      "payload": {
+        "defense": "close"
+      }
+    },
+    {
+      "seq": 39,
+      "type": "standing.set",
+      "actor": 3,
+      "payload": {
+        "ally": "pass"
+      }
+    },
+    {
+      "seq": 40,
+      "type": "turn.rest",
+      "actor": 2,
+      "payload": {}
+    },
+    {
+      "seq": 41,
+      "type": "turn.rest",
+      "actor": 3,
+      "payload": {}
+    },
+    {
+      "seq": 42,
+      "type": "travel",
+      "actor": 4,
+      "payload": {
+        "siteId": "site:drowned-city"
+      }
+    },
+    {
+      "seq": 43,
+      "type": "campaign.declare",
+      "actor": 4,
+      "payload": {
+        "defender": 0,
+        "targets": [
+          {
+            "kind": "site",
+            "siteId": "site:drowned-city"
+          }
+        ],
+        "attackDice": 2,
+        "attackFaces": [
+          "skull",
+          "sword"
+        ],
+        "defenseFaces": [
+          "blank",
+          "shield"
+        ]
+      }
+    },
+    {
+      "seq": 44,
+      "type": "campaign.resolve",
+      "actor": 4,
+      "payload": {
+        "sacrifice": 0
+      }
+    },
+    {
+      "seq": 45,
+      "type": "turn.rest",
+      "actor": 4,
+      "payload": {}
+    },
+    {
+      "seq": 46,
+      "type": "adviser.play",
+      "actor": 5,
+      "payload": {
+        "adviserIndex": 0,
+        "as": "faceup"
+      }
+    },
+    {
+      "seq": 47,
+      "type": "turn.rest",
+      "actor": 5,
+      "payload": {}
+    },
+    {
+      "seq": 48,
+      "type": "standing.set",
+      "actor": 0,
+      "payload": {
+        "defense": "ask"
+      }
+    },
+    {
+      "seq": 49,
+      "type": "standing.set",
+      "actor": 1,
+      "payload": {
+        "ally": "ask"
+      }
+    },
+    {
+      "seq": 50,
+      "type": "turn.rest",
+      "actor": 0,
+      "payload": {}
+    },
+    {
+      "seq": 51,
+      "type": "turn.rest",
+      "actor": 1,
+      "payload": {}
+    },
+    {
+      "seq": 52,
+      "type": "turn.rest",
+      "actor": 2,
+      "payload": {}
+    },
+    {
+      "seq": 53,
+      "type": "turn.rest",
+      "actor": 3,
+      "payload": {}
+    },
+    {
+      "seq": 54,
+      "type": "turn.rest",
+      "actor": 4,
+      "payload": {}
+    },
+    {
+      "seq": 55,
+      "type": "campaign.declare",
+      "actor": 5,
+      "payload": {
+        "defender": 0,
+        "targets": [
+          {
+            "kind": "site",
+            "siteId": "site:drowned-city"
+          }
+        ],
+        "attackDice": 2
+      }
+    },
+    {
+      "seq": 56,
+      "type": "campaign.ally",
+      "actor": 1,
+      "payload": {
+        "join": true
+      }
+    },
+    {
+      "seq": 57,
+      "type": "campaign.permit",
+      "actor": 0,
+      "payload": {
+        "allies": [
+          1
+        ]
+      }
+    },
+    {
+      "seq": 58,
+      "type": "power.use",
+      "actor": 1,
+      "payload": {
+        "cardId": "site:drowned-city",
+        "note": "declared: a battle plan, second allied campaign",
+        "effects": []
+      }
+    },
+    {
+      "seq": 59,
+      "type": "campaign.respond",
+      "actor": 0,
+      "payload": {
+        "attackFaces": [
+          "skull",
+          "hollowSword"
+        ],
+        "defenseFaces": [
+          "shieldX2",
+          "shield"
+        ]
+      }
+    },
+    {
+      "seq": 60,
+      "type": "campaign.resolve",
+      "actor": 5,
+      "payload": {
+        "sacrifice": 0
+      }
+    },
+    {
+      "seq": 61,
+      "type": "turn.rest",
+      "actor": 5,
+      "payload": {}
+    }
+  ]
+}

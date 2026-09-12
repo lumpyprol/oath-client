@@ -632,7 +632,33 @@ log still folds; RULES-COVERAGE §1.23.1/.2 flip to DONE.
 
 ---
 
-## Unit 9 — The six-player game, measured
+## Unit 9 — The six-player game, measured ✅ (completed 2026-09-12)
+
+> **The finding the prompt asked for.** Visits/turn max is **7**, above the
+> threshold of 3. Investigated, not accepted: both 7s are irreducible by
+> batching — six sequential §1.23 setup choices landing in one metric bucket
+> (setup is not really a turn), and six DIFFERENT seats acting in a
+> fully-asking allied campaign, where collapsing the defender's permit and
+> respond would re-break §5.5.3. The mitigation is standing responses, and
+> the same game measures them at **1 visit** for an identical campaign.
+> Recorded in INTERRUPTS.md and the HLD rather than raised as a Q, because
+> nothing about it is unresolved.
+>
+> **A metric bug this unit found and fixed.** `computeVisitMetrics` split a
+> campaign into two buckets whenever a non-`campaign.*` action occurred
+> inside it — which is exactly what a Citizen Ally's battle plan is. The
+> metric therefore got BETTER the more the campaign was interrupted. Now a
+> campaign spans declare→end and counts everything in between; pinned by a
+> test.
+>
+> **One deviation.** The prompt asked for "a batched Mob-side wake". The
+> game exercises `wake.resolve` on every turn (every pawn starts on an
+> Opportunity Site, so §4.1.4 is owed), but reaching the Mob side needs the
+> People's Favor at 6+ favor, which is many turns of accumulation away in a
+> scripted game. The two-step Mob wake is covered by `victory.test.ts`'s
+> unit test instead; the prompt's own rule — "cut scripted rounds before
+> cutting exercised decision kinds" — is satisfied, since the `wake` KIND
+> and the batched action are both exercised here.
 
 **Purpose.** The phase's acceptance: a simulated 6-player game with mixed
 citizenship, campaigns with allies, and standing responses — and the

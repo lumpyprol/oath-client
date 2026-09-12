@@ -30,9 +30,17 @@ interface Fixture {
   players: number;
   actions: { seq: number; type: string; actor: number | null; payload: unknown }[];
 }
-const fixture: Fixture = JSON.parse(
-  readFileSync(join(REPO_ROOT, 'test', 'fixtures', 'fullgame.log.json'), 'utf8'),
-);
+const loadFixture = (name: string): Fixture =>
+  JSON.parse(readFileSync(join(REPO_ROOT, 'test', 'fixtures', name), 'utf8'));
+
+/**
+ * Both frozen games feed the coverage fold. The 6-player one (unit 9) is
+ * what finally makes `setup`, `campaign.ally` and `campaign.permit` reachable
+ * from a real log rather than only from a hand-built state — a 3-player
+ * Supremacy game has no Citizens to ask.
+ */
+const fixture: Fixture = loadFixture('fullgame.log.json');
+const sixPlayer: Fixture = loadFixture('sixplayer.log.json');
 
 // ---- parse INTERRUPTS.md's "Catalogue (built)" table -----------------------
 
@@ -88,15 +96,15 @@ interface VanishEvent {
   resolvedBy: string; // the action type applied
 }
 
-function foldFixture(): { observed: PendingDecision[]; vanished: VanishEvent[] } {
+function foldFixture(
+  f: Fixture = fixture,
+  setupChoices: 'open' | 'applied' = 'applied',
+): { observed: PendingDecision[]; vanished: VanishEvent[] } {
   // See audit.test.ts: a pre-unit-8 stored setup reads as 'applied' (D54).
-  let state = oath.init({
-    ...oath.setup(fixture.players, { seed: fixture.seed }),
-    setupChoices: 'applied',
-  });
+  let state = oath.init({ ...oath.setup(f.players, { seed: f.seed }), setupChoices });
   const observed: PendingDecision[] = [...oath.pending(state)];
   const vanished: VanishEvent[] = [];
-  for (const row of fixture.actions) {
+  for (const row of f.actions) {
     if (row.type === 'game.created') continue;
     const before = oath.pending(state);
     state = oath.reduce(structuredClone(state), row as unknown as GameAction);
@@ -276,7 +284,10 @@ describe('INTERRUPTS.md is honest about the catalogue table', () => {
 });
 
 describe('every emitted decision is catalogued, and every catalogued kind is emitted', () => {
-  const { observed: fixtureObserved, vanished: fixtureVanished } = foldFixture();
+  const threePlayer = foldFixture();
+  const six = foldFixture(sixPlayer, 'open');
+  const fixtureObserved = [...threePlayer.observed, ...six.observed];
+  const fixtureVanished = [...threePlayer.vanished, ...six.vanished];
   const handObserved = handBuilt.flatMap((h) => oath.pending(h.before));
   const allObserved = [...fixtureObserved, ...handObserved];
 

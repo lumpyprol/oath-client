@@ -55,9 +55,37 @@ interface Fixture {
   }[];
 }
 
-const fixture: Fixture = JSON.parse(
-  readFileSync(join(import.meta.dirname, '..', '..', 'fixtures', 'fullgame.log.json'), 'utf8'),
-);
+function loadFixture(name: string): Fixture {
+  return JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', 'fixtures', name), 'utf8'));
+}
+
+/**
+ * Both frozen games. The 3-player log is a P2-era record (see `openingState`
+ * on why it rebuilds through D54's 'applied' path); the 6-player one is unit
+ * 9's, created after §1.23's choices became the players' own — so it also
+ * exercises the audit against a log whose first six actions are setup
+ * decisions, and against a table with Citizens in it.
+ */
+const FIXTURES: {
+  name: string;
+  fixture: Fixture;
+  setupChoices: 'open' | 'applied';
+  /** Whether the scripted game played through to a win (the 6p one stops at round 3). */
+  endsComplete: boolean;
+}[] = [
+  {
+    name: '3-player (P2-era)',
+    fixture: loadFixture('fullgame.log.json'),
+    setupChoices: 'applied',
+    endsComplete: true, // a Visionary Win
+  },
+  {
+    name: '6-player (unit 9)',
+    fixture: loadFixture('sixplayer.log.json'),
+    setupChoices: 'open',
+    endsComplete: false, // stops after round 3, before §3.3's first check
+  },
+];
 
 /**
  * Anything namespaced like a card id. Matching on the PREFIX rather than on
@@ -121,21 +149,26 @@ function learn(state: OathState, seat: number | null, known: Set<string>): void 
 }
 
 /** Rebuild the opening position the fixture's seed produces. */
-function openingState(): OathState {
-  // `setupChoices: 'applied'` is what a setup record STORED BEFORE P3 unit 8
-  // reads as (D54: the field is absent, and absence means the choices were
-  // already made by `oathSetup`). This fixture is such a game — frozen in
-  // P2 — so rebuilding it this way is not a workaround, it is exactly the
-  // back-compat path D54 promises, exercised on a real committed log.
-  return oath.init({ ...oath.setup(fixture.players, { seed: fixture.seed }), setupChoices: 'applied' });
+/**
+ * Rebuild a fixture's opening position.
+ *
+ * `setupChoices: 'applied'` is what a setup record STORED BEFORE P3 unit 8
+ * reads as (D54: the field is absent, and absence means the choices were
+ * already made by `oathSetup`). The 3-player fixture is such a game — frozen
+ * in P2 — so rebuilding it that way is not a workaround, it is exactly the
+ * back-compat path D54 promises, exercised on a real committed log. The
+ * 6-player fixture is a unit-8-era game and opens its choices for real.
+ */
+function openingState(f: Fixture, setupChoices: 'open' | 'applied'): OathState {
+  return oath.init({ ...oath.setup(f.players, { seed: f.seed }), setupChoices });
 }
 
-const VIEWERS: (number | null)[] = [0, 1, 2, null];
 const nameOf = (seat: number | null) => (seat === null ? 'spectator' : `seat ${seat}`);
 
-describe('hidden-information audit over a full game', () => {
+describe.each(FIXTURES)('hidden-information audit over a full game — $name', ({ fixture, setupChoices, endsComplete }) => {
+  const VIEWERS: (number | null)[] = [...Array(fixture.players).keys(), null];
   it('replays the fixture cleanly, so the audit below is auditing a real game', () => {
-    let state = openingState();
+    let state = openingState(fixture, setupChoices);
     let applied = 0;
     for (const row of fixture.actions) {
       if (row.type === 'game.created') continue;
@@ -144,11 +177,11 @@ describe('hidden-information audit over a full game', () => {
       applied += 1;
     }
     expect(applied).toBeGreaterThan(20);
-    expect(state.complete).toBe(true); // the fixture game ends on a Visionary Win
+    expect(state.complete).toBe(endsComplete);
   });
 
   it('never puts a card id in a view the viewer has not legitimately seen', () => {
-    let state = openingState();
+    let state = openingState(fixture, setupChoices);
     // One accumulating set per viewer — knowledge is monotonic.
     const known = new Map<number | null, Set<string>>(VIEWERS.map((v) => [v, new Set<string>()]));
     const leaks: string[] = [];
@@ -173,7 +206,7 @@ describe('hidden-information audit over a full game', () => {
   });
 
   it('holds the absolute structural guarantees at every step', () => {
-    let state = openingState();
+    let state = openingState(fixture, setupChoices);
     const broken: string[] = [];
 
     const audit = (after: string) => {
@@ -237,7 +270,7 @@ describe('hidden-information audit over a full game', () => {
     // Projection copies every array and object it passes through. If one
     // were handed out by reference, a client mutation would corrupt the
     // server's state, which no amount of redaction would catch.
-    const state = openingState();
+    const state = openingState(fixture, setupChoices);
     const before = JSON.stringify(state);
     const view = project(state, 0) as unknown as Record<string, unknown>;
 

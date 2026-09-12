@@ -166,6 +166,24 @@ describe('computeVisitMetrics (unit 1: the visit metric)', () => {
     expect(computeVisitMetrics(after).campaigns).toEqual([4]); // a real round trip saved
   });
 
+  it('counts an Ally\'s battle plan as part of the campaign it happens inside', () => {
+    // Unit 9's finding: `power.use` inside §5.5.3's window used to split one
+    // campaign into two buckets, so the metric IMPROVED the more the
+    // campaign was interrupted.
+    const log: LoggedAction[] = [
+      { type: 'campaign.declare', actor: 3 },
+      { type: 'campaign.ally', actor: 1 },
+      { type: 'campaign.permit', actor: 0 },
+      { type: 'power.use', actor: 1 }, // the permitted Ally's battle plan
+      { type: 'campaign.respond', actor: 0 },
+      { type: 'campaign.resolve', actor: 3 },
+      { type: 'turn.rest', actor: 3 },
+    ];
+    const m = computeVisitMetrics(log);
+    expect(m.campaigns).toEqual([6]); // [3],[1],[0],[1],[0],[3] — one campaign, six visits
+    expect(m.campaignActions).toEqual([6]); // the power.use counts too
+  });
+
   it('summarize reports avg and max over a list of visit counts', () => {
     expect(summarize([1, 1, 1, 3, 1, 3, 1])).toEqual({ avg: 11 / 7, max: 3 });
   });
