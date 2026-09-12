@@ -28,6 +28,7 @@ import { SUITS, type Suit } from '../cards/schema.js';
 import { shuffle } from '../../engine/random.js';
 import { IllegalAction } from '../../engine/types.js';
 import { discardRegion } from './map.js';
+import { parseSeed, type ParsedSeed } from '../chronicle/seed.js';
 import { beginWake } from './victory.js';
 import {
   CHANCELLOR_WARBANDS,
@@ -70,6 +71,12 @@ export interface SetupSiteSpec {
   facedown: boolean;
   /** Starting denizen/edifice ids attached to this site (Law §1.1); may be empty. */
   denizens: string[];
+  /**
+   * Which of `denizens` stand on their RUIN face (Law §2.9). Only edifices
+   * can, and only a chronicle produces them (§8.3.3 flips edifices at sites
+   * the winner does not rule), so this is empty for a first game.
+   */
+  ruined?: string[];
   /** Facedown relics placed at this site (Law §1.16, §2.8.2); may be empty. */
   relics: string[];
 }
@@ -95,6 +102,19 @@ export interface SetupSpec {
   relicPool: string[];
   /** Cards permanently out of play (Law §8.5) — empty for a first chronicle. */
   dispossessed: string[];
+  /**
+   * True when `worldPool` and `relicPool` are already in the order a
+   * CHRONICLE recorded, and must not be reshuffled (unit 18).
+   *
+   * This is the one place D37's "the deal is random, the spec is not" rule
+   * inverts, and deliberately: §8.8 builds the next world deck with the
+   * Visions seeded at chosen depths (two in the top twelve, three in the
+   * next eighteen) and §8.6 stacks the winner's relics on top of the relic
+   * deck. That ORDER is the chronicle — reshuffling it would throw away the
+   * thing the seed exists to carry. The §1.19-1.23 deal still happens on
+   * top of it; only the shuffle is skipped.
+   */
+  ordered?: boolean;
 }
 
 // ---- FIRST_GAME: the rulebook's prescribed first-chronicle layout --------
@@ -172,6 +192,127 @@ export const FIRST_GAME: SetupSpec = {
 // FIRST_GAME does not pre-populate `reliquary`; it stays empty in the
 // spec and oathSetup fills OathSetup.reliquary from the shuffled relicPool.
 
+// ---- specFromSeed: a chronicle string becomes an opening position --------
+
+/**
+ * The vendored parser's `Oath` enum names, mapped onto ours. It carries a
+ * fifth value, `Conspiracy`, which is not an Oathkeeper goal at all (§2.10
+ * lists four, and the Conspiracy is a Vision card) — a seed claiming it is
+ * rejected rather than guessed at.
+ */
+const OATH_BY_SEED_NAME: Record<string, OathName> = {
+  Supremacy: 'supremacy',
+  People: 'people',
+  Devotion: 'devotion',
+  Protection: 'protection',
+};
+
+/**
+ * Seat order. Seat 0 is always the Chancellor (purple, state.ts's
+ * convention); the rest take the parser's own non-purple colour order.
+ */
+const SEED_SEAT_COLORS = ['Brown', 'Yellow', 'White', 'Blue', 'Red'] as const;
+
+/** The board's 8 slots, in the order a seed lists them (Law §2.1.1). */
+const SLOT_REGIONS: Region[] = [
+  'cradle', 'cradle',
+  'provinces', 'provinces', 'provinces',
+  'hinterland', 'hinterland', 'hinterland',
+];
+
+/**
+ * Turn a parsed chronicle seed into a `SetupSpec` (unit 18; HLD D30 — this
+ * is the payoff: one setup path serves first games, imported seeds, and
+ * P5's own output).
+ *
+ * Three mappings are worth knowing about, because the seed format's names
+ * do not mean what they look like:
+ *
+ *   - `SeedSite.ruined` means the SITE IS FACEDOWN, not that anything is a
+ *     ruin — the format encodes a facedown site as `saveId + 24`, and the
+ *     vendored interface's own comment says so. It maps to `facedown`.
+ *     A card's `ruined` DOES mean a ruin face (§2.9).
+ *   - a seed's three per-site card slots hold denizens, edifices AND
+ *     relics together, while the Law keeps relics NEXT TO a site rather
+ *     than in its card slots (§2.8.2 vs §2.8.1). They are split apart here.
+ *   - the world and relic lists are ORDERED, and that order is the
+ *     chronicle (see `SetupSpec.ordered`).
+ *
+ * What a seed does NOT carry, and so is not read here: hands, advisers,
+ * pawns, warbands, favor, or Supply. Those are setup's to produce (§1.10
+ * onward), which is exactly D37's split.
+ */
+export function specFromSeed(parsed: ParsedSeed, seats: number): SetupSpec {
+  const oath = OATH_BY_SEED_NAME[parsed.oath];
+  if (oath === undefined) {
+    throw new IllegalAction(
+      `specFromSeed: the seed names the Oath "${parsed.oath}", which is not one of the four ` +
+        `Oathkeeper goals (Law §2.10)`,
+    );
+  }
+  if (!Number.isInteger(seats) || seats < 2 || seats > SEED_SEAT_COLORS.length + 1) {
+    throw new IllegalAction(`specFromSeed: ${seats} seats is outside Oath's 2-6 (Law §1.7)`);
+  }
+  if (parsed.sites.length !== SLOT_REGIONS.length) {
+    throw new IllegalAction(
+      `specFromSeed: the seed has ${parsed.sites.length} site slots, expected ${SLOT_REGIONS.length} (Law §2.1.1)`,
+    );
+  }
+
+  const citizenship: Citizenship[] = ['chancellor'];
+  for (let seat = 1; seat < seats; seat++) {
+    const color = SEED_SEAT_COLORS[seat - 1];
+    const recorded = (parsed.playerCitizenship as Record<string, string>)[color];
+    citizenship.push(recorded === 'Citizen' ? 'citizen' : 'exile');
+  }
+
+  const sites: SetupSiteSpec[] = parsed.sites.map((site, slot) => {
+    if (site.id === null) {
+      throw new IllegalAction(
+        `specFromSeed: board slot ${slot} is empty; a chronicle fills every slot (Law §8.3.5)`,
+      );
+    }
+    const present = site.cards.filter((c): c is NonNullable<typeof c> => c !== null);
+    const relics = present.filter((c) => c.id.startsWith('relic:')).map((c) => c.id);
+    const denizens = present.filter((c) => !c.id.startsWith('relic:'));
+    return {
+      id: site.id,
+      region: SLOT_REGIONS[slot],
+      facedown: site.ruined, // see this function's header: the name lies
+      denizens: denizens.map((c) => c.id),
+      ruined: denizens.filter((c) => c.ruined).map((c) => c.id),
+      relics,
+    };
+  });
+
+  // Law §1.23.1: "The Chancellor must place theirs on the top Cradle site."
+  // The other seats may choose ANY faceup site, which is a real decision the
+  // engine has nowhere to ask for yet — they default to the first faceup
+  // site, and P3/P4 is where that becomes a setup prompt.
+  const firstFaceup = sites.find((s) => !s.facedown);
+  if (!firstFaceup) {
+    throw new IllegalAction(
+      'specFromSeed: the seed leaves every site facedown, so no pawn can be placed (Law §1.23.1)',
+    );
+  }
+  const startingPawnSite = Array.from({ length: seats }, (_, seat) =>
+    seat === 0 ? sites[0].id : firstFaceup.id,
+  );
+
+  return {
+    sites,
+    oath,
+    suitOrder: parsed.suitOrder,
+    citizenship,
+    startingPawnSite,
+    reliquary: [], // §1.17 draws it from the relic pool, same as a first game
+    worldPool: parsed.world.map((c) => c.id),
+    relicPool: parsed.relics.map((c) => c.id),
+    dispossessed: parsed.dispossessed.map((c) => c.id),
+    ordered: true,
+  };
+}
+
 // ---- OathSetup: spec + every resolved random outcome ---------------------
 
 export interface OathSetup {
@@ -193,19 +334,36 @@ export interface OathSetup {
  * world deck's shuffle and deal, and the relic deck's shuffle. Impure —
  * called once, at creation; the result is persisted verbatim.
  */
-export function oathSetup(seats: number, options?: unknown): OathSetup {
-  void options; // unit 18 will branch here on { seed: string }
-  const spec = FIRST_GAME;
-  if (seats !== spec.citizenship.length) {
+function specFor(seats: number, options?: unknown): SetupSpec {
+  const seed = (options as { seed?: unknown } | null | undefined)?.seed;
+  if (seed !== undefined) {
+    if (typeof seed !== 'string') throw new IllegalAction('oathSetup: seed must be a string');
+    // `parseSeed` throws plain Errors for a malformed string; re-flag them as
+    // IllegalAction so the create route answers 400 rather than 500 — a bad
+    // seed is the caller's mistake, not the server's.
+    let parsed: ParsedSeed;
+    try {
+      parsed = parseSeed(seed);
+    } catch (err) {
+      throw new IllegalAction(`oathSetup: ${(err as Error).message}`);
+    }
+    return specFromSeed(parsed, seats);
+  }
+  if (seats !== FIRST_GAME.citizenship.length) {
     throw new IllegalAction(
-      `oathSetup: the first game is fixed for ${spec.citizenship.length} seats, got ${seats} ` +
-        `(no chronicle seed given — unit 18 adds seed-driven setups for other counts)`,
+      `oathSetup: the first game is fixed for ${FIRST_GAME.citizenship.length} seats, got ${seats} ` +
+        `(pass a chronicle seed to set up any other count)`,
     );
   }
+  return FIRST_GAME;
+}
+
+export function oathSetup(seats: number, options?: unknown): OathSetup {
+  const spec = specFor(seats, options);
 
   // Deal the world pool (Law §1.19-1.21, §1.23): 1 card to each region's
   // discard, then each seat draws 3 from the bottom and keeps 1.
-  const pool = shuffle(spec.worldPool);
+  const pool = spec.ordered ? [...spec.worldPool] : shuffle(spec.worldPool);
   let i = 0;
   const discards: Record<Region, string[]> = { cradle: [], provinces: [], hinterland: [] };
   for (const region of REGIONS) discards[region].push(pool[i++]);
@@ -222,11 +380,14 @@ export function oathSetup(seats: number, options?: unknown): OathSetup {
   }
   const worldDeck = pool.slice(i);
 
-  // Relic deck (Law §1.17-1.18): shuffle, then the first 4 go to the
-  // Reliquary, the rest form the deck.
-  const shuffledRelics = shuffle(spec.relicPool);
-  const reliquary = shuffledRelics.slice(0, 4);
-  const relicDeck = shuffledRelics.slice(4);
+  // Relic deck (Law §1.17-1.18): the first 4 go to the Reliquary, the rest
+  // form the deck. §9.3 caps the draw at what is there — a chronicle can
+  // legitimately carry fewer than 4 loose relics, and the uncovered spaces
+  // then simply start usable (§7.1.1).
+  const RELIQUARY_SPACES = RELIQUARY_MODIFIERS.length; // Law §1.17/§2.3
+  const orderedRelics = spec.ordered ? [...spec.relicPool] : shuffle(spec.relicPool);
+  const reliquary = orderedRelics.slice(0, RELIQUARY_SPACES);
+  const relicDeck = orderedRelics.slice(RELIQUARY_SPACES);
 
   return { spec, worldDeck, discards, startingAdviser, relicDeck, reliquary };
 }
@@ -285,9 +446,28 @@ export function init(setup: OathSetup): OathState {
   }
   const placedOnMap = sites.reduce((sum, s) => sum + s.warbands[0], 0);
 
+  // Law §1.15: "Each Exile places 3 warbands of their own color on their
+  // board. Each Citizen places 3 PURPLE warbands on their board." A
+  // Chronicled Citizen therefore draws from the Chancellor's 24 rather than
+  // holding 14 of their own — which is also what D41's model requires, since
+  // a Citizen's own-colour reserve is not tracked at all (if they are later
+  // exiled, §6.7 hands them a fresh 14). Untested until unit 18, because
+  // FIRST_GAME has no Citizens.
+  //
+  // §1.9 does hand every non-Chancellor "the 14 warbands... of the same
+  // colour" before §1.15 sorts out what goes on the board, but for a Citizen
+  // those 14 never enter play and nothing ever reads them.
+  const citizenSeats = spec.citizenship.filter((c) => c === 'citizen').length;
+  const CITIZEN_BOARD = 3;
   const players: PlayerState[] = spec.citizenship.map((citizenship, seat) => {
     const isChancellor = citizenship === 'chancellor';
-    const totalWarbands = isChancellor ? CHANCELLOR_WARBANDS : EXILE_WARBANDS;
+    const isCitizen = citizenship === 'citizen';
+    // The Chancellor's own 24 is what every Citizen's board comes out of.
+    const totalWarbands = isChancellor
+      ? CHANCELLOR_WARBANDS - citizenSeats * CITIZEN_BOARD
+      : isCitizen
+        ? CITIZEN_BOARD
+        : EXILE_WARBANDS;
     const boardWarbands = 3; // Law §1.12 (chancellor), §1.15 (exile/citizen)
     const onMap = isChancellor ? placedOnMap : 0;
     return {
@@ -352,8 +532,12 @@ export function init(setup: OathSetup): OathState {
     // already the shuffle's random order, so zipping it against the fixed
     // modifier enumeration assigns relics to spaces randomly without a
     // separate shuffle step.
+    // §1.17 deals one relic onto each of the board's 4 fixed spaces (§2.3).
+    // A chronicle can carry fewer than 4 loose relics, and §9.3 says take as
+    // many as possible — a space with no relic is simply uncovered, which
+    // makes its modifier usable at once (§7.1.1).
     reliquary: RELIQUARY_MODIFIERS.map(
-      (modifier, i): ReliquarySpace => ({ modifier, relicId: setup.reliquary[i] }),
+      (modifier, i): ReliquarySpace => ({ modifier, relicId: setup.reliquary[i] ?? null }),
     ),
     grandScepter: 0, // Law §1.8: the chancellor always starts with it
     discards: {
@@ -390,8 +574,9 @@ function buildSiteSlots(s: SetupSiteSpec): SiteState['cards'] {
     throw new Error(`setup: ${s.id} given ${s.denizens.length} denizens but capacity is ${capacity}`);
   }
   const slots: SiteState['cards'] = Array.from({ length: capacity }, () => null);
+  const ruined = new Set(s.ruined ?? []);
   s.denizens.forEach((id, idx) => {
-    slots[idx] = { id, favor: 0, secrets: 0 };
+    slots[idx] = ruined.has(id) ? { id, ruined: true, favor: 0, secrets: 0 } : { id, favor: 0, secrets: 0 };
   });
   return slots;
 }
