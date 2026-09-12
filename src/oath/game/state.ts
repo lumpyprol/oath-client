@@ -326,6 +326,12 @@ export interface WakeState {
   seat: number;
   /** §4.1.1 steps still owed — two on the People's Favor's Mob side (§4.1.1.II). */
   stepsRemaining: number;
+  /**
+   * §4.1.4: the Opportunity Site this seat's pawn is standing on, while it
+   * still has something to take. Set only once §4.1.1-§4.1.3 are done, and
+   * null the rest of the time — the Law runs the steps in order.
+   */
+  opportunity: string | null;
   /** `actionCount` at the turn's start — the pending-decision id's anchor. */
   startedAt: number;
 }
@@ -760,8 +766,20 @@ export function checkInvariants(state: OathState): void {
     if (w.seat !== state.turn.activeSeat) {
       fail(`wake.seat (${w.seat}) must be the active seat (${state.turn.activeSeat}) — Law §4.1`);
     }
-    if (!Number.isInteger(w.stepsRemaining) || w.stepsRemaining <= 0) {
-      fail(`wake.stepsRemaining must be positive while a Wake Phase is pending, got ${w.stepsRemaining}`);
+    if (!Number.isInteger(w.stepsRemaining) || w.stepsRemaining < 0) {
+      fail(`wake.stepsRemaining must not be negative, got ${w.stepsRemaining}`);
+    }
+    // A pending wake owes SOMETHING: either §4.1.1 steps or §4.1.4's offer.
+    if (w.stepsRemaining === 0 && w.opportunity === null) {
+      fail('wake: a pending Wake Phase must owe either a favor step or an Opportunity Site take');
+    }
+    if (w.opportunity !== null) {
+      if (!siteIds.has(w.opportunity)) {
+        fail(`wake.opportunity (${w.opportunity}) is not a site on the map`);
+      }
+      if (w.stepsRemaining > 0) {
+        fail('wake: §4.1.4 is offered only after §4.1.1 is finished (the Law resolves them in order)');
+      }
     }
     if (w.startedAt < 0 || w.startedAt > state.actionCount) {
       fail(`wake.startedAt (${w.startedAt}) must be between 0 and actionCount`);

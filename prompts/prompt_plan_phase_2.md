@@ -2379,12 +2379,21 @@ and replay-safe; the Wake Phase runs in Law order.
   had ever recomputed it, so nothing had ever noticed. Enforcing a rule
   continuously is a good way to find states your tests were only
   pretending were legal.
-- **Known gap, recorded not hidden:** the very first turn of the game
-  gets no Wake Phase, because the wake is driven by `turn.rest` and seat
-  0 acts before any rest has happened. The only step that could bite is
-  §4.1.1, and only when the Chancellor starts holding the People's
-  Favor (§1.13). Noted in `victory.ts`'s header; unit 19's scripted game
-  is the natural place to decide whether it is worth an `init` hook.
+- **Known gap, since closed (2026-09-12):** the very first turn got no
+  Wake Phase, because the wake is driven by `turn.rest` and seat 0 acts
+  before any rest has happened. `init` now calls `beginWake` for seat 0.
+  It turned out to be entangled with two other setup bugs — §1.13's
+  banner grant and §1.16's reveal tokens were BOTH unimplemented, and
+  each was hiding the others, since all three are inert in a Supremacy
+  first game with no faceup Opportunity Site.
+- **§4.1.4 was mis-classified as deferrable, and is now engine-owned
+  (D47).** The plan (and this unit) recorded the Opportunity Site take as
+  "stays declared — it is a 'may'". That reasoning does not survive
+  contact with the supply model: the tokens are placed once at reveal and
+  never replenished, so a "may" nobody would ever decline, over a finite
+  pool, was silently sequestering five of the game's 36 favor. Now
+  offered at the end of the Wake Phase as `wake.take`, with an explicit
+  'none' answer so the "may" is still real.
 
 ---
 

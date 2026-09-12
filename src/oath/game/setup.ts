@@ -245,16 +245,34 @@ export function init(setup: OathSetup): OathState {
   const { spec } = setup;
   const seats = spec.citizenship.length;
 
-  const sites: SiteState[] = spec.sites.map((s) => ({
-    id: s.id,
-    region: s.region,
-    facedown: s.facedown,
-    cards: buildSiteSlots(s),
-    relics: [...s.relics],
-    warbands: Array.from({ length: seats }, () => 0),
-    favor: 0,
-    secrets: 0,
-  }));
+  // Law §1.16: "Place favor and secret tokens on any sites as shown by their
+  // reveal prompts (2.8.2)." A FACEUP site starts with its prompt already
+  // resolved; a facedown one resolves it when Travel turns it over (§5.6.2,
+  // unit 9 — which did implement this, while setup never did). Only the
+  // three opportunity sites carry any (Mine 3 favor, Salt Flats 2 favor +
+  // 1 secret, Drowned City 3 secrets — RULINGS.md), and none of them is
+  // faceup in FIRST_GAME, which is why nothing caught this until §4.1.4
+  // needed the tokens to exist.
+  //
+  // §1.16's parenthetical ("if you don't have enough favor, the Chancellor
+  // chooses how to place it") is not modelled: setup hands out at most 24
+  // of the 36 favor before this point, and the three prompts total 5, so
+  // the shortfall it covers cannot arise from any legal spec.
+  const sites: SiteState[] = spec.sites.map((s) => {
+    const reveal = (byId(s.id) as { reveal: { favor: number; secrets: number } }).reveal;
+    return {
+      id: s.id,
+      region: s.region,
+      facedown: s.facedown,
+      cards: buildSiteSlots(s),
+      relics: [...s.relics],
+      warbands: Array.from({ length: seats }, () => 0),
+      favor: s.facedown ? 0 : reveal.favor,
+      secrets: s.facedown ? 0 : reveal.secrets,
+    };
+  });
+  const siteFavor = sites.reduce((sum, s) => sum + s.favor, 0);
+  const siteSecrets = sites.reduce((sum, s) => sum + s.secrets, 0);
 
   // Warband placement (Law §1.12): 2 on the Cradle's topmost faceup site,
   // 1 on each other faceup site with at least one denizen/intact edifice.
@@ -308,6 +326,7 @@ export function init(setup: OathSetup): OathState {
   const favorPlaced =
     Object.values(favorBanks).reduce((a, b) => a + b, 0) +
     players.reduce((a, p) => a + p.favor, 0) +
+    siteFavor + // Law §1.16's reveal prompts on faceup sites
     1; // the People's Favor's starting token
   const sharedFavor = 36 - favorPlaced; // TOTAL_FAVOR, Law §1.4 (see state.ts)
 
@@ -315,7 +334,7 @@ export function init(setup: OathSetup): OathState {
   // and the 1 each player starts with (§1.11, §1.15). Not load-bearing —
   // §9.3 exempts secrets from component limits, so this can go negative in
   // play — but it keeps the count honest for display.
-  const sharedSecrets = 20 - 1 - seats;
+  const sharedSecrets = 20 - 1 - seats - siteSecrets; // §1.16's prompts too
 
   const state: OathState = {
     seats,

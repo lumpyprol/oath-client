@@ -610,3 +610,99 @@ describe('turn-structure gaps closed 2026-09-12', () => {
     expect(supremacy.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(1);
   });
 });
+
+describe('§4.1.4 Opportunity Sites — a fixed supply, offered at Wake', () => {
+  /**
+   * Seat 2 wakes standing on `siteId`; seat 1 rests to get them there.
+   * `favor`/`secrets` set that site's supply, sourcing the DELTA from the
+   * shared bank — baseState already leaves 1 favor on sites[0], which is
+   * Mine, so an absolute assignment silently breaks conservation.
+   */
+  function wakingAt(siteId: string, favor = 0, secrets = 0): OathState {
+    const s = quietBoard();
+    s.players[2].pawnSite = siteId;
+    const site = s.sites.find((x) => x.id === siteId)!;
+    s.sharedBank.favor += site.favor - favor;
+    s.sharedBank.secrets += site.secrets - secrets;
+    site.favor = favor;
+    site.secrets = secrets;
+    checkInvariants(s);
+    return s;
+  }
+
+  it('is placed at setup for a FACEUP site and never replenished (Law §1.16)', () => {
+    // FIRST_GAME's faceup sites carry no prompt, so pin one that does.
+    const spec = {
+      ...FIRST_GAME,
+      sites: FIRST_GAME.sites.map((site) =>
+        site.id === 'site:salt-flats' ? { ...site, facedown: false } : site,
+      ),
+    };
+    const g = init({ ...oathSetup(4, undefined), spec });
+    checkInvariants(g);
+    const salt = g.sites.find((s) => s.id === 'site:salt-flats')!;
+    expect({ favor: salt.favor, secrets: salt.secrets }).toEqual({ favor: 2, secrets: 1 });
+    // ...while a site still facedown holds nothing until Travel reveals it.
+    expect(g.sites.find((s) => s.id === 'site:mine')).toBeUndefined(); // not in the first-game layout
+  });
+
+  it('offers the take at the END of the Wake Phase, after §4.1.1-§4.1.3', () => {
+    const s = wakingAt('site:mine', 3);
+    const waking = rest(s, 1);
+    checkInvariants(waking);
+    expect(waking.wake).toMatchObject({ seat: 2, stepsRemaining: 0, opportunity: 'site:mine' });
+    expect(oath.pending(waking)).toContainEqual(
+      expect.objectContaining({ seat: 2, kind: 'wake', resolves: ['wake.take'] }),
+    );
+    // It locks the Act Phase like any other Wake step (§4.1 precedes §4.2).
+    expect(() => act(waking, 'turn.rest', 2)).toThrow(/Wake Phase first/);
+
+    const took = act(waking, 'wake.take', 2, { take: 'favor' });
+    checkInvariants(took);
+    expect(took.sites.find((x) => x.id === 'site:mine')!.favor).toBe(2); // drawn down
+    expect(took.players[2].favor).toBe(s.players[2].favor + 1);
+    expect(took.wake).toBeNull();
+  });
+
+  it('may be declined — it is a "may" (§4.1.4)', () => {
+    const s = wakingAt('site:mine', 3);
+    const declined = act(rest(s, 1), 'wake.take', 2, { take: 'none' });
+    checkInvariants(declined);
+    expect(declined.sites.find((x) => x.id === 'site:mine')!.favor).toBe(3); // untouched
+    expect(declined.wake).toBeNull();
+  });
+
+  it('lets Salt Flats choose between favor and secret, and refuses what is gone', () => {
+    const s = wakingAt('site:salt-flats', 1, 0); // only favor left
+    const waking = rest(s, 1);
+    expect(() => act(waking, 'wake.take', 2, { take: 'secret' })).toThrow(/no secret left/);
+    const took = act(waking, 'wake.take', 2, { take: 'favor' });
+    checkInvariants(took);
+    expect(took.sites.find((x) => x.id === 'site:salt-flats')!.favor).toBe(0);
+  });
+
+  it('is not offered at an ordinary site, nor at a drained Opportunity Site', () => {
+    const ordinary = rest(wakingAt('site:fertile-valley'), 1);
+    checkInvariants(ordinary);
+    expect(ordinary.wake).toBeNull();
+
+    const drained = wakingAt('site:mine', 0, 0); // explicitly emptied
+    const out = rest(drained, 1);
+    expect(out.wake).toBeNull();
+  });
+
+  it('is skipped entirely when the waking Exile has already won (§4.1.2 comes first)', () => {
+    const s = wakingAt('site:mine', 3);
+    s.oath = 'devotion';
+    s.banners[1].holder = 2;
+    s.oathkeeper = 2;
+    s.usurper = true; // a Usurper Win is waiting at §4.1.2
+    checkInvariants(s);
+    const out = rest(s, 1);
+    checkInvariants(out);
+    expect(out.complete).toBe(true);
+    expect(out.winner).toBe(2);
+    expect(out.wake).toBeNull(); // the game ended before §4.1.4 could be offered
+    expect(out.sites.find((x) => x.id === 'site:mine')!.favor).toBe(3);
+  });
+});

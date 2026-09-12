@@ -156,15 +156,25 @@ export const oath: GameDefinition<OathState, OathSetup> = {
     if (state.wake) {
       return [
         ...citizenshipDecision,
-        {
-          id: `wake:${state.wake.seat}:${state.wake.startedAt}`,
-          seat: state.wake.seat,
-          kind: 'wake',
-          prompt:
-            `Wake Phase: resolve the People's Favor — place one favor on it, or return one ` +
-            `to the least-full favor bank (Law §4.1.1).`,
-          resolves: ['wake.favor'],
-        },
+        state.wake.opportunity !== null
+          ? {
+              id: `wake:${state.wake.seat}:${state.wake.startedAt}`,
+              seat: state.wake.seat,
+              kind: 'wake',
+              prompt:
+                `Wake Phase: you may take one favor or secret from ${state.wake.opportunity} ` +
+                `(Law §4.1.4) — its supply is never replenished.`,
+              resolves: ['wake.take'],
+            }
+          : {
+              id: `wake:${state.wake.seat}:${state.wake.startedAt}`,
+              seat: state.wake.seat,
+              kind: 'wake',
+              prompt:
+                `Wake Phase: resolve the People's Favor — place one favor on it, or return one ` +
+                `to the least-full favor bank (Law §4.1.1).`,
+              resolves: ['wake.favor'],
+            },
       ];
     }
     // A Campaign (unit 12) preempts the normal turn decision entirely —

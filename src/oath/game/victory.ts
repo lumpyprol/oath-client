@@ -45,9 +45,16 @@
  *     a full round is the cost. Getting this order wrong would let an Exile
  *     win a round early.
  *
- *   §4.1.4 the opportunity-site take stays DECLARED (v1 deferred list) —
- *     it is a "may", and expressible today as a siteFavor/siteSecrets mover
- *     through `power.use`.
+ *   §4.1.4 "If your pawn is at the Salt Flats, Mine, or Drowned City, you
+ *     may take one favor or secret from it." A "may", so it is OFFERED
+ *     (`wake.take`, with a 'none' answer) rather than applied — but it is
+ *     the engine's to offer rather than a power to declare, because the
+ *     tokens are a FIXED supply: placed once when the site is revealed
+ *     (§1.16 at setup, §5.6.2 on Travel) and never replenished. Five of the
+ *     game's 36 favor and three of its secrets sit on these sites, so
+ *     leaving them unclaimed because nobody remembered to declare a power
+ *     is a real change to the economy. Identity-only and decidable from P1
+ *     data, so it sits on the same footing as Plains/Mountain (§11.4).
  *
  * The opening turn gets one too. It has no `turn.rest` before it, so `init`
  * calls `beginWake` directly for seat 0 — which matters exactly when Law
@@ -125,6 +132,18 @@ const STABLE_REGIME_TARGET: Record<number, number> = { 5: 6, 6: 5, 7: 3 };
 const END_DIE: readonly number[] = [1, 2, 3, 4, 5, 6];
 /** Law §3.4: the last round; its end always ends the game. */
 const FINAL_ROUND = 8;
+/**
+ * Law §4.1.4 / §11.1's Opportunity Sites, named by the Law rather than
+ * derived: "If your pawn is at the Salt Flats, Mine, or Drowned City, you
+ * may take one favor or secret from it." Identity-only and decidable from
+ * P1 data, the same footing as Plains/Mountain's §11.4 modifier — so the
+ * engine owns it rather than leaving it to a declared power.
+ *
+ * (These happen to be exactly the three sites whose §2.8.2 reveal prompt
+ * carries favor or secrets, but they are listed explicitly because that
+ * coincidence is not what the Law keys on.)
+ */
+const OPPORTUNITY_SITES: readonly string[] = ['site:salt-flats', 'site:mine', 'site:drowned-city'];
 
 // ---- goal predicates -----------------------------------------------------
 
@@ -377,6 +396,23 @@ function applyWakeStep(state: OathState, seat: number, step: WakeStep): OathStat
  * every step resolved itself) and `wake.favor` (when a player answered the
  * last one), so the Law's order holds whichever way the wake completed.
  */
+/**
+ * Law §4.1.4: "If your pawn is at the Salt Flats, Mine, or Drowned City,
+ * you may take one favor or secret from it." A "may", so it is offered
+ * rather than applied — but offered rather than left to the players,
+ * because the tokens are a FIXED supply placed once when the site is
+ * revealed (§1.16 at setup, §5.6.2 on Travel) and never replenished. Five
+ * of the game's 36 favor sit on these sites at reveal; leaving them
+ * unclaimed because nobody remembered to declare a power is a real change
+ * to the economy, not a rounding error.
+ */
+function offerOpportunity(state: OathState, seat: number): string | null {
+  const siteId = state.players[seat].pawnSite;
+  if (!OPPORTUNITY_SITES.includes(siteId)) return null;
+  const site = state.sites.find((s) => s.id === siteId)!;
+  return site.favor > 0 || site.secrets > 0 ? siteId : null;
+}
+
 function finishWake(state: OathState, seat: number): OathState {
   state.wake = null;
 
@@ -385,15 +421,21 @@ function finishWake(state: OathState, seat: number): OathState {
   const banner = peoplesFavor(state);
   if (banner.tokens >= MOB_THRESHOLD && !banner.mob) banner.mob = true;
 
-  if (!isExile(state, seat)) return state; // §4.1.2 and §4.1.3 are Exile-only
+  if (isExile(state, seat)) {
+    // §4.1.2 Check for Win — §3.1 then §3.2.
+    if (state.oathkeeper === seat && state.usurper) return finish(state, seat);
+    if (visionGoalMet(state, seat)) return finish(state, seat);
 
-  // §4.1.2 Check for Win — §3.1 then §3.2.
-  if (state.oathkeeper === seat && state.usurper) return finish(state, seat);
-  if (visionGoalMet(state, seat)) return finish(state, seat);
+    // §4.1.3 Flip to Usurper — AFTER the win check; see this file's header
+    // for why that order is the whole Usurper clock.
+    if (state.oathkeeper === seat) state.usurper = true;
+  }
 
-  // §4.1.3 Flip to Usurper — AFTER the win check; see this file's header for
-  // why that order is the whole Usurper clock.
-  if (state.oathkeeper === seat) state.usurper = true;
+  // §4.1.4, the last step, and the only one that is not Exile-only.
+  const opportunity = offerOpportunity(state, seat);
+  if (opportunity !== null) {
+    state.wake = { seat, stepsRemaining: 0, opportunity, startedAt: state.actionCount };
+  }
   return state;
 }
 
@@ -422,7 +464,8 @@ export function beginWake(state: OathState, seat: number): OathState {
   // §4.1.1 applies only to the holder; §4.1.1.II repeats it once on Mob.
   const steps = banner.holder === seat ? (banner.mob ? 2 : 1) : 0;
   const working = applyEffects(state, seat, []);
-  working.wake = steps > 0 ? { seat, stepsRemaining: steps, startedAt: working.actionCount } : null;
+  working.wake =
+    steps > 0 ? { seat, stepsRemaining: steps, opportunity: null, startedAt: working.actionCount } : null;
   return advanceWake(working);
 }
 
@@ -465,6 +508,43 @@ function wakeFavor(state: OathState, action: GameAction): OathState {
   let working = applyWakeStep(state, seat, step);
   working.wake = { ...working.wake!, stepsRemaining: working.wake!.stepsRemaining - 1 };
   return advanceWake(working);
+}
+
+const WakeTakePayloadSchema = z.object({ take: z.enum(['favor', 'secret', 'none']) });
+
+/** Law §4.1.4: take one favor or secret from your Opportunity Site, or decline. */
+function wakeTake(state: OathState, action: GameAction): OathState {
+  const seat = requireActiveSeat(state, action, { wakeOk: true });
+  const wake = state.wake;
+  if (!wake || wake.opportunity === null) {
+    throw new IllegalAction('wake.take: no Opportunity Site take is pending');
+  }
+  if (seat !== wake.seat) {
+    throw new IllegalAction('wake.take: only the waking seat resolves their own Wake Phase (Law §4.1)');
+  }
+  const parsed = WakeTakePayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('wake.take: malformed payload');
+  const { take } = parsed.data;
+
+  const siteId = wake.opportunity;
+  const site = state.sites.find((s) => s.id === siteId)!;
+  if (take !== 'none') {
+    const available = take === 'favor' ? site.favor : site.secrets;
+    if (available <= 0) {
+      throw new IllegalAction(`wake.take: ${siteId} has no ${take} left to take (Law §4.1.4)`);
+    }
+  }
+
+  const working =
+    take === 'none'
+      ? applyEffects(state, seat, [])
+      : applyEffects(state, seat, [
+          take === 'favor'
+            ? { kind: 'favor', from: { kind: 'siteFavor', siteId }, to: { kind: 'seatFavor', seat }, amount: 1 }
+            : { kind: 'secret', from: { kind: 'siteSecrets', siteId }, to: { kind: 'seatSecrets', seat }, amount: 1 },
+        ]);
+  working.wake = null; // §4.1.4 is the last step of the Wake Phase
+  return working;
 }
 
 // ---- game end ------------------------------------------------------------
@@ -556,5 +636,6 @@ export function prepareRest(state: OathState, proposed: ProposedAction): unknown
 
 export const VICTORY_HANDLERS: Record<string, Handler> = {
   'wake.favor': wakeFavor,
+  'wake.take': wakeTake,
   'oathkeeper.grant': grant,
 };
