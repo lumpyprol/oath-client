@@ -1,0 +1,19 @@
+{
+  "_provenance": "Restriction banners (Law \u00a77.2), keyed by cards.lua saveId in the 'card' numbering. PARTIAL BY DESIGN (unit 19, Q12/D46): a card ABSENT from this file has NOT been read, and stays unenforced \u2014 absence never means 'unrestricted'. An empty array means read and carrying no banner. Values: 'site' (the tree restriction, \u00a77.2.1 \u2014 playable/movable only to a site), 'adviser' (the person restriction, \u00a77.2.1 \u2014 only to a player's advisers), 'locked' (the chain, \u00a77.2.2 \u2014 once played, cannot be discarded, moved or swapped). A card may carry more than one. The data is in no machine-readable source: the publisher's own card CDN has no restriction field, because the banner is iconography printed under the suit symbol (\u00a72.6.2), so each entry here was read off the card face at https://cardcdn.buriedgiant.com/cards/oath/en-US/<name>.webp. ANCHORS: Council Seat (saveId 122) shows a chain over a PERSON, and Ancient Forge (saveId 208) a chain over a TREE \u2014 between them they are the positive control \u2014 it shows a chain over a person badge directly beneath its suit, i.e. both 'locked' and 'adviser', which is what establishes where the banner sits and what its absence looks like on the others. Visions carry none structurally: \u00a72.6.2 places the banner under the SUIT, and a Vision has no suit (\u00a72.7). Keep (a DENIZEN) carries the same chain-over-tree as Ancient Forge, and is the one the tests use for the tree path: an edifice can never be drawn into a hand (\u00a72.9 \u2014 edifices only enter play through the Chronicle, \u00a78.3.1), so an edifice's tree banner is unreachable from card.play by construction.",
+  "4": [
+    "locked",
+    "site"
+  ],
+  "107": [],
+  "122": [
+    "locked",
+    "adviser"
+  ],
+  "124": [],
+  "208": [
+    "locked",
+    "site"
+  ],
+  "210": [],
+  "214": []
+}

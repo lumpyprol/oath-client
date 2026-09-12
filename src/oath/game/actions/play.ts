@@ -43,6 +43,7 @@ import { byId } from '../../cards/index.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import { discardRegion } from '../map.js';
+import { isRestricted } from '../restrictions.js';
 import { ADVISER_LIMIT, CONSPIRACY_ID, type OathState, type Region } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
@@ -104,6 +105,9 @@ function play(state: OathState, action: GameAction): OathState {
 
     case 'site': {
       if (isVision) throw new IllegalAction('card.play: a Vision cannot be played to a site (Law §5.1.4.3)');
+      if (isRestricted(cardId, 'adviser')) {
+        throw new IllegalAction(`card.play: ${cardId} may only be played to your advisers (Law §7.2.1)`);
+      }
       const siteId = payload.siteId ?? player.pawnSite;
       if (siteId !== player.pawnSite) {
         throw new IllegalAction('card.play: you may only play to your own site (Law §5.1.4.1)');
@@ -148,6 +152,11 @@ function play(state: OathState, action: GameAction): OathState {
         if (!dropped) {
           throw new IllegalAction(`card.play: no adviser at index ${dropIndex} for seat ${seat}`);
         }
+        // §7.2.2: a chained card, once played, cannot be discarded — but
+        // only while FACEUP (§7.2's preamble), so a facedown one still can.
+        if (!dropped.facedown && isRestricted(dropped.id, 'locked')) {
+          throw new IllegalAction(`card.play: ${dropped.id} is locked and cannot be discarded (Law §7.2.2)`);
+        }
         if (dropped.favor > 0 || dropped.secrets > 0) {
           throw new IllegalAction(
             'card.play: discarding an adviser carrying favor/secrets is not yet supported ' +
@@ -160,6 +169,13 @@ function play(state: OathState, action: GameAction): OathState {
           from: { kind: 'seatAdvisers', seat },
           to: { kind: 'discard', region: discardTo },
         });
+      }
+      // §7.2.1's tree restriction, and only when it lands FACEUP —
+      // §7.2's preamble exempts facedown cards, which have no banner at all.
+      if (!facedown && isRestricted(cardId, 'site')) {
+        throw new IllegalAction(
+          `card.play: ${cardId} may only be played to a site (Law §7.2.1) — it could still go facedown`,
+        );
       }
       effects.push({
         kind: 'card',

@@ -5,6 +5,7 @@ import { cards } from '../../../src/oath/cards/index.js';
 import { discardRegion } from '../../../src/oath/game/map.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
 import { baseState } from './helpers.js';
+import { restrictionsOf } from '../../../src/oath/game/restrictions.js';
 
 function act(state: OathState, type: string, actor: number | null, payload: unknown = {}): OathState {
   const action: GameAction = {
@@ -346,5 +347,108 @@ describe('warbands.move — turn locks', () => {
       attackDice: 1,
     });
     expect(() => act(declared, 'warbands.move', 1, { direction: 'toBoard', count: 1 })).toThrow(/Campaign/);
+  });
+});
+
+describe('§7.2 restriction banners (unit 19, scoped data — Q12/D46)', () => {
+  // Council Seat is chained AND person-restricted; Ancient Forge is chained
+  // and tree-restricted. Both read off their card faces (RULINGS/provenance).
+  const COUNCIL_SEAT = 'denizen:council-seat';
+  // Keep is the tree-restricted DENIZEN. Ancient Forge carries the same
+  // banner but is an edifice, which can never be drawn into a hand (§2.9),
+  // so its tree restriction is unreachable from card.play by construction.
+  const KEEP = 'denizen:keep';
+
+  /**
+   * Put `cardId` in seat 1's hand, mid-Search, so card.play can reach it —
+   * lifting it out of wherever baseState happened to deal it first, since a
+   * card may only ever be in one zone.
+   */
+  function inHand(cardId: string): OathState {
+    const s = baseState();
+    s.worldDeck = s.worldDeck.filter((id) => id !== cardId);
+    for (const site of s.sites) {
+      site.cards = site.cards.map((c) => (c?.id === cardId ? null : c));
+    }
+    for (const p of s.players) p.advisers = p.advisers.filter((a) => a.id !== cardId);
+    s.players[1].hand = [cardId];
+    s.players[1].handDrawnAt = s.actionCount;
+    checkInvariants(s);
+    return s;
+  }
+
+  it('a person-restricted card cannot be played to a site (§7.2.1)', () => {
+    const s = inHand(COUNCIL_SEAT);
+    expect(() => act(s, 'card.play', 1, { handIndex: 0, as: 'site' })).toThrow(/only.*advisers/);
+    const out = act(s, 'card.play', 1, { handIndex: 0, as: 'adviser' });
+    checkInvariants(out);
+    expect(out.players[1].advisers.some((a) => a.id === COUNCIL_SEAT)).toBe(true);
+  });
+
+  it('a tree-restricted card cannot be turned faceup among your advisers (§7.2.1)', () => {
+    const s = inHand(KEEP);
+    expect(() => act(s, 'card.play', 1, { handIndex: 0, as: 'adviser' })).toThrow(/only.*to a site/);
+  });
+
+  it('...but MAY be played facedown — §7.2 applies to faceup cards only', () => {
+    const s = inHand(KEEP);
+    const out = act(s, 'card.play', 1, { handIndex: 0, as: 'adviser', facedown: true });
+    checkInvariants(out);
+    const held = out.players[1].advisers.find((a) => a.id === KEEP)!;
+    expect(held.facedown).toBe(true);
+
+    // ...and the restriction only bites when §6.1 tries to turn it over,
+    // at which point the card's only way out is the discard.
+    out.turn.activeSeat = 1;
+    const index = out.players[1].advisers.findIndex((a) => a.id === KEEP);
+    expect(() => act(out, 'adviser.play', 1, { adviserIndex: index, as: 'faceup' })).toThrow(
+      /cannot be turned faceup/,
+    );
+    const discarded = act(out, 'adviser.play', 1, { adviserIndex: index, as: 'discard' });
+    checkInvariants(discarded);
+    expect(discarded.players[1].advisers.some((a) => a.id === KEEP)).toBe(false);
+  });
+
+  it('a LOCKED card cannot be discarded once faceup, but can while facedown (§7.2.2 + the preamble)', () => {
+    const s = baseState();
+    s.worldDeck = s.worldDeck.filter((id) => id !== COUNCIL_SEAT);
+    // Seat 1 is at the adviser limit, so playing another forces a discard.
+    s.players[1].advisers = [
+      { id: COUNCIL_SEAT, facedown: false, favor: 0, secrets: 0 },
+      { id: s.worldDeck[0], facedown: true, favor: 0, secrets: 0 },
+      { id: s.worldDeck[1], facedown: true, favor: 0, secrets: 0 },
+    ];
+    s.players[1].hand = [s.worldDeck[2]];
+    s.players[1].handDrawnAt = s.actionCount;
+    s.worldDeck = s.worldDeck.slice(3);
+    checkInvariants(s);
+
+    expect(() =>
+      act(s, 'card.play', 1, { handIndex: 0, as: 'adviser', facedown: true, discardAdviserIndex: 0 }),
+    ).toThrow(/locked/);
+
+    // The same card facedown is discardable — §7.2's preamble again.
+    const facedown = structuredClone(s);
+    facedown.players[1].advisers[0].facedown = true;
+    const out = act(facedown, 'card.play', 1, {
+      handIndex: 0,
+      as: 'adviser',
+      facedown: true,
+      discardAdviserIndex: 0,
+    });
+    checkInvariants(out);
+    expect(out.players[1].advisers.some((a) => a.id === COUNCIL_SEAT)).toBe(false);
+  });
+
+  it('an UNREAD card is unenforced, not assumed unrestricted', () => {
+    // Nothing in the data file, so the engine has no opinion and allows it —
+    // the partial-transcription contract (D46).
+    const base = baseState();
+    const unread = base.worldDeck.find(
+      (id) => id.startsWith('denizen:') && restrictionsOf(id) === null,
+    )!;
+    expect(restrictionsOf(unread)).toBeNull();
+    const s = inHand(unread);
+    checkInvariants(act(s, 'card.play', 1, { handIndex: 0, as: 'site' }));
   });
 });

@@ -43,6 +43,7 @@ import { z } from 'zod';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import { discardRegion } from '../map.js';
+import { isRestricted } from '../restrictions.js';
 import { CONSPIRACY_ID, type OathState } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
@@ -94,6 +95,14 @@ function play(state: OathState, action: GameAction): OathState {
   }
 
   if (!isVision) {
+    // §7.2.1: turning it faceup is what makes the banner apply (§7.2's
+    // preamble), so a site-only card can sit here facedown forever and
+    // simply never be turned over — its only way out is the discard above.
+    if (isRestricted(cardId, 'site')) {
+      throw new IllegalAction(
+        `adviser.play: ${cardId} may only be played to a site, so it cannot be turned faceup here (Law §7.2.1)`,
+      );
+    }
     // A denizen turns over in place (Law §6.1 via §5.1.4.2).
     return applyEffects(state, seat, [{ kind: 'flip', target: { kind: 'adviser', seat, cardId } }]);
   }
