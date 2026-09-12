@@ -462,6 +462,10 @@ Law against units 1–16; findings table in the plan). Campaign design
       (unit 12, `campaign1.test.ts`'s "prepare() persists dice" test)
 - [ ] hidden information audit: fuzz `project()` for every seat over a
       played game; no other seat's hand or deck order leaks
+- [ ] every section of the Law (§1–§11) is implemented or explicitly
+      deferred with a recorded home, in a committed `RULES-COVERAGE.md`
+      (unit 20; deferrals verified against the code, not against the
+      notes — this phase found seven bugs that were already "recorded")
 - [ ] `cradle` deleted
 
 ---

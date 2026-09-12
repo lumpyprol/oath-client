@@ -2629,6 +2629,43 @@ Unit 20 of Phase 2: audit and close.
    Also stringify the raw action log once and assert no hidden-at-end id
    appears in any payload (the log is safe to share — HLD §4).
 
+1b. RULES COVERAGE REVIEW — every section of the Law, dispositioned.
+   Walk the reference (rules.buriedgiant.com, Oath printing p1) from §1
+   to §11 IN ORDER, and give every numbered subsection exactly one
+   disposition, written to a committed `RULES-COVERAGE.md`:
+     - **IMPLEMENTED** — name the file and function. "Covered somewhere"
+       is not a disposition; the point is that a reader can check it.
+     - **DEFERRED** — name where it is RECORDED and where it will be
+       DONE (a unit, a phase scope bullet, or a Q). "v2" alone is not a
+       home: the Peek family sat on the deferred list for four units
+       described as "the v2/P4 boundary" while P4's scope never
+       mentioned it, so nothing would ever have picked it up.
+     - **N/A** — with the reason (component inventories, table talk,
+       §8's physical Chronicle steps that only P5 needs).
+
+   Method, and it matters — this phase found seven rules bugs that were
+   all already "recorded as fine", so a review that re-reads the notes
+   is worthless:
+     - Check every claim against the CODE, not the notes. §4.1.4 was
+       recorded as "declared, a may, corrupts nothing" and was in fact
+       sequestering 14% of the game's favor.
+     - Distrust "inert in FIRST_GAME". §1.13, §1.16 and §1.22 were all
+       unimplemented and all invisible, because the fixture the tests
+       use is a Supremacy first game with no faceup Opportunity Site.
+       Re-check every §1 step against a SEEDED game instead.
+     - For anything deferred to a declared power, check it is actually
+       DECLARABLE. Unit 16d found a whole class that was not, because no
+       `supply` effect existed — the deferral's premise was false.
+     - Where a rule IS enforced, check the enforcement is REACHABLE.
+       §7.2 on an edifice is dead code, since an edifice never reaches a
+       hand (§2.9).
+     - Prefer an invariant to an assertion. Every setup bug this phase
+       was caught by `checkInvariants`, not by reading.
+
+   Anything this turns up goes somewhere real — fixed now, or into a
+   named unit/phase/Q. A finding recorded without a home is exactly what
+   this review exists to stop producing.
+
 2. Delete cradle (HLD exit criterion):
    - remove src/engine/cradle.ts and its DEFS entry
    - replay.test.ts: port to a ~20-line inline toy definition declared in
@@ -2664,7 +2701,10 @@ Run npm test AND the smoke script.
 Commit: "Audit projections over a full game; remove cradle; document P2"
 ```
 
-**Done when.** Audit green over every prefix × seat; cradle gone; smoke
+**Done when.** Every Law section carries a disposition in
+`RULES-COVERAGE.md`, and every DEFERRED one names both where it is
+recorded and where it will be done; audit green over every prefix × seat;
+cradle gone; smoke
 passes against oath; HLD updated.
 
 ---
