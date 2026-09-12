@@ -144,7 +144,7 @@ stable ids to dedupe on, and a wall-clock "pending since" per decision.
 
 ---
 
-## Unit 1 — Interrupt catalogue and pending() contracts
+## Unit 1 — Interrupt catalogue and pending() contracts ✅ (completed 2026-09-12)
 
 **Purpose.** Fix the ground truth before changing it: one normative
 document listing every decision the engine can raise, conformance tests
