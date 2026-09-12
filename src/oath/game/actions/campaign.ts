@@ -551,29 +551,19 @@ function declare(state: OathState, action: GameAction): OathState {
   };
   state.campaign = campaign;
 
-  if (decl.defender === 'bandits') {
+  if (decl.defender !== 'bandits') {
+    // P3 unit 5: §5.5.2's join window comes BEFORE §5.5.3's plan window.
+    // Frozen here (see `allyEligible`) — and when nobody is eligible the
+    // window never opens at all, so a 3-player game pays nothing for it.
+    campaign.allyEligible = state.players
+      .map((_, seat) => seat)
+      .filter((seat) => mayVolunteerAsAlly(state, campaign, seat));
+    if (campaign.allyEligible.length > 0) campaign.phase = 'join';
+  }
+
+  if (settleWindows(state, campaign)) {
     storeFaces(campaign, action.payload, 'campaign.declare');
-    return state;
   }
-
-  // P3 unit 5: §5.5.2's join window comes BEFORE §5.5.3's plan window.
-  // Frozen here (see `allyEligible`) — and when nobody is eligible the
-  // window never opens at all, so a 3-player game pays nothing for it.
-  campaign.allyEligible = state.players
-    .map((_, seat) => seat)
-    .filter((seat) => mayVolunteerAsAlly(state, campaign, seat));
-  if (campaign.allyEligible.length === 0) return state;
-
-  campaign.phase = 'join';
-  // P3 unit 6 (D52), consult point 1 of 2: a Citizen whose standing policy
-  // is `ally: 'pass'` has already answered `{ join: false }`, so their
-  // decision is never raised — recorded here, in THIS action's reduce,
-  // appending nothing. With every eligible Citizen passing, the join window
-  // opens and closes inside `campaign.declare` alone.
-  for (const seat of campaign.allyEligible) {
-    if (consultStanding(state, seat, 'ally') === 'pass') campaign.allyAnswered.push(seat);
-  }
-  closeJoinWindow(campaign);
   return state;
 }
 
@@ -586,6 +576,59 @@ function declare(state: OathState, action: GameAction): OathState {
 function closeJoinWindow(c: CampaignState): void {
   if (c.allyAnswered.length < c.allyEligible.length) return;
   c.phase = c.allyVolunteers.length > 0 ? 'permit' : 'respond';
+}
+
+/**
+ * Drive `c` through every window the standing policies in force can close
+ * WITHOUT anyone submitting an action (P3 units 6-7, D52), and report
+ * whether the campaign has run out of windows entirely and is ready to roll.
+ *
+ * Mutates `c`, and is deliberately the ONLY place that decides this, because
+ * two callers must agree exactly:
+ *
+ *   - the reducers (`declare`, `ally`, `permit`), which advance the real
+ *     campaign, and
+ *   - `prepareCampaign`, which runs it against a THROWAWAY CLONE to answer
+ *     one question: "will the action being proposed close the last window?"
+ *     If so, that action's `prepare()` must roll the dice — because D14
+ *     says dice are rolled in a prepare and never in a reducer, and unit 7
+ *     is where the window-closer stops being a fixed action type. It can now
+ *     be `campaign.declare` itself, or the last `campaign.ally` answer.
+ *
+ * A divergence between those two would be a live bug of the worst kind: the
+ * reducer would reach `'rolled'` with no faces in the payload, or faces
+ * would be rolled and thrown away. One function, called twice.
+ *
+ * Returns `false` while a real player still owes something.
+ */
+function settleWindows(state: OathState, c: CampaignState): boolean {
+  // Bandits never open a window of any kind (Law §5.5.3 has nobody to ask).
+  if (c.defenderSeat === 'bandits') return true;
+  const defender = c.defenderSeat;
+
+  if (c.phase === 'join') {
+    // Unit 6: a Citizen whose policy is `ally: 'pass'` has already answered
+    // `{ join: false }`, so their decision is never raised.
+    for (const seat of c.allyEligible) {
+      if (c.allyAnswered.includes(seat)) continue;
+      if (consultStanding(state, seat, 'ally') === 'pass') c.allyAnswered.push(seat);
+    }
+    closeJoinWindow(c);
+  }
+
+  // Unit 7: `defense: 'close'` auto-permits NOBODY. See RULINGS.md — §5.5.3
+  // makes the defender the window's owner, so forgoing battle plans is their
+  // call to make for the defence as a whole, Allies included.
+  if (c.phase === 'permit' && consultStanding(state, defender, 'defense') === 'close') {
+    c.phase = 'respond';
+  }
+
+  // Unit 7: ...and the same policy closes §5.5.3's plan window itself, which
+  // is what makes a defended campaign cost the defender ZERO actions.
+  if (c.phase === 'respond' && consultStanding(state, defender, 'defense') === 'close') {
+    return true;
+  }
+  return false;
 }
 
 const AllyPayloadSchema = z.object({ join: z.boolean() });
@@ -620,7 +663,10 @@ function ally(state: OathState, action: GameAction): OathState {
 
   c.allyAnswered.push(action.actor);
   if (parsed.data.join) c.allyVolunteers.push(action.actor);
-  closeJoinWindow(c);
+  // Unit 7: this answer may be the LAST window-closer — if the defender has
+  // `defense: 'close'`, the plan window never opens and the dice ride this
+  // very action's payload (see `settleWindows`).
+  if (settleWindows(state, c)) storeFaces(c, action.payload, 'campaign.ally');
   return state;
 }
 
@@ -658,6 +704,7 @@ function permit(state: OathState, action: GameAction): OathState {
     if (!c.allies.includes(seat)) c.allies.push(seat);
   }
   c.phase = 'respond';
+  if (settleWindows(state, c)) storeFaces(c, action.payload, 'campaign.permit');
   return state;
 }
 
@@ -1299,37 +1346,92 @@ export const CAMPAIGN_HANDLERS: Record<string, Handler> = {
 };
 
 /**
- * `prepare()` for whichever action CLOSES the response window (HLD D14 +
- * P3's D51): roll both pools now, fold the faces into the payload `reduce`
- * will see. Two actions can be that closer, and this is the whole of the
- * difference between them:
+ * `prepare()` for whichever action CLOSES the last campaign window (HLD D14,
+ * P3's D51, extended by unit 7): roll both pools now and fold the faces into
+ * the payload `reduce` will see.
  *
- *   - `campaign.respond` — the normal case. The campaign already exists, so
- *     the pool sizes are read straight off it.
- *   - `campaign.declare` against BANDITS — no player can respond, so there
- *     is no window and declare closes it by existing. The campaign does not
- *     exist yet here, so the pools come from `computeDeclaration`, the same
- *     pure function the reducer is about to run.
+ * THE HARD PART, and the one place unit 7 needed care. D14 says dice roll in
+ * a `prepare()` and never in a reducer. D51 moved the roll from a dedicated
+ * `campaign.roll` onto the window-closing action. Units 6-7 then made "which
+ * action closes the last window" depend on the standing policies in force,
+ * so it is no longer a fixed action type at all — it can be:
  *
- * D51 deletes the attacker's separate `campaign.roll` visit this way. Note
- * what did NOT change: dice are still rolled in a `prepare()` and persisted
- * as faces, never rolled in a reducer (D14), so replay reuses them exactly.
+ *   - `campaign.respond`  — the ordinary case; the defender closes their own
+ *     plan window.
+ *   - `campaign.declare`  — against bandits (no window exists), or when the
+ *     policies close every window in declare's own reduce: every eligible
+ *     Citizen on `ally: 'pass'` and the defender on `defense: 'close'`.
+ *   - `campaign.ally`     — the LAST join answer, when the defender has
+ *     `defense: 'close'` so the plan window never opens.
+ *   - `campaign.permit`   — the defender's permission, when they granted it
+ *     but then close the plan window by policy.
+ *
+ * Rather than re-derive that from a growing table of cases, each branch runs
+ * `settleWindows` against a THROWAWAY CLONE of the campaign the reducer is
+ * about to produce, and rolls exactly when the clone says "ready". The
+ * reducer then runs the same function on the real campaign and reaches the
+ * same answer by construction — which is the only way these two can be kept
+ * from drifting apart.
  */
 export function prepareCampaign(state: OathState, proposed: ProposedAction): unknown {
   const base =
     typeof proposed.payload === 'object' && proposed.payload !== null ? proposed.payload : {};
+  const withFaces = (attackDice: number, defenseDice: number) => ({
+    ...base,
+    attackFaces: rollDice(ATTACK_DIE, attackDice),
+    defenseFaces: rollDice(DEFENSE_DIE, defenseDice),
+  });
 
   if (proposed.type === 'campaign.declare') {
     if (proposed.actor === null) return proposed.payload; // the reducer will reject it
-    // Only a bandits campaign closes its window at declare; every other
-    // declaration opens a real response window and rolls nothing yet.
+    // The campaign does not exist yet, so build the same provisional one the
+    // reducer is about to build — from `computeDeclaration`, the identical
+    // pure function — and ask it whether any window survives.
     const decl = computeDeclaration(state, proposed.actor, proposed.payload);
-    if (decl.defender !== 'bandits') return proposed.payload;
-    return {
-      ...base,
-      attackFaces: rollDice(ATTACK_DIE, decl.attackDice),
-      defenseFaces: rollDice(DEFENSE_DIE, decl.defenseDice),
+    const provisional: CampaignState = {
+      attackerSeat: proposed.actor,
+      defenderSeat: decl.defender,
+      targets: decl.targets,
+      attackDice: decl.attackDice,
+      defenseDice: decl.defenseDice,
+      phase: 'respond',
+      allies: decl.allies,
+      allyEligible: [],
+      allyAnswered: [],
+      allyVolunteers: [],
+      declaredAt: state.actionCount,
     };
+    if (decl.defender !== 'bandits') {
+      provisional.allyEligible = state.players
+        .map((_, seat) => seat)
+        .filter((seat) => mayVolunteerAsAlly(state, provisional, seat));
+      if (provisional.allyEligible.length > 0) provisional.phase = 'join';
+    }
+    if (!settleWindows(state, provisional)) return proposed.payload;
+    return withFaces(decl.attackDice, decl.defenseDice);
+  }
+
+  if (proposed.type === 'campaign.ally') {
+    const c = state.campaign;
+    if (!c || c.phase !== 'join' || proposed.actor === null) return proposed.payload;
+    const parsed = AllyPayloadSchema.safeParse(proposed.payload);
+    if (!parsed.success) return proposed.payload; // the reducer rejects it
+    const clone = structuredClone(c);
+    if (!clone.allyAnswered.includes(proposed.actor)) {
+      clone.allyAnswered.push(proposed.actor);
+      if (parsed.data.join) clone.allyVolunteers.push(proposed.actor);
+    }
+    if (!settleWindows(state, clone)) return proposed.payload;
+    return withFaces(c.attackDice, c.defenseDice);
+  }
+
+  if (proposed.type === 'campaign.permit') {
+    const c = state.campaign;
+    if (!c || c.phase !== 'permit') return proposed.payload;
+    const clone = structuredClone(c);
+    clone.phase = 'respond';
+    if (!settleWindows(state, clone)) return proposed.payload;
+    return withFaces(c.attackDice, c.defenseDice);
   }
 
   if (proposed.type === 'campaign.respond') {
@@ -1337,11 +1439,7 @@ export function prepareCampaign(state: OathState, proposed: ProposedAction): unk
     if (!c || c.phase !== 'respond') {
       throw new IllegalAction('campaign.respond: no campaign is awaiting a response');
     }
-    return {
-      ...base,
-      attackFaces: rollDice(ATTACK_DIE, c.attackDice),
-      defenseFaces: rollDice(DEFENSE_DIE, c.defenseDice),
-    };
+    return withFaces(c.attackDice, c.defenseDice);
   }
 
   return proposed.payload;

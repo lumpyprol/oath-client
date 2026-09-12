@@ -62,6 +62,8 @@ const HANDLERS: Record<string, Handler> = {
  */
 const PREPARE: Record<string, (state: OathState, proposed: ProposedAction) => unknown> = {
   'campaign.declare': prepareCampaign,
+  'campaign.ally': prepareCampaign,
+  'campaign.permit': prepareCampaign,
   'campaign.respond': prepareCampaign,
   'power.use': preparePower,
   'turn.rest': prepareRest,

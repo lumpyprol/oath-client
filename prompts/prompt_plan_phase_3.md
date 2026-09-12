@@ -506,7 +506,14 @@ rollback-safely; the catalogue says which decisions can never be defaulted.
 
 ---
 
-## Unit 7 — One-visit defence
+## Unit 7 — One-visit defence ✅ (completed 2026-09-12)
+
+> **Flake caught and fixed during this unit.** Running the suite in a loop
+> (the unit-20 discipline) turned up a ~1-in-3 failure I had introduced in
+> unit 4 and repeated here: the store-backed tests computed "can the
+> attacker afford the sacrifice?" against the PRE-skull board, but §5.5.5
+> kills skulls before the sacrifice is paid. Fixed in both files; 10/10
+> clean runs after.
 
 **Purpose.** The phase's headline exit criterion: a campaign against a
 defender with a standing response resolves in one round trip.

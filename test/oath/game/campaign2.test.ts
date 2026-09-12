@@ -388,7 +388,11 @@ describe('P3 unit 4 — the campaign costs two attacker visits (D50 + D51)', () 
     const base = c.defenseFaces!.reduce((s, f) => s + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0), 0);
     const defense = base * 2 ** c.defenseFaces!.filter((f) => f === 'shieldX2').length; // + 0 board
     const needed = Math.max(0, defense - swords + 1);
-    const canWin = needed <= rolled.players[1].warbands.board;
+    // §5.5.5 kills the attacker's skulls BEFORE the sacrifice is paid, so
+    // the board to compare against is the post-skull one. Comparing to the
+    // pre-skull board made this test fail on ~1 roll in 3.
+    const skulls = c.attackFaces!.filter((f) => f === 'skull').length;
+    const canWin = needed <= rolled.players[1].warbands.board - skulls;
     const final = append('campaign.resolve', 1, {
       sacrifice: canWin ? needed : 0,
       ...(canWin ? { seize: { banishTo: initial.sites[0].id } } : {}),
@@ -430,7 +434,8 @@ describe('P3 unit 4 — the campaign costs two attacker visits (D50 + D51)', () 
     const base = c.defenseFaces!.reduce((s, f) => s + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0), 0);
     const defense = base * 2 ** c.defenseFaces!.filter((f) => f === 'shieldX2').length + 1; // +1 bandit
     const needed = Math.max(0, defense - swords + 1);
-    const canWin = needed <= declared.players[1].warbands.board;
+    const skulls = c.attackFaces!.filter((f) => f === 'skull').length; // killed before the sacrifice
+    const canWin = needed <= declared.players[1].warbands.board - skulls;
     const final = append('campaign.resolve', 1, { sacrifice: canWin ? needed : 0 });
     checkInvariants(final);
 

@@ -35,8 +35,8 @@ Citizen's opportunity to volunteer as an Ally).
 | `play` | `state.players[seat].hand` is non-empty — a Search's drawn cards await Law §5.1.4's play/discard step | active seat | `card.play` | yes (replaces `turn`) | `player.handDrawnAt` | naive (Search stays two actions per D50 — the draw is a reveal) | **never** (Q13) — consequential, and looking at the draw is the point |
 | `wake` | `state.wake` is set — Law §4.1.1's People's Favor maintenance is still owed, and/or the waking seat is standing on an unclaimed Opportunity Site (Law §4.1.4) | `state.wake.seat` | `wake.resolve` | yes (replaces `turn`) | `state.wake.startedAt` | **batched** (unit 3): every owed §4.1.1 step (up to 2, Mob side) and, if owed, the §4.1.4 take all ride one `wake.resolve` — at most one visit; fully forced/no-Opportunity Wakes stay zero, as before | **never** (Q13) — consequential: a §4.1.1 step spends your own favor, and §4.1.4 draws on a supply that is never replenished |
 | `campaign` | `state.campaign.phase === 'join'`, once per eligible Citizen not yet in `allyAnswered` (Law §5.5.2) | each Citizen in the frozen `allyEligible` | `campaign.ally` | yes (replaces `turn`) | `state.campaign.declaredAt` | **owed, not optional** (unit 5): every eligible Citizen answers `{ join }` and the window closes on the last answer. Skipped entirely when nobody is eligible, so a 3p game pays nothing | **`ally: 'pass'`** (unit 6) answers `{ join: false }` at raise time, inside `campaign.declare`'s own reduce |
-| `campaign` | `state.campaign.phase === 'permit'` — the join window closed with at least one joiner (Law §5.5.2's "with the defender's permission") | `state.campaign.defenderSeat` | `campaign.permit` | yes (replaces `turn`) | `state.campaign.declaredAt` | raised ONLY when somebody joined, so the visit is never spent for nothing (unit 5) | naive (unit 7 target: `defense: 'close'` auto-permits nobody) |
-| `campaign` | `state.campaign.phase === 'respond'` — §5.5.3's battle-plan window (Law §5.5.3) | `state.campaign.defenderSeat` (numeric — bandits skip this phase) | `campaign.respond` | yes (replaces `turn`) | `state.campaign.declaredAt` | **closes the window and rolls** (unit 4, D51): the dice roll in this action's `prepare()`, deleting the attacker's old `campaign.roll` visit. Against bandits there is no window and `campaign.declare` itself rolls | naive (unit 7 target: `defense: 'close'`) |
+| `campaign` | `state.campaign.phase === 'permit'` — the join window closed with at least one joiner (Law §5.5.2's "with the defender's permission") | `state.campaign.defenderSeat` | `campaign.permit` | yes (replaces `turn`) | `state.campaign.declaredAt` | raised ONLY when somebody joined, so the visit is never spent for nothing (unit 5) | **`defense: 'close'`** (unit 7) auto-permits NOBODY and skips this window — see RULINGS.md 2026-09-12 for the §5.5.3 reading |
+| `campaign` | `state.campaign.phase === 'respond'` — §5.5.3's battle-plan window (Law §5.5.3) | `state.campaign.defenderSeat` (numeric — bandits skip this phase) | `campaign.respond` | yes (replaces `turn`) | `state.campaign.declaredAt` | **closes the window and rolls** (unit 4, D51): the dice roll in this action's `prepare()`, deleting the attacker's old `campaign.roll` visit. Against bandits there is no window and `campaign.declare` itself rolls | **`defense: 'close'`** (unit 7) closes this window too, so the defender submits ZERO actions and the roll moves again — to `declare`, or to the last `campaign.ally` answer |
 | `campaign` | `state.campaign.phase === 'rolled'` — the attacker resolves sacrifice, victory AND the §5.5.7 seizure (Law §5.5.5-5.5.7) | `state.campaign.attackerSeat` | `campaign.resolve` | yes (replaces `turn`) | `state.campaign.declaredAt` | **batched** (unit 4, D50): sacrifice + placements/banish/burn in one payload; the old separate `campaign.seize` visit is gone | **never** (Q13) — consequential, and it is the attacker's own campaign |
 | `campaign` | `state.campaign.phase === 'casualties'` — the defeated force's kill allocation matters (Law §5.5.6's Imperial aside) | `casualtyChooser(state, campaign)` — usually the Chancellor, but the defeated player themselves when not Imperial | `campaign.casualties` | yes (replaces `turn`) | `state.campaign.declaredAt` | naive (a real handoff, not a batching miss — unit 4 leaves this phase alone) | **never** (Q13) — consequential: the allocation decides which warbands die and where survivors land |
 | `citizenshipOffer` | `state.citizenshipOffer` is set, from `citizenship.offer` until accepted or declined (Law §6.6.1) | `state.citizenshipOffer.exile` | `citizenship.accept`, `citizenship.decline` | no | `state.citizenshipOffer.offeredAt` | naive | **never** (Q13) — negotiated: the terms differ every time, so a standing answer cannot mean anything |
@@ -53,7 +53,7 @@ exact point a decision would otherwise be raised.
 | --- | --- | --- | --- |
 | `ally` | `'pass'` → `{ join: false }` | `campaign.declare` | unit 6 |
 | `warbands` | `'allow'` / `'deny'` | `warbands.move` | unit 6 |
-| `defense` | `'close'` | the campaign windows | **unit 7** |
+| `defense` | `'close'` | `settleWindows` — the permit and plan windows | **unit 7** |
 
 Every other row is marked **never**, and that is a decision rather than a
 backlog: those decisions are *consequential* (they spend your own
@@ -140,22 +140,48 @@ rather than here — and the metric table above should be read as two
 independent columns, not one. Actions measure the client's submit count
 and the log's length; visits measure the async wall clock.
 
-### Unit 5 deliberately ADDS visits, and unit 6-7 take them back
+### Units 5-7: the visits added, then taken back
 
 Unit 5 split the response window into §5.5.2's join window and §5.5.3's
 plan window, which is what finally lets a Citizen Ally act inside the
-latter. Its worst case costs **one visit per eligible Citizen plus one for
-the defender's `campaign.permit`**. That is the correct trade and it is
-temporary:
+latter. Its worst case costs one visit per eligible Citizen plus one for
+the defender's `campaign.permit`. Units 6-7 then answer those windows by
+policy. Measured with `computeVisitMetrics` over each flavour's actor
+sequence:
 
-| Case | Before u5 | After u5 | After u6-7 (projected) |
-| --- | --- | --- | --- |
-| No eligible Citizens (every 3p game) | 3 | **3** (neither window opens) | 1 |
-| One Citizen who joins | 3 | 5 (join + permit) | 1 |
-| One Citizen who declines | 3 | 4 (join; permit skipped) | 1 |
+| Campaign flavour | Actions | **Visits** |
+| --- | --- | --- |
+| No eligible Citizens, no policies (every 3p game) | `declare/1`, `respond/0`, `resolve/1` | **3** |
+| Unit 5 worst case: one joiner, defender asks | `declare/1`, `ally/2`, `permit/0`, `respond/0`, `resolve/1` | **4** |
+| **Standing defence** — defender `close`, every Citizen `pass` | `declare/1`, `resolve/1` | **1** |
+| Standing defence, one Citizen still asking | `declare/1`, `ally/2`, `resolve/1` | **3** |
 
-The fullgame fixture is the first row, so its numbers — and the frozen log
-itself — are **unchanged by unit 5**, which is the no-regression property
-the unit had to hold. Unit 6's `ally: 'pass'` answers the join decision at
-raise time and unit 7's `defense: 'close'` auto-permits nobody and closes
-both windows; the design allows one-visit defence, the policy delivers it.
+The third row is the phase's headline exit criterion, and it is asserted
+from the RAW LOG's actor sequence in `standing.test.ts` — two actions, both
+the attacker's, the defender having submitted nothing at all.
+
+The frozen fullgame fixture is the FIRST row, so its numbers and the log
+itself are **unchanged by units 5, 6 and 7** — the no-regression property
+each had to hold.
+
+Note the fourth row: a single Citizen who has not set `ally: 'pass'` costs
+a visit the defender's policy cannot remove, because it is not the
+defender's question to answer. That is correct rather than a gap, and it is
+why unit 9's six-player measurement is the number that finally matters.
+
+### Where the dice roll now
+
+D14 says dice roll in a `prepare()` and never in a reducer. D51 moved the
+roll off a dedicated `campaign.roll` onto the window-closing action, and
+units 6-7 made *which action that is* depend on the policies in force. It
+can now be `campaign.declare`, `campaign.ally`, `campaign.permit` or
+`campaign.respond`.
+
+Rather than enumerate those cases twice, `settleWindows` is the single
+function that decides them, and `prepareCampaign` runs it against a
+throwaway CLONE of the campaign the reducer is about to produce, rolling
+exactly when the clone reports "ready". The reducer then runs the same
+function on the real campaign and agrees by construction. A divergence
+would be the worst kind of bug — a `'rolled'` phase with no faces, or faces
+rolled and discarded — so it is made structurally impossible rather than
+tested for.

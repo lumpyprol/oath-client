@@ -324,6 +324,192 @@ describe("warbands: 'allow' / 'deny' — §6.5's permission, answered at the req
   });
 });
 
+/**
+ * P3 unit 7 — THE PHASE'S HEADLINE EXIT CRITERION, named after it:
+ *
+ *   "a campaign against a defender who has a standing response resolves in
+ *    one round trip"
+ *
+ * Asserted from the RAW LOG's actor sequence, not from state, because the
+ * claim is about who had to come online — and only the log can say that.
+ */
+describe('EXIT CRITERION: a campaign against a standing defence costs the defender zero actions', () => {
+  /** seat 1 (Exile) attacks the Chancellor, with seat 2 an eligible Citizen. */
+  function chancellorDefends(): OathState {
+    const s = baseState();
+    s.players[2].citizenship = 'citizen';
+    s.players[2].warbands = { bank: 0, board: 4 };
+    s.players[0].warbands.bank = 14;
+    s.players[0].pawnSite = s.sites[5].id;
+    s.players[2].pawnSite = s.sites[5].id;
+    s.turn.activeSeat = 1;
+    checkInvariants(s);
+    return s;
+  }
+  const declaration = { defender: 0, targets: [{ kind: 'pawnFavor' }], attackDice: 2 };
+
+  function gameFrom(initial: OathState) {
+    const { gameId } = store.createGame(oath, ['Chancellor', 'Red', 'Blue', 'Yellow']);
+    db.prepare('INSERT OR REPLACE INTO snapshots (game_id, seq, state) VALUES (?, ?, ?)').run(
+      gameId,
+      0,
+      JSON.stringify(initial),
+    );
+    let seq = store.headSeq(gameId);
+    const append = (type: string, actor: number, payload: unknown = {}) => {
+      const r = store.appendAction(oath, gameId, seq, { type, actor, payload });
+      seq = r.seq;
+      return r.state as OathState;
+    };
+    return { gameId, append };
+  }
+
+  /** The campaign's actor sequence, straight off the persisted log. */
+  function campaignActors(gameId: string) {
+    return store
+      .history(gameId)
+      .filter((a) => a.type.startsWith('campaign.'))
+      .map((a) => `${a.type}/${a.actor}`);
+  }
+
+  /**
+   * Law §5.5.5's exact sacrifice, from the faces the engine actually rolled,
+   * AND whether the attacker can actually afford it.
+   *
+   * The affordability half is the subtle one: §5.5.5 kills the attacker's
+   * own skulls BEFORE the sacrifice is paid, so the board to compare
+   * against is the POST-SKULL one. Checking the pre-skull board made these
+   * tests fail on roughly one roll in three — a real flake, caught by
+   * running the suite in a loop rather than once.
+   */
+  function planResolve(s: OathState, boardBonus: number) {
+    const c = s.campaign!;
+    const attack = c.attackFaces!;
+    const defense = c.defenseFaces!;
+    const swords =
+      attack.filter((f) => f === 'sword').length +
+      Math.floor(attack.filter((f) => f === 'hollowSword').length / 2);
+    const base = defense.reduce((t, f) => t + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0), 0);
+    const total = base * 2 ** defense.filter((f) => f === 'shieldX2').length + boardBonus;
+    const needed = Math.max(0, total - swords + 1);
+    const skulls = attack.filter((f) => f === 'skull').length;
+    const affordable = needed <= s.players[c.attackerSeat].warbands.board - skulls;
+    return { sacrifice: affordable ? needed : 0 };
+  }
+
+  it('declare -> resolve, and NOTHING in between: the defender never acts', () => {
+    let opening = chancellorDefends();
+    opening = act(opening, 'standing.set', 0, { defense: 'close' }); // the defender
+    opening = act(opening, 'standing.set', 2, { ally: 'pass' }); // the one Citizen
+    checkInvariants(opening);
+
+    const { gameId, append } = gameFrom(opening);
+    const declared = append('campaign.declare', 1, declaration);
+
+    // Every window opened and closed inside declare's own reduce, and the
+    // dice rode ITS payload — D14 held, the roll just moved again.
+    expect(declared.campaign!.phase).toBe('rolled');
+    const declareRow = store.history(gameId).find((a) => a.type === 'campaign.declare')!;
+    expect((declareRow.payload as { attackFaces: string[] }).attackFaces).toHaveLength(2);
+
+    const final = append('campaign.resolve', 1, planResolve(declared, declared.players[0].warbands.board));
+    checkInvariants(final);
+
+    // THE ASSERTION. Two actions, both the attacker's; the defender and the
+    // Citizen submitted nothing at all.
+    expect(campaignActors(gameId)).toEqual(['campaign.declare/1', 'campaign.resolve/1']);
+
+    // Replay: the dice moved again, so prove D14 still holds.
+    const first = store.loadState(oath, gameId).state;
+    db.prepare('DELETE FROM snapshots WHERE game_id = ? AND seq > 0').run(gameId);
+    expect(store.loadState(oath, gameId).state).toEqual(first);
+  });
+
+  it('the mixed case: a Citizen who still asks closes the window, and carries the dice', () => {
+    // Defender closes by policy; seat 2 has NO policy, so they still answer.
+    const opening = act(chancellorDefends(), 'standing.set', 0, { defense: 'close' });
+    const { gameId, append } = gameFrom(opening);
+
+    const declared = append('campaign.declare', 1, declaration);
+    expect(declared.campaign!.phase).toBe('join'); // seat 2 still owes an answer
+    expect((store.history(gameId).at(-1)!.payload as { attackFaces?: unknown }).attackFaces).toBeUndefined();
+
+    // Seat 2 joins. That answer closes the join window, and because the
+    // defender auto-permits nobody and auto-closes the plan window, it is
+    // the LAST window-closer — so the dice land in the ALLY's payload.
+    const joined = append('campaign.ally', 2, { join: true });
+    expect(joined.campaign!.phase).toBe('rolled');
+    expect(joined.campaign!.allies).toEqual([]); // auto-permitted nobody (RULINGS.md)
+    const allyRow = store.history(gameId).find((a) => a.type === 'campaign.ally')!;
+    expect((allyRow.payload as { attackFaces: string[] }).attackFaces).toHaveLength(2);
+
+    append('campaign.resolve', 1, planResolve(joined, joined.players[0].warbands.board));
+
+    // The defender still submitted NOTHING — no permit, no respond.
+    expect(campaignActors(gameId)).toEqual([
+      'campaign.declare/1',
+      'campaign.ally/2',
+      'campaign.resolve/1',
+    ]);
+    expect(campaignActors(gameId).filter((a) => a.endsWith('/0'))).toEqual([]);
+
+    const first = store.loadState(oath, gameId).state;
+    db.prepare('DELETE FROM snapshots WHERE game_id = ? AND seq > 0').run(gameId);
+    expect(store.loadState(oath, gameId).state).toEqual(first);
+  });
+
+  it('without the policy, the same campaign costs the defender a visit — the control', () => {
+    const { gameId, append } = gameFrom(act(chancellorDefends(), 'standing.set', 2, { ally: 'pass' }));
+    const declared = append('campaign.declare', 1, declaration);
+    expect(declared.campaign!.phase).toBe('respond'); // join skipped, but the defender is asked
+    const rolled = append('campaign.respond', 0, {});
+    append('campaign.resolve', 1, planResolve(rolled, rolled.players[0].warbands.board));
+    expect(campaignActors(gameId)).toEqual([
+      'campaign.declare/1',
+      'campaign.respond/0', // <- the visit unit 7 removes
+      'campaign.resolve/1',
+    ]);
+  });
+
+  it('a defender who permits an Ally and then closes still spends only that one visit', () => {
+    // defense:'close' auto-permits nobody, so to reach `campaign.permit` at
+    // all the defender must have been on 'ask' when the join window closed.
+    const { gameId, append } = gameFrom(chancellorDefends());
+    append('campaign.declare', 1, declaration);
+    const joined = append('campaign.ally', 2, { join: true });
+    expect(joined.campaign!.phase).toBe('permit');
+
+    // They permit, and in the same sitting adopt the policy. Their permit
+    // action closes the plan window too, so it carries the dice.
+    const withPolicy = append('standing.set', 0, { defense: 'close' });
+    expect(withPolicy.players[0].standing.defense).toBe('close');
+    const permitted = append('campaign.permit', 0, { allies: [2] });
+    expect(permitted.campaign!.phase).toBe('rolled');
+    expect(permitted.campaign!.allies).toContain(2); // an explicit permit still stands
+    const permitRow = store.history(gameId).find((a) => a.type === 'campaign.permit')!;
+    expect((permitRow.payload as { attackFaces: string[] }).attackFaces).toHaveLength(2);
+
+    const first = store.loadState(oath, gameId).state;
+    db.prepare('DELETE FROM snapshots WHERE game_id = ? AND seq > 0').run(gameId);
+    expect(store.loadState(oath, gameId).state).toEqual(first);
+  });
+
+  it('a policy set mid-campaign does not retract a decision already raised', () => {
+    const { gameId, append } = gameFrom(act(chancellorDefends(), 'standing.set', 2, { ally: 'pass' }));
+    const declared = append('campaign.declare', 1, declaration);
+    expect(declared.campaign!.phase).toBe('respond'); // the defender's window is OPEN
+
+    // Adopting 'close' now does not close the window that is already open —
+    // D52's "future raises only", which keeps a pending decision's meaning
+    // stable while its owner is looking at it.
+    const after = append('standing.set', 0, { defense: 'close' });
+    expect(after.campaign!.phase).toBe('respond');
+    expect(oath.pending(after).some((d) => d.seat === 0 && d.resolves.includes('campaign.respond'))).toBe(
+      true,
+    );
+  });
+});
+
 describe('a six-seat campaign where every Citizen passes', () => {
   /**
    * Seat 1 (Exile) attacks the Chancellor with four Citizens all eligible to

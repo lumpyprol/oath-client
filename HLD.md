@@ -587,17 +587,25 @@ responses, one-visit defence); unit 9 is the measured 6-player acceptance.
   fixture and drains them per D53, no fold-compat shim needed
 
 **Exit criteria.**
-- [ ] a campaign against a defender who has a standing response resolves in
-      one round trip
-- [ ] every interrupt in the catalogue maps to a pending decision with a
-      stable id
-- [ ] standing responses are actions in the log and roll back cleanly
+- [x] a campaign against a defender who has a standing response resolves in
+      one round trip *(unit 7: `standing.test.ts`'s exit-criterion test
+      asserts the raw log's actor sequence is exactly `campaign.declare/1`,
+      `campaign.resolve/1` — the defender submits ZERO actions. Measured at
+      **1 visit**, down from 3)*
+- [x] every interrupt in the catalogue maps to a pending decision with a
+      stable id *(unit 1: `INTERRUPTS.md` + `interrupts.test.ts`, enforced
+      bidirectionally and maintained by every unit since)*
+- [x] standing responses are actions in the log and roll back cleanly
+      *(unit 6: `standing.set`; rollback past it restores ask-behaviour,
+      asserted through the store)*
 - [ ] a simulated 6-player game's round-trip count per turn is measured and
-      recorded here
+      recorded here *(unit 9)*
 - [ ] §1.23's setup choices are the players' own (P2 hand-off; plan unit 8)
-- [ ] a Citizen Ally can act in the battle-plan window (P2 hand-off; unit 5)
-- [ ] a stale decision deep link resolves to something useful, never an
-      error page (plan unit 2's 410 contract — what makes links safe for P6)
+- [x] a Citizen Ally can act in the battle-plan window (P2 hand-off; unit 5)
+      *(§5.5.2's join window now precedes §5.5.3's plan window, so a
+      permitted Citizen is in `allies` while the plan window is open)*
+- [x] a stale decision deep link resolves to something useful, never an
+      error page *(unit 2's 410 contract, incl. after a rollback)*
 
 ---
 
