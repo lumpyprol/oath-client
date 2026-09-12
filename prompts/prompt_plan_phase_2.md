@@ -2397,7 +2397,7 @@ and replay-safe; the Wake Phase runs in Law order.
 
 ---
 
-## Unit 18 — Chronicle-seeded setup
+## Unit 18 — Chronicle-seeded setup ✅ (completed 2026-09-12)
 
 **Purpose.** A game can start from a real TTS/Vassal seed string (D30 pays
 off; P5 will produce these).
@@ -2436,6 +2436,45 @@ Commit: "Create games from chronicle seeds"
 ```
 
 **Done when.** Both sample seeds boot playable, invariant-clean games.
+
+## What unit 18 established (as built, 2026-09-12)
+
+- **The seed format's names lie, twice, in opposite directions.**
+  `SeedSite.ruined` means the site is FACEDOWN (the format encodes that as
+  `saveId + 24`); a `SeedCard.ruined` really does mean a ruin face (§2.9).
+  Both readings now sit side by side in `specFromSeed`, which is exactly
+  the sort of thing to get wrong silently.
+- **A seed's per-site slots mix denizens with RELICS**, while the Law
+  keeps relics beside a site (§2.8.2) rather than in its capacity
+  (§2.8.1). Unsplit, a relic lands in a card slot and the invariant
+  rejects it — which is how this was found.
+- **`ordered` is D37 inverting, on purpose.** D37 says the spec fixes
+  structure and `oathSetup` rolls the rest, so `worldPool` is shuffled
+  every time. For a chronicle that is wrong: §8.8 builds the next world
+  deck with the Visions seeded at chosen depths, and §8.6 stacks the
+  winner's relics on top of the relic deck. That ORDER is the chronicle.
+  Reshuffling it would discard the thing the seed exists to carry, so a
+  seeded setup skips the shuffle and deals (§1.19-1.23) on top of the
+  recorded order instead.
+- **Two more FIRST_GAME-shaped blind spots**, the same family as §1.13
+  and §1.16 the day before: `init` gave every non-Chancellor 14 warbands
+  (a Chronicled CITIZEN's three come out of the Chancellor's 24, §1.15),
+  and the Reliquary assumed four relics were always available (§9.3:
+  take as many as possible; one sample seed carries two). Both were
+  caught by an invariant rather than by reading — the purple conservation
+  law fired the instant a two-Citizen seed booted. Worth noting how often
+  this phase's bugs have been "the one fixture we test with happens not
+  to reach it".
+- **The sample seeds are parser fixtures, not curated games**, and they
+  differ usefully: seed 1 is a plausible complete chronicle, seed 0 is
+  degenerate (two Citizens, nothing in play, two relics). Keeping both
+  is what forced the §9.3 Reliquary handling to be right rather than
+  incidentally fine.
+- **One §1.23.1 choice is defaulted, not asked:** the Chancellor takes
+  the top Cradle site as the Law requires, and the other seats default
+  to the first faceup site rather than choosing. Recorded in the code as
+  P3/P4's to turn into a real setup prompt — it is a genuine decision
+  being made for the player, not a rules simplification.
 
 ---
 
