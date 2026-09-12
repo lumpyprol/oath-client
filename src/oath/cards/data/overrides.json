@@ -78,6 +78,14 @@
   },
   {
     "numbering": "site",
+    "saveId": 6,
+    "name": "Steppe",
+    "aliases": [],
+    "capacity": 2,
+    "reason": "Card-capacity correction, not a rename. cards.lua (the 2020 TTS mod) records capacity 1; the printed card shows 2 in its top-right card-capacity box, confirmed both by the publisher's own card CDN (cardcdn.buriedgiant.com/cards.min.json, meta.cardcapacity = 2) and by reading the card face itself. Same class of Lua error as the relic-count disagreements already recorded in RULINGS.md for Salt Flats and Wastes. Capacity is load-bearing: Law §2.8.1 caps how many denizens a site holds, and checkInvariants enforces it."
+  },
+  {
+    "numbering": "site",
     "saveId": 17,
     "name": "Drowned City",
     "aliases": ["The Drowned City"],

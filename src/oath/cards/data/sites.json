@@ -88,7 +88,7 @@
     "name": "Steppe",
     "set": "base",
     "saveId": 6,
-    "capacity": 1,
+    "capacity": 2,
     "reveal": {
       "favor": 0,
       "secrets": 0,

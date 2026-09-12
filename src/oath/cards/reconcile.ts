@@ -15,6 +15,15 @@ export interface Override {
   saveId: number;
   name: string;
   aliases: string[];
+  /**
+   * Corrects a SITE's printed card capacity (Law §2.8.1) where `cards.lua`
+   * disagrees with the physical card. Overrides were name-only until the
+   * 2026-09-12 cross-check against the publisher's own card CDN found
+   * Steppe printed 2 where the Lua says 1 — the same class of Lua error
+   * RULINGS.md already records for two sites' relic counts. Omit to leave
+   * the vendored value alone.
+   */
+  capacity?: number;
   reason: string;
 }
 
@@ -134,6 +143,7 @@ export function applyOverrides(
         s.name = o.name;
         s.id = cardId('site', o.name);
         s.aliases = mergeAliases(s.aliases);
+        if (o.capacity !== undefined) s.capacity = o.capacity;
         hit = true;
       }
     } else {
