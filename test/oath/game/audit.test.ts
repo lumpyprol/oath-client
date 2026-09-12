@@ -122,7 +122,12 @@ function learn(state: OathState, seat: number | null, known: Set<string>): void 
 
 /** Rebuild the opening position the fixture's seed produces. */
 function openingState(): OathState {
-  return oath.init(oath.setup(fixture.players, { seed: fixture.seed }));
+  // `setupChoices: 'applied'` is what a setup record STORED BEFORE P3 unit 8
+  // reads as (D54: the field is absent, and absence means the choices were
+  // already made by `oathSetup`). This fixture is such a game — frozen in
+  // P2 — so rebuilding it this way is not a workaround, it is exactly the
+  // back-compat path D54 promises, exercised on a real committed log.
+  return oath.init({ ...oath.setup(fixture.players, { seed: fixture.seed }), setupChoices: 'applied' });
 }
 
 const VIEWERS: (number | null)[] = [0, 1, 2, null];

@@ -40,7 +40,7 @@ import {
   type BannerState,
   type OathState,
 } from '../state.js';
-import { requireActiveSeat, type Handler } from '../turn.js';
+import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
 const RECOVER_COST = 1; // Supply (Law §5.4.1)
 
@@ -92,7 +92,7 @@ function recover(state: OathState, action: GameAction): OathState {
 
   if (parsed.data.target === 'relic') {
     const { relicId } = parsed.data;
-    const siteId = parsed.data.siteId ?? player.pawnSite;
+    const siteId = parsed.data.siteId ?? pawnSiteOf(state, seat);
     if (siteId !== player.pawnSite) {
       throw new IllegalAction('recover: the relic must be at your site (Law §5.4.1)');
     }

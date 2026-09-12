@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expectHidden } from './helpers.js';
+import { expectHidden, setupChoices } from './helpers.js';
 
 // db.ts reads DB_PATH at import time, so this must be set first (mirrors
 // replay.test.ts's own pattern).
@@ -24,8 +24,21 @@ beforeAll(async () => {
 });
 
 // FIRST_GAME is fixed at 4 seats (unit 4).
+//
+// P3 unit 8: a new game now opens with Law §1.23's setup choices owed, one
+// per seat, locking everything until they are done. Driving them here keeps
+// every test below about the thing it was written to test.
 function createFirstGame() {
-  return store.createGame(oath, ['Chancellor', 'Red', 'Blue', 'Yellow']);
+  const created = store.createGame(oath, ['Chancellor', 'Red', 'Blue', 'Yellow']);
+  let seq = store.headSeq(created.gameId);
+  for (const { seat, payload } of setupChoices(store.loadState(oath, created.gameId).state as any)) {
+    seq = store.appendAction(oath, created.gameId, seq, {
+      type: 'setup.choose',
+      actor: seat,
+      payload,
+    }).seq;
+  }
+  return created;
 }
 
 /** Replaces the head state via a snapshot, mirroring replay.test.ts's trick. */
@@ -294,8 +307,16 @@ describe('through the storage layer (in-process, like P0)', () => {
       'Yellow',
     ]);
     expect(players).toHaveLength(4);
-    const seq0 = store.headSeq(gameId);
-    expect(seq0).toBe(0);
+    expect(store.headSeq(gameId)).toBe(0);
+
+    // P3 unit 8: Law §1.23 comes first, and locks everything until done.
+    expect(() =>
+      store.appendAction(oath, gameId, 0, { type: 'turn.rest', actor: 0, payload: {} }),
+    ).toThrow(/§1.23/);
+    let seq0 = store.headSeq(gameId);
+    for (const { seat, payload } of setupChoices(store.loadState(oath, gameId).state as any)) {
+      seq0 = store.appendAction(oath, gameId, seq0, { type: 'setup.choose', actor: seat, payload }).seq;
+    }
 
     const rawState = store.loadState(oath, gameId).state;
     const viewA = oath.project(rawState, 0);

@@ -28,7 +28,7 @@ import { z } from 'zod';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type CardZone, type Effect } from '../effects.js';
 import type { OathState, Region } from '../state.js';
-import { requireActiveSeat, type Handler } from '../turn.js';
+import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
 const DISCARD_COST = 2; // Supply (Law §5.1.1)
 const SEARCH_DRAW = 3; // Law §5.1.2
@@ -56,7 +56,7 @@ function search(state: OathState, action: GameAction): OathState {
   const player = state.players[seat];
 
   const fromWorldDeck = parsed.data.from === 'deck';
-  const region = regionOfSite(state, player.pawnSite);
+  const region = regionOfSite(state, pawnSiteOf(state, seat));
   const source = fromWorldDeck ? state.worldDeck : state.discards[region];
   const cost = fromWorldDeck ? worldDeckCost(state.visionsDrawn) : DISCARD_COST;
 

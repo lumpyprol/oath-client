@@ -71,9 +71,13 @@ describe('oathSetup', () => {
 
   it('the un-dealt world deck + advisers + discards partition worldPool (nothing lost, nothing duplicated)', () => {
     const setup = oathSetup(FIRST_GAME.citizenship.length);
+    // P3 unit 8: all THREE cards each seat drew now sit in `startingHand`
+    // (§1.20) — the keep-one/discard-two split is the player's, made later
+    // by `setup.choose` — so the partition counts the hands rather than the
+    // single adviser `oathSetup` used to pick.
     const all = [
       ...setup.worldDeck,
-      ...setup.startingAdviser,
+      ...setup.startingHand!.flat(),
       ...REGIONS.flatMap((r) => setup.discards[r]),
     ];
     expect(new Set(all).size).toBe(all.length); // no duplicates
@@ -142,9 +146,9 @@ describe('init', () => {
         citizenship: [...base.spec.citizenship, 'exile'],
         startingPawnSite: [...base.spec.startingPawnSite, base.spec.startingPawnSite[1]],
       } as SetupSpec,
-      startingAdviser: [...base.startingAdviser, base.worldDeck[0]],
+      startingHand: [...base.startingHand!, base.worldDeck.slice(0, 3)],
     };
-    synthetic.worldDeck = base.worldDeck.slice(1);
+    synthetic.worldDeck = base.worldDeck.slice(3);
     const state = init(synthetic);
     checkInvariants(state);
     for (const suit of Object.keys(state.favorBanks) as (keyof typeof state.favorBanks)[]) {
@@ -164,16 +168,21 @@ describe('init', () => {
         { length: seats },
         (_, i) => base.spec.startingPawnSite[i % base.spec.startingPawnSite.length],
       );
-      const needed = seats - base.startingAdviser.length;
-      const startingAdviser =
-        needed >= 0
-          ? [...base.startingAdviser, ...base.worldDeck.slice(0, needed)]
-          : base.startingAdviser.slice(0, seats);
-      const worldDeck = needed >= 0 ? base.worldDeck.slice(needed) : base.worldDeck;
+      // Each extra seat needs its own three drawn cards (§1.20), taken off
+      // the top of the world deck so nothing is duplicated.
+      const extra = Math.max(0, seats - base.startingHand!.length);
+      const startingHand =
+        extra > 0
+          ? [
+              ...base.startingHand!,
+              ...Array.from({ length: extra }, (_, k) => base.worldDeck.slice(k * 3, k * 3 + 3)),
+            ]
+          : base.startingHand!.slice(0, seats);
+      const worldDeck = base.worldDeck.slice(extra * 3);
       const setup: OathSetup = {
         ...base,
         spec: { ...base.spec, citizenship, startingPawnSite } as SetupSpec,
-        startingAdviser,
+        startingHand,
         worldDeck,
       };
       checkInvariants(init(setup));

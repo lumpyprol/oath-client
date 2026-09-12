@@ -323,8 +323,26 @@ export interface OathSetup {
   worldDeck: string[];
   /** One region-discard deal per Law §1.19, plus each seat's 2 discards (§1.23). */
   discards: Record<Region, string[]>;
-  /** The card each seat kept as its first facedown adviser (Law §1.23). */
-  startingAdviser: string[];
+  /**
+   * The three cards each seat drew (Law §1.20), from which they keep one as
+   * a facedown adviser and discard two (§1.23.2/.3).
+   *
+   * Present only on setups written since P3 unit 8. Older records carry
+   * `startingAdviser: string[]` instead — the ONE card `oathSetup` chose for
+   * them — together with `setupChoices: 'applied'` (implicitly, by omission).
+   * `init` reads whichever is there, which is what makes every P2 log and
+   * the frozen fixtures fold byte-identically (D54).
+   */
+  startingHand?: string[][];
+  /** @deprecated Pre-unit-8 setups only: the card `oathSetup` kept for each seat. */
+  startingAdviser?: string[];
+  /**
+   * D54's back-compat flag. `'open'` means §1.23's choices are the players'
+   * and `init` raises them; `'applied'` — the reading for any stored setup
+   * that predates unit 8 and therefore lacks the field — means `oathSetup`
+   * already made them, so the game starts exactly as it used to.
+   */
+  setupChoices?: 'open' | 'applied';
   /**
    * Law §1.22: "Advance the Visions Drawn marker by spaces equal to the
    * number of Visions drawn, if any." Counted over the cards PLAYERS drew
@@ -380,23 +398,19 @@ export function oathSetup(seats: number, options?: unknown): OathSetup {
   const discards: Record<Region, string[]> = { cradle: [], provinces: [], hinterland: [] };
   for (const region of REGIONS) discards[region].push(pool[i++]);
 
-  // Law §1.23.2 — "Chooses 1 card as a facedown adviser" — is a PLAYER's
-  // choice, and this keeps the first card drawn instead of asking. Same
-  // deferral as §1.23.1's pawn placement below, and scheduled in the same
-  // place (HLD, P3): both are setup-time pending decisions, they run in
-  // turn order rather than at once, and they are coupled, because the pawn
-  // decides which pile the two rejected cards are discarded to.
-  const startingAdviser: string[] = [];
+  // Law §1.23.2's "Chooses 1 card as a facedown adviser" and §1.23.1's pawn
+  // placement are the PLAYERS' choices, and since P3 unit 8 they are made by
+  // the players (D54): all three drawn cards go to the seat's hand, the pawn
+  // starts unplaced, and `setup.choose` resolves both together. The two are
+  // coupled — the chosen pawn's region decides which pile the two rejects go
+  // to (Glossary "Discard") — which is exactly why they are ONE batched
+  // decision rather than two.
+  const startingHand: string[][] = [];
   let visionsDrawn = 0; // Law §1.22, over §1.20's player draws only
   for (let seat = 0; seat < seats; seat++) {
     const drawn = [pool[i++], pool[i++], pool[i++]];
     visionsDrawn += drawn.filter((id) => id.startsWith('vision:')).length;
-    const [kept, ...rest] = drawn;
-    startingAdviser.push(kept);
-    const pawnSite = spec.startingPawnSite[seat];
-    const pawnRegion = spec.sites.find((s) => s.id === pawnSite)!.region;
-    const discardTo = discardRegion(pawnRegion); // Glossary "Discard"
-    for (const id of rest) discards[discardTo].push(id);
+    startingHand.push(drawn);
   }
   const worldDeck = pool.slice(i);
 
@@ -409,10 +423,56 @@ export function oathSetup(seats: number, options?: unknown): OathSetup {
   const reliquary = orderedRelics.slice(0, RELIQUARY_SPACES);
   const relicDeck = orderedRelics.slice(RELIQUARY_SPACES);
 
-  return { spec, worldDeck, discards, startingAdviser, visionsDrawn, relicDeck, reliquary };
+  return {
+    spec,
+    worldDeck,
+    discards,
+    startingHand,
+    visionsDrawn,
+    relicDeck,
+    reliquary,
+    setupChoices: 'open', // D54: new games ask; stored setups without this read as 'applied'
+  };
 }
 
 // ---- init: pure assembly ---------------------------------------------------
+
+/**
+ * D54's `'applied'` path: the card this seat keeps as its facedown adviser
+ * when §1.23's choices were NOT the player's.
+ *
+ * Two record shapes reach here, and both must produce the P2 result:
+ *   - a setup stored BEFORE unit 8 carries `startingAdviser` — the single
+ *     card `oathSetup` chose — and its two rejects are already in
+ *     `setup.discards`.
+ *   - a setup written since carries `startingHand` (all three cards), and
+ *     applying the old default means keeping the FIRST, which is precisely
+ *     what `oathSetup` used to do. `appliedDiscards` then files the other
+ *     two, since the record no longer has them pre-filed.
+ */
+function appliedAdviser(setup: OathSetup, seat: number): string {
+  if (setup.startingAdviser) return setup.startingAdviser[seat];
+  if (setup.startingHand) return setup.startingHand[seat][0];
+  throw new Error('init: setup record carries neither startingAdviser nor startingHand');
+}
+
+/**
+ * The §1.23.3 discards an `'applied'` setup owes, for the record shape that
+ * does not already carry them (see `appliedAdviser`). Files each seat's two
+ * rejects to the pile for the region of the site the spec placed their pawn
+ * on — the same coupling `setup.choose` applies for a real choice.
+ */
+function appliedDiscards(setup: OathSetup): Record<Region, string[]> {
+  const extra: Record<Region, string[]> = { cradle: [], provinces: [], hinterland: [] };
+  if (setup.startingAdviser || !setup.startingHand) return extra; // already filed
+  setup.startingHand.forEach((drawn, seat) => {
+    const pawnSite = setup.spec.startingPawnSite[seat];
+    const pawnRegion = setup.spec.sites.find((s) => s.id === pawnSite)!.region;
+    const to = discardRegion(pawnRegion); // Glossary "Discard"
+    for (const id of drawn.slice(1)) extra[to].push(id);
+  });
+  return extra;
+}
 
 function favorBankSize(seats: number): number {
   return seats >= 5 ? FAVOR_BANK_LARGE : FAVOR_BANK_SMALL;
@@ -482,6 +542,17 @@ export function init(setup: OathSetup): OathState {
   // those 14 never enter play and nothing ever reads them.
   const citizenSeats = spec.citizenship.filter((c) => c === 'citizen').length;
   const CITIZEN_BOARD = 3;
+  // D54: 'applied' is the reading for any stored setup written before P3
+  // unit 8, which lacks the field entirely — its §1.23 choices were made by
+  // `oathSetup` and are already baked into `startingAdviser`/`startingPawnSite`.
+  const choicesOpen = setup.setupChoices === 'open';
+  // §1.23.3's discards, for an 'applied' setup whose record does not already
+  // carry them. Empty when the choices are open (`setup.choose` files them
+  // as each seat chooses) and when a pre-unit-8 record filed them already.
+  const extraDiscards = choicesOpen
+    ? { cradle: [], provinces: [], hinterland: [] }
+    : appliedDiscards(setup);
+
   const players: PlayerState[] = spec.citizenship.map((citizenship, seat) => {
     const isChancellor = citizenship === 'chancellor';
     const isCitizen = citizenship === 'citizen';
@@ -495,10 +566,17 @@ export function init(setup: OathSetup): OathState {
     const onMap = isChancellor ? placedOnMap : 0;
     return {
       citizenship,
-      pawnSite: spec.startingPawnSite[seat], // Law §1.23
-      hand: [],
+      // Law §1.23.1: unplaced until this seat chooses (P3 unit 8). An
+      // 'applied' setup keeps the site the spec named, exactly as before.
+      pawnSite: choicesOpen ? null : spec.startingPawnSite[seat],
+      // §1.20's three drawn cards sit in hand until §1.23.2 keeps one. The
+      // hand is already the right zone for "drawn, not yet resolved" (unit
+      // 10's Search uses it), and it is already redacted from other seats.
+      hand: choicesOpen ? [...setup.startingHand![seat]] : [],
       handDrawnAt: 0,
-      advisers: [{ id: setup.startingAdviser[seat], facedown: true, favor: 0, secrets: 0 }],
+      advisers: choicesOpen
+        ? []
+        : [{ id: appliedAdviser(setup, seat), facedown: true, favor: 0, secrets: 0 }],
       vision: null,
       favor: isChancellor ? 2 : 1, // Law §1.11 / §1.15
       secrets: { ready: 1, flipped: 0 }, // Law §1.11 / §1.15
@@ -567,14 +645,16 @@ export function init(setup: OathSetup): OathState {
     ),
     grandScepter: 0, // Law §1.8: the chancellor always starts with it
     discards: {
-      cradle: [...setup.discards.cradle],
-      provinces: [...setup.discards.provinces],
-      hinterland: [...setup.discards.hinterland],
+      cradle: [...setup.discards.cradle, ...extraDiscards.cradle],
+      provinces: [...setup.discards.provinces, ...extraDiscards.provinces],
+      hinterland: [...setup.discards.hinterland, ...extraDiscards.hinterland],
     },
     dispossessed: [...spec.dispossessed],
     banners,
     visionsDrawn: setup.visionsDrawn, // Law §1.22
     turn: { activeSeat: 0, round: 1, turnStartedAt: 0 }, // Law §1.2, §4 (Chancellor goes first)
+    // Law §1.23, "starting with the Chancellor, in turn order" (P3 unit 8).
+    setupChoices: choicesOpen ? { remaining: spec.citizenship.map((_, seat) => seat) } : null,
     campaign: null,
     citizenshipOffer: null,
     warbandRequest: null,
@@ -584,6 +664,13 @@ export function init(setup: OathSetup): OathState {
     complete: false,
     winner: null,
   };
+
+  // Law §1.23 comes before Law §4: while the setup choices are open the
+  // game has not started, so seat 0's Wake Phase waits. The last
+  // `setup.choose` starts it (see `actions/setup.ts`), which is why that
+  // action — not this function — is the single place the opening Wake
+  // begins for a new game.
+  if (choicesOpen) return state;
 
   // Law §4.1: seat 0's turn begins immediately, and a turn begins with its
   // Wake Phase. Every other turn gets one from `turn.rest`; this one has no

@@ -130,7 +130,7 @@ export interface PlayerState {
    * to another site. "Your site" / "your region" in the rules resolve
    * through this (unit 6+).
    */
-  pawnSite: string;
+  pawnSite: string | null;
   /**
    * Transient Search hand (Law §5.1): cards drawn and awaiting keep/discard.
    * Empty outside a Search — Oath has no persistent hand.
@@ -422,6 +422,27 @@ export interface TitleChoice {
   raisedAt: number;
 }
 
+/**
+ * Law §1.23's setup choices, open from `init` until every seat has made
+ * theirs (P3 unit 8; HLD D54). The unusual shape in this engine: a pending
+ * decision that exists BEFORE any action has been taken.
+ *
+ * §1.23 is explicitly sequential — "starting with the Chancellor, in turn
+ * order" — so exactly ONE seat has a decision at a time, and `remaining[0]`
+ * is that seat. LOCKS the game entirely while open: nothing else is legal,
+ * not even `standing.set`, because the simplest lock is the one with no
+ * exceptions to reason about and there is nothing to gain from a narrower
+ * one before the game has started.
+ *
+ * Null once complete, and null for every game whose setup record says
+ * `setupChoices: 'applied'` — i.e. every game created before unit 8, whose
+ * choices were made FOR the players by `oathSetup`'s old defaults.
+ */
+export interface SetupChoices {
+  /** Seats yet to choose, in turn order. The head owns the pending decision. */
+  remaining: number[];
+}
+
 export interface OathState {
   /** 2..6 seats; seat 0 is the Chancellor. */
   seats: number;
@@ -464,6 +485,8 @@ export interface OathState {
      */
     turnStartedAt: number;
   };
+  /** Law §1.23's open setup choices, or null once every seat has made theirs (P3 unit 8). */
+  setupChoices: SetupChoices | null;
   campaign: CampaignState | null;
   citizenshipOffer: CitizenshipOffer | null;
   warbandRequest: WarbandRequest | null;
@@ -611,7 +634,18 @@ export function checkInvariants(state: OathState): void {
 
   const siteIds = new Set(sites.map((s) => s.id));
   players.forEach((p, i) => {
-    if (!siteIds.has(p.pawnSite)) {
+    if (p.pawnSite === null) {
+      // Law §1.23.1's window (P3 unit 8): a pawn is unplaced between `init`
+      // and this seat's `setup.choose`, and ONLY then. The sub-state being
+      // open is what makes it legal, and its `remaining` list is what says
+      // this particular seat has not chosen yet — a null pawn for a seat
+      // that has already chosen would be a real corruption.
+      if (!state.setupChoices) {
+        fail(`players[${i}].pawnSite is null but no §1.23 setup is open`);
+      } else if (!state.setupChoices.remaining.includes(i)) {
+        fail(`players[${i}].pawnSite is null but seat ${i} has already made its §1.23 choice`);
+      }
+    } else if (!siteIds.has(p.pawnSite)) {
       fail(`players[${i}].pawnSite (${p.pawnSite}) is not a site on the map`);
     }
     p.hand.forEach((id, j) => seen(id, `players[${i}].hand[${j}]`, DRAWABLE));

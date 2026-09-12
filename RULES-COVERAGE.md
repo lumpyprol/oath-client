@@ -58,9 +58,9 @@ as fine", so a review that re-reads our own notes is worthless.
 | 1.20 | Each player draws 3 from the bottom | **DONE** `oathSetup` |
 | 1.21 | The rest is the world deck | **DONE** `oathSetup` |
 | 1.22 | Advance Visions Drawn by the number drawn | **DONE** `oathSetup` — unimplemented until unit 19 (finding 7); counts §1.20's draws only, see RULINGS.md |
-| 1.23.1 | Each player places their pawn on any faceup site | **DEFER** — only the Chancellor's is fixed; the rest default to the first faceup site. Recorded: `setup.ts`, prompt plan unit 18 note. Home: **P3 scope bullet** (a setup-time pending decision) |
-| 1.23.2 | Each player chooses 1 of 3 as a facedown adviser | **DEFER** — `oathSetup` keeps the first drawn. Recorded: `setup.ts`. Home: **P3 scope bullet**, with 1.23.1 (coupled: the pawn decides where the 2 rejects are discarded) |
-| 1.23.3 | Discard the other 2 | **DONE** `oathSetup` |
+| 1.23.1 | Each player places their pawn on any faceup site | **DONE** `actions/setup.ts` — a from-`init` pending decision, sequential in turn order, resolved by `setup.choose` (P3 unit 8, D54). The Chancellor's top-Cradle restriction is validated rather than assumed |
+| 1.23.2 | Each player chooses 1 of 3 as a facedown adviser | **DONE** `actions/setup.ts` — batched with 1.23.1 in one `setup.choose` (D50), since they are coupled: the chosen site's region decides where the 2 rejects go. Payload names `keepIndex`, never a card id, so the discards stay hidden |
+| 1.23.3 | Discard the other 2 | **DONE** `actions/setup.ts` (and `appliedDiscards` for pre-unit-8 setup records) |
 
 ## §2 Key Components
 

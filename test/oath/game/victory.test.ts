@@ -10,7 +10,7 @@ import {
 } from '../../../src/oath/game/state.js';
 import { oath } from '../../../src/oath/game/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
-import { baseState } from './helpers.js';
+import { baseState, completeSetup } from './helpers.js';
 import { FIRST_GAME, init, oathSetup } from '../../../src/oath/game/setup.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-victory-')), 'test.db');
@@ -623,14 +623,22 @@ describe('turn-structure gaps closed 2026-09-12', () => {
     // People's Favor, so they owe §4.1.1 maintenance on turn one. The banner
     // starts at one favor (§1.5), which forces a place — so it resolves
     // itself rather than asking.
-    const people = init({ ...oathSetup(4, undefined), spec: { ...FIRST_GAME, oath: 'people' } });
+    // P3 unit 8 moved this one step later: Law §1.23 precedes Law §4, so
+    // the opening Wake now runs when the LAST seat completes setup rather
+    // than inside `init`. The claim is unchanged — the opening turn does get
+    // a Wake Phase — so the test drives setup and then asserts it.
+    const people = completeSetup(
+      oath,
+      init({ ...oathSetup(4, undefined), spec: { ...FIRST_GAME, oath: 'people' } }),
+    );
     checkInvariants(people);
+    expect(people.setupChoices).toBeNull();
     expect(people.wake).toBeNull(); // forced, so nothing is pending
     expect(people.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(2);
     expect(people.players[0].favor).toBe(1); // §1.11 gave them 2; one went on the banner
 
     // A Supremacy game grants no banner, so there is nothing to resolve.
-    const supremacy = init(oathSetup(4, undefined));
+    const supremacy = completeSetup(oath, init(oathSetup(4, undefined)));
     expect(supremacy.wake).toBeNull();
     expect(supremacy.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(1);
   });

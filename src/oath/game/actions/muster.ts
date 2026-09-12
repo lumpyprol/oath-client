@@ -24,7 +24,7 @@ import { byId } from '../../cards/index.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import type { OathState } from '../state.js';
-import { requireActiveSeat, type Handler } from '../turn.js';
+import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
 const MUSTER_COST = 1; // Supply (Law §5.2.1)
 const MUSTER_WARBANDS = 2; // Law §5.2.2
@@ -41,7 +41,7 @@ function muster(state: OathState, action: GameAction): OathState {
   const { cardId } = parsed.data;
   const player = state.players[seat];
 
-  const siteId = parsed.data.siteId ?? player.pawnSite;
+  const siteId = parsed.data.siteId ?? pawnSiteOf(state, seat);
   if (siteId !== player.pawnSite) {
     throw new IllegalAction('muster: the card must be at your site (Law §5.2.1)');
   }

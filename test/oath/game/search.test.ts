@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { checkInvariants, type OathState } from '../../../src/oath/game/state.js';
 import { oath } from '../../../src/oath/game/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
-import { baseState, expectHidden } from './helpers.js';
+import { baseState, expectHidden, setupChoices } from './helpers.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-search-')), 'test.db');
 let store: typeof import('../../../src/actionlog.js');
@@ -178,6 +178,14 @@ describe('search — legality and turn flow', () => {
 describe('search — the action log leaks no drawn identity (HLD §4, through the store)', () => {
   it('a search + facedown play never writes a drawn id into the log', () => {
     const { gameId } = store.createGame(oath, ['Chancellor', 'Red', 'Blue', 'Yellow']);
+    // P3 unit 8: Law §1.23's setup choices come before any Act-Phase action.
+    for (const { seat, payload } of setupChoices(store.loadState(oath, gameId).state as never)) {
+      store.appendAction(oath, gameId, store.headSeq(gameId), {
+        type: 'setup.choose',
+        actor: seat,
+        payload,
+      });
+    }
     let seq = store.headSeq(gameId);
 
     const r1 = store.appendAction(oath, gameId, seq, {

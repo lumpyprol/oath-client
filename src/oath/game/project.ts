@@ -58,7 +58,11 @@ interface AdviserView {
 
 interface PlayerView {
   citizenship: PlayerState['citizenship'];
-  pawnSite: string; // pawn location is public (visible on the board)
+  /**
+   * Pawn location, public (it is a piece on the board). `null` only inside
+   * Law §1.23.1's setup window, before this seat has placed it — P3 unit 8.
+   */
+  pawnSite: string | null;
   hand: string[] | Redacted;
   advisers: AdviserView[];
   vision: string | null; // a Revealed Vision is faceup by definition (Law §2.2.1) — always public

@@ -96,6 +96,27 @@ export function requireActiveSeat(
   return action.actor;
 }
 
+/**
+ * The site `seat`'s pawn is at — "your site" in the rules (Glossary §10.30).
+ *
+ * `pawnSite` became nullable in P3 unit 8, for the window between `init` and
+ * Law §1.23.1's placement. That window LOCKS every action below (nothing is
+ * legal until `setup.choose` completes for every seat), so no Act-Phase
+ * caller can actually reach a null — this exists to say that once, in one
+ * place, instead of nineteen non-null assertions that each quietly assume
+ * it. If it ever throws, an action has escaped the setup lock, and the
+ * message says so rather than surfacing as a confusing undefined-site error.
+ */
+export function pawnSiteOf(state: OathState, seat: number): string {
+  const site = state.players[seat].pawnSite;
+  if (site === null) {
+    throw new IllegalAction(
+      `seat ${seat}'s pawn is not placed yet — Law §1.23.1's setup choice comes first`,
+    );
+  }
+  return site;
+}
+
 /** Law §4.3.1: favor on a denizen/edifice returns to its suit's bank. */
 function returnCardFavor(state: OathState): void {
   const returnOne = (card: { id: string; favor: number } | null) => {

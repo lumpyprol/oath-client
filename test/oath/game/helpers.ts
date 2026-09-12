@@ -8,6 +8,7 @@
  */
 
 import { expect } from 'vitest';
+import type { GameAction } from '../../../src/engine/types.js';
 import { cards, byId } from '../../../src/oath/cards/index.js';
 import {
   type OathState,
@@ -166,6 +167,7 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
     banners,
     visionsDrawn: 1,
     turn: { activeSeat: 1, round: 3, turnStartedAt: 17 },
+    setupChoices: null, // a mid-game state: Law §1.23 is long since done
     campaign: null,
     citizenshipOffer: null,
     warbandRequest: null,
@@ -183,6 +185,61 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
   byId(state.sites[0].id);
 
   return { ...state, ...overrides };
+}
+
+/**
+ * The `setup.choose` payloads Law §1.23 owes for a freshly-created game,
+ * in turn order (P3 unit 8).
+ *
+ * Every NEW game now opens with one owed choice per seat, locking
+ * everything until they are done. Tests that build a state by hand
+ * (`baseState`) are unaffected — those are mid-game states with
+ * `setupChoices: null`. Tests that create a REAL game need these actions
+ * first, and this is the one place that knows what they are: containing the
+ * blast radius here is what the plan asked of this unit.
+ *
+ * Computable up front rather than step by step, because nothing a
+ * `setup.choose` does changes a LATER seat's legal answers — the faceup
+ * sites do not move and the Chancellor's required site is fixed. That makes
+ * the same list usable whether a test drives `reduce` directly or appends
+ * through the store.
+ *
+ * Each seat takes the first legal faceup site (the Chancellor's must be the
+ * top Cradle site anyway, §1.23.1) and keeps the first of its three drawn
+ * cards — precisely what `oathSetup` used to do for them, so existing
+ * assertions about the opening position keep their meaning.
+ */
+export function setupChoices(
+  state: OathState,
+): { seat: number; payload: { siteId: string; keepIndex: number } }[] {
+  if (!state.setupChoices) return [];
+  const faceup = state.sites.filter((s) => !s.facedown);
+  return state.setupChoices.remaining.map((seat) => ({
+    seat,
+    payload: {
+      siteId: seat === 0 ? faceup.find((s) => s.region === 'cradle')!.id : faceup[0].id,
+      keepIndex: 0,
+    },
+  }));
+}
+
+/** Drive §1.23 to completion against `reduce` directly. */
+export function completeSetup(
+  def: { reduce: (s: OathState, a: GameAction) => OathState },
+  state: OathState,
+): OathState {
+  let working = state;
+  for (const { seat, payload } of setupChoices(state)) {
+    working = def.reduce(structuredClone(working), {
+      gameId: 'test',
+      seq: working.actionCount + 1,
+      type: 'setup.choose',
+      actor: seat,
+      payload,
+      createdAt: '2026-09-12T00:00:00.000Z',
+    });
+  }
+  return working;
 }
 
 /**

@@ -31,7 +31,8 @@ Citizen's opportunity to volunteer as an Ally).
 
 | Kind | Raised when | Owning seat | Resolves | Locking | Id anchor | Batching (P3) | Standing (P3) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `turn` | Default — no Wake, Campaign, or mid-Search hand is blocking `state.turn.activeSeat` | `turn.activeSeat` | `turn.rest`, `card.play`, `muster`, `trade`, `travel`, `search`, `recover`, `campaign.declare`, `campaign.ally`, `campaign.permit`, `campaign.respond`, `campaign.resolve`, `campaign.casualties`, `power.use`, `citizenship.offer`, `citizenship.accept`, `citizenship.decline`, `citizenship.exile`, `citizenship.selfExile`, `adviser.play`, `warbands.move`, `warbands.allow`, `warbands.deny`, `standing.set`, `wake.resolve`, `oathkeeper.grant` | no (the default; replaced by any row below that applies) | `turn.turnStartedAt` | naive | **never** — it is your turn; there is nothing to default |
+| `setup` | `state.setupChoices` is open — Law §1.23's pawn placement and adviser keep, for the head seat of `remaining` | `state.setupChoices.remaining[0]` | `setup.choose` | yes — a FULL lock: §1.23 precedes §4, so nothing else is legal, not even `standing.set` | `0` (the decision exists from `init`, before any action) | **batched** (unit 8, D50): §1.23.1's pawn and §1.23.2's keep ride one action — coupled, since the chosen site's region decides where §1.23.3's two rejects are discarded | **never** — it is your own opening position, and the game has not started |
+| `turn` | Default — no Wake, Campaign, or mid-Search hand is blocking `state.turn.activeSeat` | `turn.activeSeat` | `turn.rest`, `card.play`, `muster`, `trade`, `travel`, `search`, `recover`, `campaign.declare`, `campaign.ally`, `campaign.permit`, `campaign.respond`, `campaign.resolve`, `campaign.casualties`, `power.use`, `citizenship.offer`, `citizenship.accept`, `citizenship.decline`, `citizenship.exile`, `citizenship.selfExile`, `adviser.play`, `warbands.move`, `warbands.allow`, `warbands.deny`, `standing.set`, `setup.choose`, `wake.resolve`, `oathkeeper.grant` | no (the default; replaced by any row below that applies) | `turn.turnStartedAt` | naive | **never** — it is your turn; there is nothing to default |
 | `play` | `state.players[seat].hand` is non-empty — a Search's drawn cards await Law §5.1.4's play/discard step | active seat | `card.play` | yes (replaces `turn`) | `player.handDrawnAt` | naive (Search stays two actions per D50 — the draw is a reveal) | **never** (Q13) — consequential, and looking at the draw is the point |
 | `wake` | `state.wake` is set — Law §4.1.1's People's Favor maintenance is still owed, and/or the waking seat is standing on an unclaimed Opportunity Site (Law §4.1.4) | `state.wake.seat` | `wake.resolve` | yes (replaces `turn`) | `state.wake.startedAt` | **batched** (unit 3): every owed §4.1.1 step (up to 2, Mob side) and, if owed, the §4.1.4 take all ride one `wake.resolve` — at most one visit; fully forced/no-Opportunity Wakes stay zero, as before | **never** (Q13) — consequential: a §4.1.1 step spends your own favor, and §4.1.4 draws on a supply that is never replenished |
 | `campaign` | `state.campaign.phase === 'join'`, once per eligible Citizen not yet in `allyAnswered` (Law §5.5.2) | each Citizen in the frozen `allyEligible` | `campaign.ally` | yes (replaces `turn`) | `state.campaign.declaredAt` | **owed, not optional** (unit 5): every eligible Citizen answers `{ join }` and the window closes on the last answer. Skipped entirely when nobody is eligible, so a 3p game pays nothing | **`ally: 'pass'`** (unit 6) answers `{ join: false }` at raise time, inside `campaign.declare`'s own reduce |
@@ -78,12 +79,6 @@ Two properties hold for every channel, and `standing.test.ts` asserts both:
 Campaign's locks. It resolves no decision and touches no game object, and
 gating it on `requireActiveSeat` would break the case it exists for: you
 suppress a question *while someone else's turn is what keeps asking it*.
-
-## Catalogue (planned)
-
-| Kind | Home | Notes |
-| --- | --- | --- |
-| `setup` | Unit 8 | Law §1.23's pawn-placement and adviser-keep choices, currently made FOR the player by `oathSetup`'s defaults (`setup.ts`). Becomes a real, sequential, per-seat pending decision — one seat at a time, in turn order, locking (nothing else is legal before setup completes) — resolved by a batched `setup.choose`. Not yet built: today these are not decisions at all. |
 
 ## Out of scope
 

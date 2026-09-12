@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { setupChoices } from './helpers.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-decisions-')), 'test.db');
 
@@ -62,11 +63,25 @@ async function newGame(): Promise<Ctx> {
     body: JSON.stringify({ kind: 'oath', players: ['a', 'b', 'c'], options: { seed: SEED } }),
   });
   expect(created.status).toBe(201);
-  return {
+  const ctx: Ctx = {
     gameId: created.body.gameId as string,
     tokens: (created.body.players as { token: string }[]).map((p) => p.token),
     seq: 0,
   };
+
+  // P3 unit 8: Law §1.23's setup choices are owed before anything else.
+  // Driven here so each test below is about the decision endpoint, not setup.
+  const { state } = store.loadState(oath, ctx.gameId);
+  for (const { seat, payload } of setupChoices(state as never)) {
+    const r = await api(`/games/${ctx.gameId}/actions`, {
+      method: 'POST',
+      token: ctx.tokens[seat],
+      body: JSON.stringify({ prevSeq: ctx.seq, type: 'setup.choose', payload }),
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    ctx.seq = r.body.seq as number;
+  }
+  return ctx;
 }
 
 /** Seat 0's own Reliquary relic — hidden from every projection, but this is

@@ -239,7 +239,7 @@ import {
   type ForceEntry,
   type OathState,
 } from '../state.js';
-import { requireActiveSeat, type Handler } from '../turn.js';
+import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 import { consultStanding } from '../standing.js';
 
 const CAMPAIGN_COST = 2; // Supply (Law §5.5.1)
@@ -356,7 +356,7 @@ function computeDeclaration(state: OathState, attackerSeat: number, payload: unk
   if (!parsed.success) throw new IllegalAction('campaign.declare: malformed payload');
   const { defender, attackDice, targets } = parsed.data;
   const attacker = state.players[attackerSeat];
-  const attackerSite = attacker.pawnSite;
+  const attackerSite = pawnSiteOf(state, attackerSeat);
 
   if (attacker.supply < CAMPAIGN_COST) {
     throw new IllegalAction(`campaign.declare: costs ${CAMPAIGN_COST} Supply (Law §5.5.1)`);

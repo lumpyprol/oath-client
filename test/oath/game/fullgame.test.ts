@@ -7,6 +7,7 @@ import type { Server } from 'node:http';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { checkInvariants, type OathState } from '../../../src/oath/game/state.js';
 import { restrictionKnown } from '../../../src/oath/game/restrictions.js';
+import { setupChoices } from './helpers.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-fullgame-')), 'test.db');
 
@@ -141,6 +142,18 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
       seq: 0,
     };
     checkInvariants(rawState(ctx));
+
+    // ---- Law §1.23: the setup choices, in turn order (P3 unit 8) -----
+    // Sequential and locking, so nothing else is legal until all three are
+    // in. Each seat takes the first legal faceup site and keeps the first
+    // of its three drawn cards — which reproduces the opening position
+    // P2's `oathSetup` used to impose, so the assertions below still mean
+    // what they meant.
+    for (const { seat, payload } of setupChoices(rawState(ctx))) {
+      const r = await act(ctx, seat, 'setup.choose', payload);
+      expect(r.view.players[seat].pawnSite).toBe(payload.siteId);
+    }
+    expect(rawState(ctx).setupChoices).toBeNull();
 
     // The opening the seed produces, read from seat 0's own view.
     const opening = await view(ctx, 0);
@@ -353,6 +366,15 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     //
     // To regenerate deliberately (e.g. after a payload-shape change):
     //     rm test/fixtures/fullgame.log.json && npm test
+    //
+    // READ THIS BEFORE YOU DO. The committed fixture is a P2-era log: its
+    // game was created before P3 unit 8, so its setup record has no §1.23
+    // choices in it and `audit.test.ts` refolds it through D54's 'applied'
+    // back-compat path. That refold is currently the ONLY test proving a
+    // pre-unit-8 log still folds. Regenerating replaces it with a unit-8-era
+    // log (one `setup.choose` per seat, an 'open' setup) and would silently
+    // retire that coverage — so if you regenerate, move the back-compat
+    // assertion somewhere that keeps an old-shaped setup record alive.
     // If an engine change makes the frozen log unreplayable, audit.test.ts's
     // first case fails by name and tells you to do exactly that.
     if (!existsSync(fixture)) {

@@ -89,7 +89,11 @@ interface VanishEvent {
 }
 
 function foldFixture(): { observed: PendingDecision[]; vanished: VanishEvent[] } {
-  let state = oath.init(oath.setup(fixture.players, { seed: fixture.seed }));
+  // See audit.test.ts: a pre-unit-8 stored setup reads as 'applied' (D54).
+  let state = oath.init({
+    ...oath.setup(fixture.players, { seed: fixture.seed }),
+    setupChoices: 'applied',
+  });
   const observed: PendingDecision[] = [...oath.pending(state)];
   const vanished: VanishEvent[] = [];
   for (const row of fixture.actions) {
@@ -238,7 +242,22 @@ function campaignCasualtiesState(): { before: OathState; after: OathState } {
   return { before, after };
 }
 
+/**
+ * Law §1.23's setup decision (P3 unit 8) — the one kind that exists from
+ * `init`, before any action. A FIRST_GAME opening raises it for seat 0.
+ */
+function setupChooseState(): { before: OathState; after: OathState } {
+  const before = oath.init(oath.setup(4, undefined));
+  checkInvariants(before);
+  expect(before.setupChoices).not.toBeNull();
+  const site = before.sites.find((x) => !x.facedown && x.region === 'cradle')!;
+  const after = act(before, 'setup.choose', 0, { siteId: site.id, keepIndex: 0 });
+  checkInvariants(after);
+  return { before, after };
+}
+
 const handBuilt = [
+  setupChooseState(),
   titleChoiceState(),
   warbandsRequestState(),
   campaignAllyState(),
@@ -250,7 +269,7 @@ const handBuilt = [
 describe('INTERRUPTS.md is honest about the catalogue table', () => {
   it('parses at least the known built kinds', () => {
     expect([...catalogueKinds].sort()).toEqual(
-      ['campaign', 'citizenshipOffer', 'oathkeeper', 'play', 'turn', 'wake', 'warbands'].sort(),
+      ['campaign', 'citizenshipOffer', 'oathkeeper', 'play', 'setup', 'turn', 'wake', 'warbands'].sort(),
     );
     expect(catalogue.length).toBeGreaterThanOrEqual(9); // one row per distinct (kind, resolves) shape
   });
@@ -324,7 +343,10 @@ describe('every emitted decision is catalogued, and every catalogued kind is emi
 
 describe('id contracts', () => {
   it('ids are unique within any single state, at every prefix of the fixture', () => {
-    let state = oath.init(oath.setup(fixture.players, { seed: fixture.seed }));
+    let state = oath.init({
+      ...oath.setup(fixture.players, { seed: fixture.seed }),
+      setupChoices: 'applied', // a pre-unit-8 stored setup (D54)
+    });
     const checkUnique = (s: OathState, label: string) => {
       const ids = oath.pending(s).map((d) => d.id);
       expect(new Set(ids).size, `duplicate pending id at ${label}: ${ids.join(', ')}`).toBe(ids.length);

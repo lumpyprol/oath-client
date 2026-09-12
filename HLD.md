@@ -600,7 +600,10 @@ responses, one-visit defence); unit 9 is the measured 6-player acceptance.
       asserted through the store)*
 - [ ] a simulated 6-player game's round-trip count per turn is measured and
       recorded here *(unit 9)*
-- [ ] §1.23's setup choices are the players' own (P2 hand-off; plan unit 8)
+- [x] §1.23's setup choices are the players' own (P2 hand-off; plan unit 8)
+      *(unit 8: a from-`init` pending decision, sequential in turn order,
+      batched into one `setup.choose`; D54's `setupChoices` flag keeps every
+      pre-unit-8 stored setup — and the frozen fixture — folding unchanged)*
 - [x] a Citizen Ally can act in the battle-plan window (P2 hand-off; unit 5)
       *(§5.5.2's join window now precedes §5.5.3's plan window, so a
       permitted Citizen is in `allies` while the plan window is open)*

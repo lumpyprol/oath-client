@@ -561,7 +561,24 @@ campaign from the raw log, and replay is exact.
 
 ---
 
-## Unit 8 — Setup choices (§1.23)
+## Unit 8 — Setup choices (§1.23) ✅ (completed 2026-09-12)
+
+> **On the blast radius.** The prompt said to stop and reconsider the lock
+> if `completeSetup()` did not contain it. It nearly did: six test files
+> needed a change, but each was ONE edit to that file's own
+> game-creating helper, not per-test churn — so the containment held in
+> substance. `helpers.ts` exports `setupChoices(state)` (the owed payloads,
+> computable up front) plus a `completeSetup()` driver for reduce-level
+> tests; store- and HTTP-level tests loop the same payloads.
+>
+> **Two things the prompt did not anticipate.** (1) The lock had to be
+> ENFORCED centrally in `reduce`, not just reflected in `pending()` —
+> without it, Rest failed with "finish your Search first", because §1.20's
+> three drawn cards live in `hand`. (2) D54's back-compat could not work by
+> re-deriving a setup from a seed, since `oathSetup` itself changed shape.
+> `init` now APPLIES the old defaults when a record says `applied`, so a
+> pre-unit-8 record — and the frozen fixture — still folds byte-identically,
+> which is what the audit suite proves.
 
 **Purpose.** The two choices currently made for the player become real,
 batched, sequential decisions — the unusual shape (pending from `init`,

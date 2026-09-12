@@ -29,6 +29,7 @@ import { CITIZENSHIP_HANDLERS } from './actions/citizenship.js';
 import { ADVISER_HANDLERS } from './actions/adviser.js';
 import { WARBAND_HANDLERS } from './actions/warbands.js';
 import { STANDING_HANDLERS } from './actions/standing.js';
+import { SETUP_HANDLERS } from './actions/setup.js';
 import { VICTORY_HANDLERS, afterAction, prepareRest } from './victory.js';
 import { project } from './project.js';
 
@@ -48,6 +49,7 @@ const HANDLERS: Record<string, Handler> = {
   ...ADVISER_HANDLERS,
   ...WARBAND_HANDLERS,
   ...STANDING_HANDLERS,
+  ...SETUP_HANDLERS,
   ...VICTORY_HANDLERS,
 };
 
@@ -99,6 +101,20 @@ export const oath: GameDefinition<OathState, OathSetup> = {
     if (state.complete) {
       throw new IllegalAction(`${action.type}: the game is already complete`);
     }
+    // Law §1.23 precedes Law §4 (P3 unit 8): while the setup choices are
+    // open the game has not started, so `setup.choose` is the ONLY legal
+    // action. Enforced centrally for the same reason the `complete` check
+    // above is — a lock with no exceptions is the one nobody has to reason
+    // about, and every handler inherits it including the ones that bypass
+    // `requireActiveSeat`. Without it the guards downstream would reject
+    // these actions anyway, but for confusing reasons (the setup draw sits
+    // in `hand`, so Rest would complain about an unfinished Search).
+    if (state.setupChoices && action.type !== 'setup.choose') {
+      throw new IllegalAction(
+        `${action.type}: Law §1.23's setup choices come first — seat ` +
+          `${state.setupChoices.remaining[0]} has yet to place their pawn and keep an adviser`,
+      );
+    }
     // Every handler's actionCount bump happens exactly once, here — not
     // per-handler — and BEFORE dispatch, so a handler that starts a new
     // turn (turn.rest) can stamp `turn.turnStartedAt` from the same value
@@ -116,6 +132,27 @@ export const oath: GameDefinition<OathState, OathSetup> = {
 
   pending(state) {
     if (state.complete) return [];
+    // Law §1.23 (P3 unit 8) precedes everything, including §4's first turn.
+    // Sequential — "starting with the Chancellor, in turn order" — so only
+    // the head seat has a decision, and it LOCKS the game completely: this
+    // returns before even the non-locking side decisions below, which
+    // cannot exist yet anyway.
+    if (state.setupChoices) {
+      const seat = state.setupChoices.remaining[0];
+      return [
+        {
+          id: `setup:${seat}:0`,
+          seat,
+          kind: 'setup',
+          prompt:
+            `Setup (Law §1.23): place your pawn on a faceup site` +
+            `${seat === 0 ? ' — the Chancellor must use the top Cradle site' : ''}, ` +
+            `and keep 1 of your 3 cards as a facedown adviser (the other 2 are discarded ` +
+            `to the pile for your chosen site's region).`,
+          resolves: ['setup.choose'],
+        },
+      ];
+    }
     // Non-locking side decisions (units 16, 16b). Unlike a Campaign, these
     // don't stop anyone else acting, so they're ADDITIONAL pending
     // decisions alongside whatever else is happening, never a replacement —

@@ -26,7 +26,7 @@ import type { Suit } from '../../cards/schema.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import type { OathState, PlayerState } from '../state.js';
-import { requireActiveSeat, type Handler } from '../turn.js';
+import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
 const TRADE_COST = 1; // Supply (Law §5.3.1)
 
@@ -54,7 +54,7 @@ function trade(state: OathState, action: GameAction): OathState {
   const { cardId } = parsed.data;
   const player = state.players[seat];
 
-  const siteId = parsed.data.siteId ?? player.pawnSite;
+  const siteId = parsed.data.siteId ?? pawnSiteOf(state, seat);
   if (siteId !== player.pawnSite) {
     throw new IllegalAction('trade: the card must be at your site (Law §5.3.2)');
   }

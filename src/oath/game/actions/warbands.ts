@@ -54,7 +54,7 @@ import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import { chancellorSeatOf, rulersOf } from '../rule.js';
 import type { OathState, WarbandRequest } from '../state.js';
-import { requireActiveSeat, type Handler } from '../turn.js';
+import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 import { consultStanding } from '../standing.js';
 
 const MovePayloadSchema = z.object({
@@ -83,7 +83,7 @@ function moveEffects(
   target: number | null,
 ): Effect[] {
   const player = state.players[seat];
-  const siteId = player.pawnSite;
+  const siteId = pawnSiteOf(state, seat);
 
   if (direction === 'toBoard' || direction === 'toSite') {
     if (target !== null) {

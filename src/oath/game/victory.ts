@@ -413,7 +413,8 @@ function applyWakeStep(state: OathState, seat: number, step: WakeStep): OathStat
  */
 function offerOpportunity(state: OathState, seat: number): string | null {
   const siteId = state.players[seat].pawnSite;
-  if (!OPPORTUNITY_SITES.includes(siteId)) return null;
+  // An unplaced pawn (the §1.23.1 window, P3 unit 8) is at no site at all.
+  if (siteId === null || !OPPORTUNITY_SITES.includes(siteId)) return null;
   const site = state.sites.find((s) => s.id === siteId)!;
   return site.favor > 0 || site.secrets > 0 ? siteId : null;
 }

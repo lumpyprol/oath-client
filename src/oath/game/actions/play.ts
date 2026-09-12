@@ -46,7 +46,7 @@ import { discardRegion } from '../map.js';
 import { stripDiscardedTokens } from '../discard.js';
 import { isRestricted } from '../restrictions.js';
 import { ADVISER_LIMIT, CONSPIRACY_ID, type CardInPlay, type OathState, type Region } from '../state.js';
-import { requireActiveSeat, type Handler } from '../turn.js';
+import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
 
 const PlayPayloadSchema = z.object({
@@ -79,7 +79,7 @@ function play(state: OathState, action: GameAction): OathState {
   }
 
   const isVision = cardId.startsWith('vision:');
-  const discardTo = discardRegion(regionOfSite(state, player.pawnSite));
+  const discardTo = discardRegion(regionOfSite(state, pawnSiteOf(state, seat)));
   const restOfHand = player.hand.filter((_, i) => i !== payload.handIndex);
   const binRest: Effect[] = restOfHand.map((id) => ({
     kind: 'card',
@@ -111,7 +111,7 @@ function play(state: OathState, action: GameAction): OathState {
       if (isRestricted(cardId, 'adviser')) {
         throw new IllegalAction(`card.play: ${cardId} may only be played to your advisers (Law §7.2.1)`);
       }
-      const siteId = payload.siteId ?? player.pawnSite;
+      const siteId = payload.siteId ?? pawnSiteOf(state, seat);
       if (siteId !== player.pawnSite) {
         throw new IllegalAction('card.play: you may only play to your own site (Law §5.1.4.1)');
       }
