@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS=--experimental-sqlite tsx watch src/index.ts",
     "build": "tsc",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
     "start": "NODE_OPTIONS=--experimental-sqlite node dist/index.js",
     "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
     "smoke": "node scripts/smoke.mjs",

@@ -22,7 +22,7 @@ beforeAll(async () => {
   ({ db } = await import('../../../src/db.js'));
   ({ oath } = await import('../../../src/oath/game/index.js'));
   await new Promise<void>((resolve) => {
-    server = app.listen(0, '127.0.0.1', resolve);
+    server = app.listen(0, '127.0.0.1', () => resolve());
   });
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
 });

@@ -1,0 +1,16 @@
+{
+  // `npm run build` compiles only `src` (it has a rootDir and an outDir, and
+  // shipping test files to dist/ would be wrong). That left `test/` and
+  // `scripts/` never typechecked at all — vitest transpiles per-file and
+  // erases types without checking them, so a test could reference a field
+  // that no longer exists and still pass.
+  //
+  // This config is the same compiler settings with a wider net and no emit.
+  // Run it with `npm run typecheck`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src", "test", "scripts"]
+}

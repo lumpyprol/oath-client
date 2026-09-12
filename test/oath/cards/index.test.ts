@@ -116,17 +116,30 @@ describe('edificeBySuit', () => {
   });
 });
 
+/**
+ * The freeze is a RUNTIME guarantee only: `deepFreeze<T>(v: T): T` hands the
+ * type straight back, so `cards` is typed mutable while the object is not.
+ * These assignments therefore typecheck fine and throw when executed, which
+ * is exactly what the tests below assert.
+ *
+ * They used to carry `@ts-expect-error`, which was wrong in both directions
+ * — nothing was being suppressed, and `npm run typecheck` (unit 20) flagged
+ * both as unused directives the first time tests were ever typechecked.
+ *
+ * Making the type match the runtime (a DeepReadonly return) was tried and
+ * reverted: `Card` is shared with the chronicle parser and the id indexes,
+ * so readonly-ness ripples through the whole card schema. Worth doing on
+ * its own; not worth smuggling into an audit unit.
+ */
 describe('cards is deep-frozen', () => {
   it('assigning to the top level throws', () => {
     expect(() => {
-      // @ts-expect-error runtime immutability check
       cards.denizens = [];
     }).toThrow();
   });
 
   it('mutating a nested card throws', () => {
     expect(() => {
-      // @ts-expect-error runtime immutability check
       cards.denizens[0].name = 'mutated';
     }).toThrow();
   });
