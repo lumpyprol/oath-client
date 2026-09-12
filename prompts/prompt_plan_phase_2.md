@@ -1638,7 +1638,7 @@ everything that was in **neither** place, with its disposition:
 | §7.1.2 | "You cannot place favor or secrets on a card that has favor or secrets on it already" — enforced by Muster/Trade for themselves, but not by `applyEffects`, so a declared power can do what no rule allows | **Unit 16d** (new) — one feasibility rule |
 | §4.1.1 | The People's Favor holder's mandatory Wake maintenance (place-or-return, Mob repeat, flip at ≥6) — turn-sequence structure in Law ch. 4, not card text; it materially drives Oathkeeper of the People and Vision of Rebellion | **Unit 17** (amended below) |
 | §3, §4.1 | Unit 17's prompt predated the Law and was generic; the win checks' Wake-phase timing, the Empire-collective Supremacy goal, tie/transfer rules, the ≥3-Visions floor, Stable Regime die faces, the Successor table, and War Exhaustion's priority order are all now known | **Unit 17** prompt rewritten with the specifics |
-| §7.2 | Restriction banners (site-only / adviser-only / locked) are per-card structural facts absent from the P1 database, so `card.play`, `adviser.play`, and swap/move effects cannot enforce them | **Deferred with a decision, Q12 (Ben):** either a small P1-style data addendum (schema field + transcription from cards.buriedgiant.com + drift test) with a one-line check in the play paths, or leave to v2 with players self-policing. Recorded in the HLD deferred list either way |
+| §7.2 | Restriction banners (site-only / adviser-only / locked) are per-card structural facts absent from the P1 database, so `card.play`, `adviser.play`, and the discard paths cannot enforce them | **Decided 2026-09-12 (Q12 closed, D46): scoped into unit 19.** The 09-12 sweep proved the data exists in no machine-readable source — the publisher's own CDN has no restriction field, because restrictions are iconography on the card face — so a full transcription means classifying an icon on ~204 card images, which is exactly the error-prone icon-counting RULINGS.md already warns about. Instead: transcribe only the cards unit 19's acceptance game actually plays, into a partial addendum where ABSENT means "not yet read" rather than "no restriction", and have the test assert the script never leans on an unread card. See unit 19 |
 | §6.3/§6.4 | The Peek family (known, previously flagged in unit 16's notes but homeless) | **Recorded in the HLD deferred list**: needs peek-memory state + a projection change (`project.ts` already carries the "revisit when a peek action exists" comment) and is only *useful* with a client — P4 work, on the v2/P4 boundary |
 | §4.1.4 | Opportunity-site Wake take (Salt Flats/Mine/Drowned City) — "may", expressible today as a declared `siteFavor`/`siteSecrets` → seat mover | **Stays declared (v1)**; added to the HLD deferred list |
 | §5.5.4 | Multi-roll defense doubling ("each roll doubles… ×4, ×8") — only reachable via battle-plan powers | Rides with the existing battle-plans deferral; noted there |
@@ -2465,6 +2465,36 @@ People's Favor wake decision if a seat holds the banner, and — if the
 script reaches a Citizenship transition — one campaign against an
 Imperial defender, which exercises 16a's combined force end to end.
 
+§7.2 RESTRICTION BANNERS, scoped to this game (Q12/D46). The data is in
+no machine-readable source — the card CDN carries none, because the
+restriction is an icon on the card face — so transcribing all ~204
+denizens and edifices is an error-prone slog with no payoff until v2.
+Do this much instead:
+
+  - `src/oath/cards/data/card-restrictions.json`, keyed by saveId, in
+    the shape of the existing addenda (`site-reveals.json`,
+    `relic-defense-dice.json`): a `_provenance` block plus one entry per
+    card READ, each `"site" | "adviser" | "locked" | "none"`. ABSENCE
+    MEANS UNREAD, never "unrestricted" — that distinction is the whole
+    point, and a card absent from the file stays self-policed exactly as
+    today. Read the faces from the card CDN's `image` URLs (HLD
+    "Reference sources"); anchor the icon reading against a card whose
+    restriction the rulebook itself names, the way the recover-cost
+    transcription anchored on two worked examples.
+  - enforce it where a card's ZONE is chosen — `card.play` ('site' vs
+    'adviser'), `adviser.play`'s faceup step, and the discard paths for
+    §7.2.2's locked cards ("cannot be discarded, moved, or swapped,
+    except in the Chronicle"). Unknown restriction ⇒ allow, as now.
+  - §7.2's preamble is load-bearing and easy to miss: "These
+    restrictions only apply to faceup cards (not facedown)." So a
+    site-only denizen MAY be played as a facedown adviser (§5.1.4.2
+    agrees — a facedown adviser has no suit, restriction or power), and
+    the restriction only bites when §6.1 later tries to turn it faceup,
+    at which point the card can only be discarded. Test both halves.
+  - the acceptance script must not lean on the gap: assert that every
+    card it plays or discards HAS an entry in the file, so a passing run
+    proves the game was legal under §7.2 rather than merely unchecked.
+
 Assertions along the way:
   - after every action: checkInvariants on the folded state
   - mid-game: wipe snapshots, refold, deep-equal (restart survival)
@@ -2475,7 +2505,9 @@ Assertions along the way:
 Commit: "Play a full 3-player game through the API"
 ```
 
-**Done when.** The game completes; the fixture log is committed.
+**Done when.** The game completes; the fixture log is committed; every
+card the script touches has a transcribed §7.2 restriction, and the two
+faceup/facedown halves of §7.2's preamble are tested.
 
 ---
 
