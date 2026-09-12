@@ -2776,3 +2776,55 @@ that's the feasibility gate talking — stop and reassess rather than hack.
   P3 depends on it; if a unit finds a decision whose id can't be derived
   that way, flag it in the unit's commit message rather than inventing a
   second convention silently.
+
+---
+
+## What unit 20 established (as built, 2026-09-12)
+
+- **A green audit proves nothing until you plant a leak in it.** The
+  hidden-info audit passed the first time it ran, which is exactly when a
+  test is least trustworthy. Deliberately exposing facedown adviser ids,
+  site relic identities and a `worldDeck` count each made it fail with the
+  seat, action and view path named — and only then was the green run worth
+  anything. The evidence is written into the test's header so the next
+  person changing `project.ts` can repeat it.
+- **Sweep the whole projection, don't check the fields you listed.** The
+  audit matches any string shaped like a card id (`denizen:`, `relic:`, …)
+  anywhere in the view JSON. A field-by-field assertion can only ever
+  cover the fields someone thought of, and the forgotten ones are the
+  entire point. Run strict, exactly ONE id trips it: §6.6.1's offered
+  Reliquary relic, which is genuinely put on the table faceup.
+- **Model knowledge as monotonic and per-seat.** An accumulating
+  `known: Set<string>` per viewer, fed from TRUE state, is both stronger
+  and more honest than a public/private split: a card seen faceup as an
+  adviser is still known after it is played facedown, and re-hiding it
+  would be the fiction rather than the leak.
+- **A fixture that regenerates every run is not a fixture.** The fullgame
+  log was rewritten on every `npm test`, so the committed file churned
+  permanently. Two causes: row metadata (`gameId`, `createdAt`), and dice
+  — which this suite deliberately does NOT pin, so no field-stripping
+  could ever make it stable. Fixed by writing once and freezing. A frozen
+  log is also the better input: an audit regression is then always a code
+  change and never a reroll.
+- **Nothing in `test/` or `scripts/` had ever been typechecked.** `tsc`
+  compiles only `src` (rootDir/outDir), and vitest erases types without
+  checking them. `npm run typecheck` closed it and immediately found two
+  `@ts-expect-error` directives suppressing nothing and an
+  `app.listen(port, host, resolve)` that would have passed a listen error
+  off as a successful resolve.
+- **Check the review's own claims against the code.** Every symbol
+  `RULES-COVERAGE.md` cites was verified to be a real declaration in the
+  file it is attributed to. Two of the three findings this review produced
+  (§1.12's "topmost FACEUP site", "denizen or INTACT edifice") are single
+  qualifiers in a sentence we had already implemented and believed done —
+  they are only findable by re-reading the Law beside the code.
+- **The §10.5 finding is the shape to watch for.** Discarding a card
+  carrying tokens threw "not yet supported — see v2". But a DECLARED power
+  can put a secret on an adviser today, so this was not a deferral at all;
+  it was a reachable state the engine refused. Under the v1 bargain,
+  anything a declaration can reach has to work. Recorded as D48.
+- **Deleting `cradle` was not just tidying.** It was still in the server's
+  `DEFS` map, so production could create games of a toy game. Its store
+  tests kept a toy — moved into the test file — because testing the store
+  only against Oath would stop "the store works" and "Oath works" from
+  being separable.

@@ -6,8 +6,8 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | Field | Value |
 | --- | --- |
 | Started | 2026-09-07 |
-| Last updated | 2026-09-11 |
-| Current phase | P2 (in progress, units 1–19 and 16a–16d done; 20 to go) |
+| Last updated | 2026-09-12 |
+| Current phase | P2 `done` (09-12). P3 (Interrupts) is next |
 | Owner | Ben |
 
 ---
@@ -374,7 +374,7 @@ normalising the actual image files.
 
 ---
 
-### P2 — Core loop — `in progress`
+### P2 — Core loop — `done`
 
 **Goal.** A real `GameDefinition` for Oath. A full game is playable start to
 finish with the six actions enforced and card powers player-declared. This is
@@ -384,6 +384,39 @@ the feasibility milestone: if the state machine is painful here, stop.
 16b–16d added by the 09-11 Law review (a chapter-by-chapter sweep of the
 Law against units 1–16; findings table in the plan). Campaign design
 (units 12–13) was the explicit feasibility gate — passed.
+
+**Delivered (09-12).** All 24 units. `src/oath/game/` is a real
+`GameDefinition`: setup from a first game or a chronicle seed, the Act and
+Rest phases with supply, the six major actions, the minor actions including
+warband permissions and Citizenship, campaigns with allies and casualty
+allocation, the Wake phase, continuous title tracking, and all four win
+conditions. `fullgame.test.ts` plays a 3-player game over real HTTP from a
+seed to a Visionary Win; `audit.test.ts` re-audits every seat's projection
+after every action of it. ~600 tests, `npm run typecheck` now covering
+`test/` and `scripts/` too, 23 smoke checks against a live server.
+
+The feasibility question the phase existed to answer came back yes, but the
+useful finding was about *method*, not difficulty. Fifteen rules defects
+were found in code already written and believed correct, and the review
+passes that found them were worth more than the original writing. Two
+patterns account for nearly all of them:
+
+- **`FIRST_GAME` hides §1.** Seven (§1.12's two qualifiers, §1.13, §1.15's
+  Citizen warbands, §1.16, §1.17's short Reliquary, §1.22) were invisible
+  because the fixture every test used is a 4-player Supremacy *first* game:
+  no facedown Cradle top, no ruins, no Citizens, no faceup Opportunity
+  Site. Most surfaced from `checkInvariants`, not from reading.
+- **A "documented deferral" is not evidence of anything.** §6.6.3's site
+  ruling and §4.1.4's Opportunity Sites were both recorded as deliberate
+  deferrals and were both live defects; a review of our own notes waved
+  each through until Ben pushed back. That is what `RULES-COVERAGE.md`'s
+  rule against "v2" as a home exists to stop, and why unit 20's review
+  checked claims against code rather than against notes.
+
+Deferred out of P2, each with a home: §1.23.1/§1.23.2's two setup choices
+and §5.5.3's Citizen-ally battle window to **P3**; the Peek family
+(§6.3/§6.4) to **P4**; writing the chronicle (§8) to **P5**; and all card
+power text to **v2**, where the registry is waiting and empty.
 
 **Scope.**
 - State shape (see §5) and `setup()` per the rulebook's setup procedure,
@@ -460,13 +493,19 @@ Law against units 1–16; findings table in the plan). Campaign design
       registry itself stays empty, `registrySize() === 0`)
 - [x] campaign dice come from `prepare()` and survive snapshot wipe + replay
       (unit 12, `campaign1.test.ts`'s "prepare() persists dice" test)
-- [ ] hidden information audit: fuzz `project()` for every seat over a
+- [x] hidden information audit: fuzz `project()` for every seat over a
       played game; no other seat's hand or deck order leaks
-- [ ] every section of the Law (§1–§11) is implemented or explicitly
+      *(unit 20, `audit.test.ts` — the recorded fullgame log refolded prefix
+      by prefix, all 3 seats plus a spectator, sweeping the whole projection
+      for card-id-shaped strings rather than checking listed fields.
+      Verified against planted leaks. Exactly one deliberate exception:
+      §6.6.1's offered Reliquary relic)*
+- [x] every section of the Law (§1–§11) is implemented or explicitly
       deferred with a recorded home, in a committed `RULES-COVERAGE.md`
       (unit 20; deferrals verified against the code, not against the
       notes — this phase found seven bugs that were already "recorded")
-- [ ] `cradle` deleted
+- [x] `cradle` deleted *(unit 20 — also removed from the server's `DEFS`,
+      where it had been letting production create games of a fake game)*
 
 ---
 
@@ -831,6 +870,7 @@ with `reversed by`.
 | D42 | 09-11 | Unit 16 follow-up, same day, on user review: (1) Law §6.6.3 "every Imperial player rules every purple site" + §5.5.1's Campaign-scoped carve-out, implemented in a new shared `rule.ts` (`rulersOf`/`imperialExclusionFor`) imported by both `campaign.ts` and `power.ts` rather than duplicated; (2) the Imperial Reliquary's 4 fixed named spaces (Brutal/Decadent/Careless/Greedy — printed board text, RULINGS.md has the transcription) are now structural state: `reliquary: string[]` became `reliquary: ReliquarySpace[]` (`{modifier, relicId}`, always length 4), letting `power.ts#hasAccess` grant the Chancellor a `reliquary:<modifier>` id once its covering relic is gone — the MODIFIER's actual effects stay declared (v1, same as every other card power, D9/D28), only ACCESS is structural. Deliberately NOT done: the Allies mechanic itself (defense-total/casualty arithmetic across multiple Imperial seats' combined force) — ruling legality and access are now correct for any number of Imperial seats, but the DICE math still reads only the single recorded defender's own counts, since combining forces needs the opt-in Ally mechanic (who joins, the Chancellor's mandatory join) to do correctly | The user flagged these as under-scoped in the initial unit 16 pass rather than genuinely low-priority — same pattern as unit 12's relic-targets pushback: a "ripple" that looked deferrable on paper turns out to matter the instant a second Imperial seat exists, which unit 16 itself just made possible for the first time | active |
 | D43 | 09-11 | Full Law review before unit 17 (findings table in the plan) added three units and rewrote unit 17's prompt with the now-known Law specifics. Structural closures, all by unit 12's Plains/Mountain precedent (identity-only + mandatory ⇒ engine's job, not card text): the §6.1/§6.5 minor actions (unit 16b — a game literally cannot garrison a site or surface a facedown adviser without them), the §2.11 Oathkeeper/Usurper mandatory defense dice and the Grand Scepter as a campaign target (unit 16c), a `supply` effect + the §7.1.2 occupied-card feasibility rule (unit 16d — without the supply effect, every deferred Supply-touching power was *undeclarable*, breaking the v1 deferral premise, not just unenforced). The People's Favor Wake maintenance (§4.1.1) is Law ch. 4 turn sequence, so it's structural and folded into unit 17 alongside the Wake-timed win checks. Deferred with a recorded home instead of silently: peeks (§6.3/§6.4 → v2/P4 boundary), opportunity-site Wake take (§4.1.4, declared), §5.5.4 multi-roll doubling (rides with battle plans), restriction banners (§7.2 → Q12, since resolved by D46) | A one-sitting sweep of the reference against the built system is cheap insurance right before the victory unit locks in endgame semantics; the alternative — discovering §6.5 during unit 19's scripted game — would have cost more and been diagnosed worse | active |
 | D47 | 09-12 | Law §4.1.4's Opportunity Site take (Salt Flats, Mine, Drowned City) is ENGINE-OWNED and offered at the end of the Wake Phase (`wake.take`, with an explicit 'none'), reversing its earlier classification as a declarable power. Two things changed the call: the tokens are a FIXED supply — placed once when the site is revealed (§1.16 at setup, §5.6.2 on Travel) and never replenished — so five of the game's 36 favor and three secrets sit there, and leaving them unclaimed because nobody declared a power is a real economic change rather than a declined option; and the rule is identity-only and decidable from P1 data, the same footing as Plains/Mountain (§11.4) which the engine already owns. Implementing it also exposed that §1.16 was never implemented at setup at all — `travel` placed reveal tokens but `init` did not — so a faceup Opportunity Site began the game empty | The original "it's a may, so skipping it corrupts nothing" reasoning was wrong: a "may" nobody would ever decline, over a finite pool, is not optional in any meaningful sense, and the engine was silently sequestering 14% of the game's favor | active |
+| D48 | 09-12 | Every numbered subsection of the Law gets a recorded disposition in a committed `RULES-COVERAGE.md`: IMPLEMENTED naming the file and function, DEFERRED naming both where it is RECORDED and where it will be DONE, or N/A with a reason. "v2" alone is not a valid home — a deferral must name a unit, a phase scope bullet, or a Q. Dispositions are checked against the CODE, never against these notes; unit 20 verified every symbol it cites is a real declaration in the file it is attributed to | Two deferrals recorded as deliberate (§6.6.3 site ruling, §4.1.4 Opportunity Sites) turned out to be live defects, and the Peek family sat for four units described as "the v2/P4 boundary" while P4's scope never mentioned it — nothing would ever have picked it up. A review that re-reads its own notes finds nothing; the notes are what was wrong | active |
 | D46 | 09-12 | Law §7.2's restriction banners are scoped into unit 19 rather than deferred wholesale or transcribed in full. Decided after the 09-12 sweep of the publisher's card CDN established that the data exists in NO machine-readable source — restrictions are iconography on the card face and appear in no field — so a complete transcription means classifying an icon on ~204 images, the same error-prone icon-counting RULINGS.md already flags for two site relic counts. Unit 19 instead transcribes only the cards its acceptance game plays, into a PARTIAL addendum (`card-restrictions.json`) where absence means "unread" rather than "unrestricted", enforces it in the zone-choosing paths, and asserts the script never plays a card whose restriction is unread | Makes the headline acceptance game provably legal under §7.2 — the property that actually matters for P2's exit criterion — at a fraction of the cost, without the engine ever pretending to know a restriction it has not read. The remaining ~200 cards cost nothing to leave self-policed, because v1 does not enforce their powers either | active |
 | D45 | 09-11 | Unit 17 reads "meets the Oathkeeper goal" as INCLUDING a tie, on the strength of §2.11's own tie rule ("if the title's holder becomes tied with another player *for meeting* the goal, the holder keeps the token"), which only parses if both tied players meet it. The same reading then settles a question §3.2 leaves open — whether an Exile tied for "rules the most sites" wins a Visionary Win — in favour of yes. Also: only Supremacy is collective (§2.11 names the Chancellor's Empire clause for it alone, and §6.6.3 is why it must be — every Imperial seat rules the same purple sites and can never break that tie internally); the other three goals stay individual, so a Citizen can hold the Oathkeeper of Protection | The alternative reading ("strictly the most") would make the §2.11 tie rule dead text, and would silently change who wins a game; a rule that decides games belongs in RULINGS.md with its evidence rather than buried in a predicate | active |
 | D44 | 09-11 | Imperial Allies are pulled forward into P2 as plan unit 16a rather than left on the v2 deferred list. Prompted by a re-check of all eight of the Law's purple Imperial asides against the code: three (§5.2.2 Muster purple, §4.3.3 Citizen Supply, §5.5.1's carve-out) are implemented; the other five are not. Two of those five — §5.5.6's "the Chancellor chooses which warbands die" and §5.5.7's "Imperial warbands at sites move to the Chancellor's board" — are reachable with ONE Citizen and no Allies whatsoever, and `defenseTotal`'s site bonus is a seam D42 itself opened (D42 made every Imperial seat rule a purple site, so a Citizen can now be declared defender of a site garrisoned by the Chancellor and defend it with zero site warbands counted). The unit therefore splits along reachability, not along "Allies vs not": part 1 is the correctness fix (combined site warbands, §5.5.7 consolidation, §5.5.6's allocation choice as a `casualties` phase, auto-skipped when allocation cannot change the outcome — unit 13's existing shortcut stays valid for single-owner forces), part 2 is the opt-in mechanic (Chancellor mandatory join, Citizens' permissioned join via `campaign.ally` + `respond.allies`, §5.5.4's per-Ally board bonus, and §5.5.3's response-window membership). Battle-plan effects, §5.5.3's once-each bookkeeping, and §5.5.2's modifier activation stay v2 — they are card powers | Third time a "documented deferral" turned out to be a reachable defect the moment a prerequisite shipped (relic targets in D39, site ruling in D42, now the Imperial force): the pattern is that deferrals reasoned about on paper age badly against code, so the check is now against the code. Deferring further would also have left unit 19's acceptance game unable to campaign against a Citizen correctly | active |
@@ -845,7 +885,7 @@ with `reversed by`.
 | --- | --- | --- | --- | --- | --- |
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
-| P2 Core loop | in progress | 09-09 | | `prompt_plan_phase_2.md` | feasibility gate; units 1–16 done (all six actions + card.play + `power.use` + the (empty) enforcement registry + Citizenship transitions); 09-11 Law review (D43) inserted units 16b–16d and rewrote unit 17's prompt, and its Imperial second pass (D44) added 16a. 16a-16d, 17 done 09-11; 18-19 done 09-12; next is 20 (audit, cradle removal, docs) |
+| P2 Core loop | done | 09-09 | 09-12 | `prompt_plan_phase_2.md` | feasibility gate — passed. All 24 units (1–20 plus 16a–16d, inserted by the 09-11 Law review D43/D44). 15 rules defects found in already-written code; 7 were invisible from `FIRST_GAME`. §1.23.1/§1.23.2 and §5.5.3's Citizen-ally window → P3; Peeks → P4; chronicle writing → P5; card power text → v2 |
 | P3 Interrupts | not started | | | | |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
