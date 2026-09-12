@@ -111,10 +111,18 @@ If the rule you're testing involves a chronicle, ruins, Citizens, or the
 Reliquary, test it against a **seed** (`test/oath/game/seeded-setup.test.ts`
 has two vendored ones) and not against `FIRST_GAME`.
 
-**Don't assert a lucky outcome.** Two tests in this repo asserted results
-that depended on dice or on how many cards a Search happened to draw, and
-were quietly flaky for weeks. Assert the *rule*: compute the worst case, or
-assert that the roll was recorded rather than what it came up.
+**Don't assert a lucky outcome.** Several tests here asserted results that
+depended on dice, on how many cards a Search happened to draw, or on a
+shuffle — and were quietly flaky for weeks. Assert the *rule*: compute the
+worst case, or assert that the roll was recorded rather than what it came
+up. Before declaring anything done, run the suite in a loop, not once.
+
+**Redaction tests compare whole ids, never substrings.**
+`JSON.stringify(view).not.toContain(id)` looks right and is not:
+`denizen:hospital` is a substring of `denizen:hospitality`, so the
+assertion fires whenever the short card is hidden and the long one is
+legitimately visible. Use `helpers.ts#expectHidden`, which walks the
+structure and compares whole strings.
 
 ## Commands
 

@@ -2823,6 +2823,21 @@ that's the feasibility gate talking — stop and reassess rather than hack.
   can put a secret on an adviser today, so this was not a deferral at all;
   it was a reachable state the engine refused. Under the v1 bargain,
   anything a declaration can reach has to work. Recorded as D48.
+- **Run the suite in a LOOP before calling a phase done.** Everything was
+  committed and green when a 5x repeat run failed once. It was
+  `turn.test.ts` asserting
+  `JSON.stringify(view).not.toContain(id)`, and `denizen:hospital` is a
+  substring of `denizen:hospitality` — the only such pair in the database —
+  so it failed ~4% of the time, whenever the short card was hidden and the
+  long one visible. A substring assertion is not a redaction assertion.
+  `helpers.ts#expectHidden` now compares whole strings.
+- **Two of this hunt's own loops were vacuous and nearly hid it.** One used
+  a multi-file vitest filter that matched nothing ("No test files found",
+  exit 1) while the grep looked for `" failed"`; another lost `PATH` inside
+  a nested zsh loop so `seq`/`head` vanished and the loop ran zero times —
+  both printing a confident "0 failures". Make a detection loop prove it
+  ran (count iterations, assert on the PASS line rather than on the absence
+  of a fail string) before believing a clean result.
 - **Deleting `cradle` was not just tidying.** It was still in the server's
   `DEFS` map, so production could create games of a toy game. Its store
   tests kept a toy — moved into the test file — because testing the store
