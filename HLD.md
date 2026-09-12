@@ -96,6 +96,25 @@ Chrome browser tools (`navigate` + `computer` zoom/screenshot, or
 - **Rules text** — `https://rules.buriedgiant.com/?product=oath&locale=en-US`
   (the Oath printing p1 edition, already decided as canonical — Q5). Cite as
   `Law §x.y`.
+- **Bulk card data** — `https://cardcdn.buriedgiant.com/cards.min.json` is
+  what the card library itself loads: every card of every game in one
+  ~350KB file, no browser needed. It is interned (a string table plus
+  `a|`/`o|` index references in base-62), so it needs a ~20-line decoder,
+  but it turns "check one fact on 200 cards" from a day of page loads into
+  a script. Per Oath card it carries `name`, `tags`, `meta` and `text`.
+  - `meta` has exactly two keys: `defense` (relics, banners, sites — the
+    §2.4.2 shield) and `cardcapacity` (sites, §2.8.1). Both were used on
+    2026-09-12 to verify P1's hand transcriptions; that is how Steppe's
+    capacity error was found (RULINGS.md).
+  - `tags` carry deck, suit, card type, and — usefully — the POWER TYPE:
+    Battle Plan (52), Muster (8), Search (33), Travel (21), Recover (7),
+    Trade (11), Campaign (17), plain Power (107). That is §7.4/§7.5's
+    modifier classification, free and mechanical. Worth mining when v2
+    starts on battle plans rather than re-deriving it.
+  - It does NOT carry restriction banners (§7.2) — those are iconography
+    on the card face and appear in no field. See the deferred list.
+  - `text` is card text: copyrighted, same handling as everything else
+    (D20) — read it, never commit it.
 
 Before cropping the Oath Deck Order PDF or `pdftotext`-ing the rulebook PDF
 for anything, check whether the answer is just a search away on one of these
