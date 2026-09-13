@@ -706,7 +706,23 @@ numbers are in INTERRUPTS.md and the HLD; no unexplained visit spikes.
 
 ---
 
-## Unit 10 — Docs and close
+## Unit 10 — Docs and close ✅ (completed 2026-09-12)
+
+> **The loop earned its keep, twice more.** Running the suite 12 times
+> surfaced a failure in 1; hunting it found the SAME skull bug as unit 7 —
+> `fullgame.test.ts` had its own `sacrificeFor` that measured affordability
+> against the pre-skull board. Fixing that exposed a second, deeper one: the
+> game's Visionary Win *depends* on winning that bandits campaign, so a bad
+> roll broke the ending too (~1 in 25). Fixed properly by declaring **zero
+> attack dice** — no dice, no skulls, so the exact §9.5 sacrifice is always
+> affordable and the win is certain. 30/30 clean after.
+>
+> Both traps are now written into `src/oath/game/README.md`'s testing
+> guidance, including the meta-lesson: a 1-in-25 flake survives a 6-run loop
+> most of the time, so the loop has to be long enough to matter.
+>
+> **D48 discipline applied to INTERRUPTS.md:** every backticked symbol in it
+> was grepped against `src/` and `test/`. All 70 resolve.
 
 **Purpose.** Close the phase the way unit 20 closed P2 — with the claims
 checked against the code.

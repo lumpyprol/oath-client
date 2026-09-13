@@ -579,6 +579,49 @@ responses, one-visit defence); unit 9 is the measured 6-player acceptance.
 - General "anyone want to react?" windows are v2 — in v1 no card text is
   enforced, so the campaign response window is the only reactive window
 
+**Shipped (09-12).** All ten units. The phase's claim — that a
+multi-party decision can survive asynchronous play — is now a measured
+number rather than a hope: a campaign against a defender who has set a
+standing response costs that defender **zero actions**, and a six-player
+game runs at **2.56 visits per turn**. Both are asserted from frozen logs
+(`fullgame.log.json`, `sixplayer.log.json`) that the audit suite also
+re-checks for information leaks on every run.
+
+What made it work was refusing to build a subsystem. Interrupts stayed
+ordinary pending decisions resolved by ordinary logged actions (D49), so
+rewind, replay and projection came free; what P3 added was *contracts* —
+a normative `INTERRUPTS.md` that conformance tests keep honest in both
+directions — plus three rules with teeth: batch to the reveal floor (D50),
+roll the dice in whichever action closes the window (D51), and let a seat
+answer in advance with a policy that is itself state (D52).
+
+Two P2 hand-offs closed on the way, and neither needed new rules — only
+the Law's own order. §5.5.3's Citizen Ally could never act in the
+battle-plan window because P2 had one window where the Law has two; giving
+§5.5.2's join its own window fixed it without touching `power.ts` at all.
+§1.23's setup choices became real decisions with the unusual shape of
+existing from `init`, before any action.
+
+Three findings were recorded rather than smoothed over, and each is worth
+carrying forward: batching cuts *actions*, not *visits*, unless another
+seat interleaves (so the metric needs both columns); the six-player max of
+7 visits/turn is irreducible by batching and answered only by policy; and
+the visit metric itself had a bug that made a campaign look *cheaper* the
+more it was interrupted. Two more were caught by running the suite in a
+loop rather than once — a 1-in-3 flake that had been live in the tests for
+two units, and a 1-in-25 one in the three-player acceptance game found only
+at the close, when the loop was finally run 30 times instead of 6. Both had
+the same root: §5.5.5 kills the attacker's skulls BEFORE the sacrifice is
+paid, so a test that picks a sacrifice must measure affordability against
+the post-skull board. That is now written into the engine README's testing
+guidance, with the meta-lesson that a 1-in-25 flake survives a short loop.
+
+**Deferred, with homes.** Conditional standing responses (per site, per
+opponent) → **P4**, because authoring one needs a UI to author it in.
+Nudge delivery against the `since` field each decision now carries → **P6**.
+General "does anyone want to react?" windows → **v2**, since v1 enforces no
+card text and the campaign window is the only reactive window there is.
+
 **Decisions resolved 09-12 (during unit 1/2 review).**
 - Q13 — the proposed starter set stands as scoped: `defense: close/ask`,
   `ally: pass/ask`, `warbands: allow/deny/ask`; conditional (per-site,
@@ -650,6 +693,15 @@ from a projected view, shows the decision inbox, and submits actions with
   Until now every id is public or private to all; a peeked relic is
   privately known to one seat, which is why unit 20's audit is written to
   take a per-seat known set rather than a single public/private split
+- **Conditional standing responses** (P3 deferral, D52). P3 shipped three
+  GLOBAL policies — `defense`, `ally`, `warbands` — and deliberately no
+  conditions, because a policy like "auto-close unless they target my
+  banner" needs somewhere to be authored and read back, and that somewhere
+  is this client. The engine side is additive: `StandingPolicy` grows
+  fields, `consultStanding` grows arms, and nothing about the
+  short-circuit contract changes. Worth doing because P3's own measurement
+  says so — the six-player max of 7 visits/turn is entirely "nobody set a
+  policy", so making policies easy to set IS the remaining win
 - Cards and sites render with real art from the P1 manifest; card text
   overlay available as a tap-through for legibility on small screens
 - Board art: the table layout, site backgrounds, banks, and player areas
@@ -715,8 +767,16 @@ between this server and TTS/Vassal.
 
 **Scope.**
 - Discord webhook per game: post on every new pending decision, with a deep
-  link; dedupe by decision id
-- Stalled-decision nudges (configurable, default ~48h), escalating gently
+  link; dedupe by decision id. **P3 built the two things this needs and
+  nothing more**: stable ids (`` `${kind}:${seat}:${anchor}` ``, distinct
+  per instance) to dedupe on, and `GET /games/:id/decisions/:decisionId`,
+  whose 410-with-your-inbox contract is what makes a link safe to post
+  before anyone has acted on it
+- Stalled-decision nudges (configurable, default ~48h), escalating gently.
+  The clock to read is the `since` each `/inbox` entry carries — the
+  wall-clock `createdAt` of the action the decision's anchor names (P3
+  unit 2). Note the standing constraint: a timeout NEVER auto-resolves a
+  decision. A policy is player-authored; a timeout is not
 - Per-player mute / digest preference
 - Operational: backups of the SQLite file, health check, simple admin page
   for rollback and game creation
@@ -764,8 +824,17 @@ change — only *who composes the effects* changes.
    a tag, an `applyEffect` case, tests.
 3. **Timing / interrupt integration.** Persistent powers modify an action
    in flight; "When Played" triggers; Wake/Rest powers; battle plans
-   (used in a specific Campaign step). Needs P3's interrupt machinery
-   mature, plus a representation for power *windows* and *triggers*.
+   (used in a specific Campaign step). P3's interrupt machinery is now
+   mature and this is what it will build on — but note the one thing P3
+   deliberately did NOT build: a **general "does anyone want to react?"
+   window**. In v1 no card text is enforced, so the campaign response
+   window is the only reactive window there is, and a general one would
+   have had nothing to attach to. v2 is where it earns its place, because
+   v2 is where triggers exist. What P3 leaves for it: a pending decision
+   is computed from state and resolved by a logged action (D49), the
+   batching floor is reveals (D50), and a seat can answer in advance with
+   a policy that never appends an action (D52) — all three generalise to
+   a reaction window unchanged.
 4. **Choice modeling.** Enforced powers take `choices`; each needs a
    schema and, for powers that ask mid-resolution, a pending-decision
    flow.
@@ -962,7 +1031,7 @@ with `reversed by`.
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
 | P2 Core loop | done | 09-09 | 09-12 | `prompt_plan_phase_2.md` | feasibility gate — passed. All 24 units (1–20 plus 16a–16d, inserted by the 09-11 Law review D43/D44). 15 rules defects found in already-written code; 7 were invisible from `FIRST_GAME`. §1.23.1/§1.23.2 and §5.5.3's Citizen-ally window → P3; Peeks → P4; chronicle writing → P5; card power text → v2 |
-| P3 Interrupts | planned | | | `prompt_plan_phase_3.md` | 10 units planned 09-12; design core is units 4–7 (two-visit campaign, two windows, standing responses, one-visit defence); Q13/Q14 before unit 4 |
+| P3 Interrupts | done | 09-12 | 09-12 | `prompt_plan_phase_3.md` | All 10 units. Every exit criterion ticked. Headline: a campaign against a standing defence is **1 visit** (defender submits zero actions); 6-player game measured at **2.56 visits/turn avg, 7 max** and frozen as `sixplayer.log.json`. Closed both P2 hand-offs (§1.23.1/.2, §5.5.3's Citizen-ally window). Q13/Q14 resolved before unit 4. Two findings recorded rather than papered over: batching cuts ACTIONS not VISITS unless another seat interleaves (unit 4), and the max-7 turn is irreducible by batching (unit 9). Deferred with homes: conditional standing responses → P4; nudge delivery against `since` → P6; general reaction windows → v2 |
 | P4 Client | not started | | | | |
 | P5 Chronicle | not started | | | | |
 | P6 Notify & polish | not started | | | | |

@@ -8,6 +8,14 @@ normative: `test/oath/game/interrupts.test.ts` enforces it bidirectionally
 marked **built** is exercised somewhere in the suite. A row that stops
 matching a real symbol is a bug in this file, not in the engine.
 
+**Status: P3 closed 2026-09-12, all ten units.** Every row's batching and
+standing columns below are current as of that close, and every symbol named
+here was grepped against `src/` and `test/` in unit 10 (the D48 discipline —
+a claim that does not name a real symbol is a bug in this file). The
+conformance test keeps the `Resolves` column honest automatically; the
+prose columns are the ones a reader has to be able to trust, so they were
+checked by hand.
+
 D49 (HLD §7): interrupts stay ordinary. There is no decision queue and no
 new dispatcher — a pending decision is computed fresh by `pending()` and
 resolved by an ordinary logged action, which is already rewindable,

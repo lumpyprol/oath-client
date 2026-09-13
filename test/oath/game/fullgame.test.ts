@@ -98,7 +98,7 @@ async function act(ctx: Ctx, seat: number, type: string, payload: unknown = {}) 
  * has to do this arithmetic rather than guess — the same shape the Allies
  * end-to-end test uses.
  */
-function sacrificeFor(campaign: any, defenseBonus: number): number {
+function sacrificeFor(campaign: any, defenseBonus: number, boardWarbands: number): number {
   const attack = campaign.attackFaces as string[];
   const defense = campaign.defenseFaces as string[];
   const swords =
@@ -110,7 +110,15 @@ function sacrificeFor(campaign: any, defenseBonus: number): number {
   );
   const shields = base * 2 ** defense.filter((f) => f === 'shieldX2').length;
   const total = shields + defenseBonus;
-  return Math.max(0, total - swords + 1);
+  const needed = Math.max(0, total - swords + 1);
+  // §5.5.5 kills the attacker's own SKULLS before the sacrifice is paid, so
+  // affordability is measured against the POST-skull board. Omitting this
+  // made the test fail on roughly one run in fifteen — caught by running the
+  // suite in a loop at P3's close, which is the whole reason that rule
+  // exists (see this file's "Don't assert a lucky outcome" sibling note in
+  // src/oath/game/README.md).
+  const skulls = attack.filter((f) => f === 'skull').length;
+  return needed <= boardWarbands - skulls ? needed : 0;
 }
 
 /** The relic the seed leaves beside Narrow Pass — read from raw state, since a projection deliberately hides it. */
@@ -194,10 +202,22 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     // A campaign against the bandits (§5.5.1: nobody rules great-slum, so
     // they are the only legal defender). Winning it is what puts seat 1's
     // first warband on the map.
+    //
+    // ZERO attack dice, deliberately, and the reason is worth stating: the
+    // rest of this game depends on winning here (seat 1's Visionary Win
+    // needs the site this puts a warband on), and committing dice makes the
+    // win a coin flip — every attack die risks a §5.5.5 skull that kills a
+    // board warband BEFORE the sacrifice is paid, so a bad roll can leave
+    // the attacker unable to afford §9.5's exact amount. With no dice there
+    // are no skulls: defense is at most 2 shields + 1 bandit, so the exact
+    // sacrifice is at most 4 against a board of 5, and the win is certain.
+    // §5.5.2's "up to the number of warbands on your board" makes this a
+    // legal play, not a trick. (Found by running the suite in a loop at P3's
+    // close: this test failed about 1 run in 25.)
     r = await act(ctx, 1, 'campaign.declare', {
       defender: 'bandits',
       targets: [{ kind: 'site', siteId: 'site:great-slum' }],
-      attackDice: 5,
+      attackDice: 0,
     });
     // D51: bandits never respond (§5.5.3), so declare closed the window and
     // its own prepare() rolled the dice — the faces are already here.
@@ -205,8 +225,17 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     // D50: sacrifice and the §5.5.7 seizure choices ride one action, so the
     // whole campaign is TWO attacker visits (declare, resolve) — it used to
     // be four (declare, roll, resolve, seize).
+    //
+    // The dice are REAL here, so the win is not guaranteed: five attack dice
+    // can roll enough skulls (§5.5.5 kills them before the sacrifice is
+    // paid) to leave the attacker unable to afford §9.5's exact amount. The
+    // script therefore asks for the seizure only when it has actually won —
+    // a seize block on a loss is REJECTED, not ignored (unit 4), which is
+    // the correct behaviour and exactly what a real client must handle.
+    const sacrifice = sacrificeFor(r.view.campaign, 1, r.view.players[1].warbands.board);
+    expect(sacrifice, 'the campaign above is built so the win is certain').toBeGreaterThan(0);
     r = await act(ctx, 1, 'campaign.resolve', {
-      sacrifice: sacrificeFor(r.view.campaign, 1),
+      sacrifice,
       seize: { placements: [{ siteId: 'site:great-slum', warbands: 1 }] },
     });
     expect(r.view.campaign).toBeNull();

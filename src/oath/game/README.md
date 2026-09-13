@@ -94,6 +94,75 @@ and title choices are **non-locking**: they append to `pending()` and the
 asker plays on, so the move is re-validated when it's answered rather than
 trusted from when it was asked. Campaign and Wake do lock.
 
+Law §1.23's setup choices lock hardest of all, and differently: the check
+lives in `index.ts#reduce` beside the game-complete one, not in
+`requireActiveSeat`. While `state.setupChoices` is open, `setup.choose` is
+the **only** legal action — §1.23 precedes §4, so the game has not started
+and there is nothing a narrower lock would buy. Central because every
+handler must inherit it, including the ones that deliberately bypass
+`requireActiveSeat` to answer another seat.
+
+### The campaign sequence (Law §5.5)
+
+Reshaped in P3 (units 4-7) to cost fewer round trips. `state.campaign.phase`
+walks:
+
+```
+  declare ──> join ──> permit ──> respond ──> rolled ──> [casualties]
+     │         │         │           │           │
+     │         │         │           │           └─ campaign.resolve:
+     │         │         │           │              sacrifice AND the §5.5.7
+     │         │         │           │              seizure, one payload (D50)
+     │         │         │           │
+     │         │         │           └─ §5.5.3's battle-plan window. The
+     │         │         │              defender and their PERMITTED Allies
+     │         │         │              may power.use; campaign.respond
+     │         │         │              closes it — and rolls the dice.
+     │         │         │
+     │         │         └─ §5.5.2's "with the defender's permission".
+     │         │            Raised only if somebody actually joined.
+     │         │
+     │         └─ §5.5.2's join window. EVERY eligible Citizen owes a
+     │            campaign.ally {join}; closes on the last answer. Skipped
+     │            entirely when none are eligible — every 3-player game.
+     │
+     └─ vs BANDITS there is no window at all: declare lands in 'rolled'
+        and carries the dice itself.
+```
+
+Two things about that shape are load-bearing:
+
+- **Permission lands BEFORE the plan window opens.** That is the whole
+  reason for splitting join from respond. With P2's single window a
+  Citizen's permission arrived in the very action that closed it, so only
+  the mandatory Chancellor Ally could ever act inside — the §5.5.3 gap P2
+  documented and could not fix.
+- **The dice roll in whichever action closes the LAST window**, and which
+  action that is depends on the standing policies in force: `respond`
+  normally, `declare` against bandits or when policies close everything,
+  the last `campaign.ally` answer, or `permit`. `settleWindows` is the one
+  function that decides, and `prepareCampaign` runs it against a throwaway
+  clone of the campaign the reducer is about to build — so the two agree by
+  construction rather than by a table kept in step by hand. Dice are still
+  rolled in a `prepare()` and never in a reducer (D14).
+
+### Where standing policies are consulted
+
+`standing.ts#consultStanding(state, seat, channel)` is the only reader.
+Every call site reads the same way — `'ask'` raises the decision, anything
+else applies the answer inline and **appends no action**:
+
+| Channel | Consulted in | Effect |
+| --- | --- | --- |
+| `ally` | `campaign.ts#declare` (via `settleWindows`) | `'pass'` answers `{join: false}` at raise time |
+| `defense` | `campaign.ts#settleWindows` | `'close'` auto-permits nobody and closes the plan window |
+| `warbands` | `warbands.ts#move` | `'allow'` applies the move, `'deny'` bounces it at the asker |
+
+Because the policy is state reached by folding the log, a refold takes the
+same branch — which is why a short-circuit needs no synthetic action to be
+replayable, and why rolling back past the `standing.set` restores the old
+behaviour with no special case.
+
 ### `checkInvariants` is the safety net
 
 Favor totals 36; each Exile's warbands total 14; the Chancellor plus every
@@ -117,6 +186,19 @@ depended on dice, on how many cards a Search happened to draw, or on a
 shuffle — and were quietly flaky for weeks. Assert the *rule*: compute the
 worst case, or assert that the roll was recorded rather than what it came
 up. Before declaring anything done, run the suite in a loop, not once.
+
+**The specific trap, three times now: §5.5.5 kills SKULLS before the
+sacrifice is paid.** A test that picks a sacrifice must measure
+affordability against the POST-skull board, not the board it can see
+before resolving. Getting this wrong produced a ~1-in-3 flake in P3 unit 4
+(caught two units later, by a loop) and a ~1-in-25 one in `fullgame.test.ts`
+(caught at P3's close, by a longer loop). If a campaign's outcome is
+load-bearing for anything downstream, do not commit attack dice at all —
+zero dice means zero skulls, and §5.5.2's "up to" makes that a legal play.
+`fullgame.test.ts`'s bandits campaign is written that way on purpose.
+
+**Run the loop long enough to matter.** A 1-in-25 flake survives a 6-run
+loop most of the time. P3's close used 30.
 
 **Redaction tests compare whole ids, never substrings.**
 `JSON.stringify(view).not.toContain(id)` looks right and is not:

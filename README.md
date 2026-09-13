@@ -104,7 +104,8 @@ reachable by anyone else.
 | `POST` | `/api/games` | `{kind, players: string[], options?}` → gameId + one token per seat |
 | `GET` | `/api/games/:id` | redacted view, current `seq`, pending decisions |
 | `POST` | `/api/games/:id/actions` | `{prevSeq, type, payload}` → 201, or 409 if stale |
-| `GET` | `/api/inbox` | what this token's player is on the clock for |
+| `GET` | `/api/inbox` | what this token's player is on the clock for; each entry carries `url` + `since` |
+| `GET` | `/api/games/:id/decisions/:decisionId` | resolve one decision — 200 live, **410 + your inbox** if it is gone, 400 malformed |
 | `GET` | `/api/games/:id/history` | full action log |
 | `POST` | `/api/games/:id/rollback` | `{toSeq}` — truncate the log. **Gate this.** |
 
@@ -158,6 +159,76 @@ product `oath`, printing `p1`. Two documents keep it honest:
 every seat's view plus a spectator's after every action, sweeping the whole
 projection for anything shaped like a card id rather than checking fields
 someone remembered to list.
+
+## Interrupts
+
+Oath is a game of interruptions — a campaign asks the defender to respond,
+a Citizen whether they will join, the Chancellor whether a warband may
+move. Around a table those cost seconds. Asynchronously, each one is a
+round trip measured in hours, and unmitigated they make a six-player game
+take months. P3 is the phase that made that number small and provable.
+`INTERRUPTS.md` is the normative catalogue; this is the shape of it.
+
+**Every interrupt is an ordinary pending decision.** There is no queue and
+no second dispatcher. `pending(state)` computes what the game is waiting on
+from the state itself, and an ordinary logged action resolves it — which
+means every interrupt is rewindable, replayable and projectable for free.
+The lifecycle:
+
+```
+  raise ──> poll (GET /api/inbox) ──> deep-link ──> resolve
+     │                                                 (an ordinary action)
+     └──> ...or short-circuit, if the owner set a standing policy
+```
+
+Ids are `` `${kind}:${seat}:${anchor}` ``, where the anchor is the
+`actionCount` at which the decision arose: stable across polls, distinct
+per instance, so a notification worker can dedupe on them. Every inbox
+entry carries a `url` and a `since` (the anchor action's wall-clock time),
+and `GET /api/games/:id/decisions/:decisionId` resolves one — returning a
+**410 with your own inbox** when the decision is gone, so a stale link
+pasted into Discord lands somewhere useful rather than on an error page.
+
+Three rules do the actual work:
+
+- **The batching floor is information reveals.** One player's consecutive
+  choices collapse into a single action's payload unless a reveal they had
+  to see first separates them. So the whole Wake Phase is one action, and
+  sacrifice + seizure ride one post-roll action — while Search stays two,
+  because the draw is a reveal. That gives "batch the prompts" a definition
+  instead of a case-by-case judgment: the floor for any flow is
+  *reveals + 1*, and anything above it is a bug by construction.
+- **Dice roll in whichever action closes the window.** Not in a dedicated
+  "now roll" step by the attacker, which was a visit spent on nothing. The
+  roller of record carries no game meaning; only the faces do, and they are
+  public wherever they land. They are still rolled in a `prepare()` and
+  persisted, never in a reducer, so replay reuses them exactly.
+- **Standing responses are state, written by a logged action.**
+  `standing.set` records a per-seat policy — `defense`, `ally`, `warbands`
+  — and the engine consults it at the exact point it would otherwise ask.
+  The short-circuit **never appends an action**: the log shows the raising
+  action and a state where the decision never existed, with the policy
+  visible earlier as its own `standing.set`. That is what makes it
+  replayable, and what makes rollback work with no special case.
+
+**Measured.** Two frozen games are re-audited and re-measured on every run
+(`test/fixtures/fullgame.log.json`, `sixplayer.log.json`). A visit is a
+maximal run of consecutive actions by one player — the thing that actually
+costs wall-clock time:
+
+| | 3-player | 6-player |
+| --- | --- | --- |
+| Visits per turn | 1.57 avg, 3 max | 2.56 avg, 7 max |
+| Campaign vs a standing defence | — | **1 visit** |
+| Campaign, allied, nobody on a policy | — | 7 visits |
+
+The headline is the third row: against a defender who has set a standing
+response, a campaign is `campaign.declare` then `campaign.resolve` and
+nothing in between — the defender submits **zero actions**. The 7 in the
+last row is the same campaign with everyone asking, and it is irreducible
+by batching (six different seats act). P3 made the floor excellent and left
+the ceiling to whether players set policies. See INTERRUPTS.md for the full
+decomposition.
 
 ## Card data
 
@@ -236,11 +307,16 @@ check assumes one process owns the file.
   and casualties, Citizenship, the Wake phase, titles, and all four win
   conditions, playable from a chronicle seed to a win. Card powers stay
   player-declared. See "Game engine" above and `src/oath/game/README.md`.
-- **P3** — interrupts. Batched defender prompts, standing pre-commitments.
-  The hardest design work in the project. Also picks up the two setup
-  choices P2 defaulted (§1.23.1 each player's starting site, §1.23.2 the
-  choice of starting adviser) and §5.5.3's Citizen-ally battle window.
-- **P4** — the Peek family (§6.3/§6.4), which needs persistent per-seat
-  memory and a projection that can reveal to one seat only.
+- **P3** — interrupts. ✅ Done. Batched prompts, standing pre-commitments,
+  decision deep links, and a measured six-player game. It also picked up
+  the two setup choices P2 defaulted (§1.23.1 each player's starting site,
+  §1.23.2 the choice of starting adviser) and closed §5.5.3's Citizen-ally
+  battle window — which needed the Law's two windows, not more rules. See
+  "Interrupts" above and `INTERRUPTS.md`.
+- **P4** — the client, and the Peek family (§6.3/§6.4), which needs
+  persistent per-seat memory and a projection that can reveal to one seat
+  only. Also where standing responses should grow conditions (per site, per
+  opponent) — P3 kept them global on purpose, because authoring a
+  conditional policy needs a UI to author it in.
 - **P5** — writing the chronicle (§8): vowing an Oath, building edifices,
   rebuilding the world deck, and saving the boards back out to a seed.
