@@ -94,14 +94,14 @@ as fine", so a review that re-reads our own notes is worthless.
 | 2.8.5 | Site power | **DEFER** → v2 card powers. (§11.1 and §11.4 are exceptions — implemented, being identity-only and mandatory) |
 | 2.9 | Edifices; a ruin has no suit and cannot Muster or Trade | **DONE** `CardInPlay.ruined`, refused in `muster.ts`/`trade.ts`. Building them is §8.3.1 → **P5** |
 | 2.10 | Goal reference | **DONE** `state.oath` |
-| 2.11 | Oathkeeper goals, tie rules, flip-on-take, title defense dice, the Empire's Supremacy clause | **DONE** `victory.ts updateTitle`/`seatsMeetingOath`, `campaign.ts titleDefenseDice`. Tie reading: D45 |
+| 2.11 | Oathkeeper goals, tie rules, flip-on-take, title defense dice, the Empire's Supremacy clause | **DONE** `victory.ts updateTitle`/`seatsMeetingOath`, `campaign.ts titleDefenseDice`. A tie DOES meet the goal here (the title is "always held", and §2.11 supplies explicit tie rules) — unlike §3.2; see RULINGS.md 2026-09-12 |
 
 ## §3 Victory — `victory.ts`
 
 | § | Rule | Disposition |
 | --- | --- | --- |
 | 3.1 | Usurper Win | **DONE** `wakeMidEpilogue` |
-| 3.2 | Visionary Win, incl. the three-Vision floor | **DONE** `visionGoalMet`, `VISION_FLOOR` |
+| 3.2 | Visionary Win, incl. the three-Vision floor | **DONE** `visionGoalMet`, `VISION_FLOOR`, `uniquelyMost`. A "most" goal needs a STRICT maximum — a tie has not *completed* it (RULINGS.md 2026-09-12, correcting the 09-11 ruling) |
 | 3.3 | Stable Regime, rounds 5–7, die faces | **DONE** `roundEnd`, `STABLE_REGIME_TARGET`; die from `prepareRest` (D14). Exercised end-to-end by a rest-only game played from `init` to round 7, not only by injected states |
 | 3.3.1 | Successor goals (crossed against the oath) | **DONE** `meetsSuccessorGoal` |
 | 3.4 / 3.4.1–3.4.4 | War Exhaustion and its priority order, incl. the Vision tiebreak | **DONE** `warExhaustion`, `VISION_TIEBREAK`; all four clauses tested individually, and §3.4.1 also reached end-to-end by a rest-only game played through round 8 |

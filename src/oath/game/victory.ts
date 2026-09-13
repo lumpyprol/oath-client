@@ -190,6 +190,34 @@ function seatsWithMax(state: OathState, score: (seat: number) => number): number
 }
 
 /**
+ * Does `seat` score STRICTLY higher than every other player — i.e. are they
+ * uniquely "the most"?
+ *
+ * This is the other half of the tie question, and the two halves genuinely
+ * differ (RULINGS.md 2026-09-12, correcting D45):
+ *
+ *   - For the TITLE (§2.11), a tie DOES meet the goal. The Law says the
+ *     title "is always held by the player who meets the Oathkeeper goal",
+ *     which cannot be true if a tie left it unmet, and it spends two
+ *     sentences saying what a tie does — holder keeps it; holder chooses
+ *     among others. `seatsWithMax` is right there.
+ *   - For WINNING (§3.2, §3.4.3), it does not. §3.2 says you win if you
+ *     "have COMPLETED its goal", and supplies no tie rule at all, because
+ *     nothing requires a Visionary Win to happen. Being level with two
+ *     rivals at one site apiece is not having completed "rules the most
+ *     sites"; read otherwise, an Exile tied at the bottom with everyone
+ *     wins outright, which is the reductio that found this.
+ *
+ * The Law makes the same distinction in its own wording: §3.3.1's Successor
+ * goal says "Holds MORE relics and banners in total THAN the Chancellor and
+ * any other Citizen" — it knows how to demand strictness when it means it.
+ */
+function uniquelyMost(state: OathState, score: (seat: number) => number, seat: number): boolean {
+  const mine = score(seat);
+  return state.players.every((_, other) => other === seat || score(other) < mine);
+}
+
+/**
  * Law §2.11: "The Chancellor holds the Oathkeeper of Supremacy title if the
  * Empire meets the goal." Applied to Supremacy ONLY — it is named there and
  * nowhere else, and it exists because §6.6.3 leaves every Imperial seat
@@ -255,10 +283,11 @@ function visionGoalMet(state: OathState, seat: number): boolean {
       return holderOf(state, PEOPLES_FAVOR_ID) === seat;
     case 'devotion':
       return holderOf(state, DARKEST_SECRET_ID) === seat;
+    // §3.2's "most" goals need a STRICT maximum — see `uniquelyMost`.
     case 'protection':
-      return seatsWithMax(state, (s) => relicsAndBanners(state, s)).includes(seat);
+      return uniquelyMost(state, (s) => relicsAndBanners(state, s), seat);
     case 'supremacy':
-      return seatsWithMax(state, (s) => ruledSites(state, s)).includes(seat);
+      return uniquelyMost(state, (s) => ruledSites(state, s), seat);
   }
 }
 

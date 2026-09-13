@@ -98,7 +98,7 @@ interface VanishEvent {
 
 function foldFixture(
   f: Fixture = fixture,
-  setupChoices: 'open' | 'applied' = 'applied',
+  setupChoices: 'open' | 'applied' = 'open',
 ): { observed: PendingDecision[]; vanished: VanishEvent[] } {
   // See audit.test.ts: a pre-unit-8 stored setup reads as 'applied' (D54).
   let state = oath.init({ ...oath.setup(f.players, { seed: f.seed }), setupChoices });
@@ -356,7 +356,7 @@ describe('id contracts', () => {
   it('ids are unique within any single state, at every prefix of the fixture', () => {
     let state = oath.init({
       ...oath.setup(fixture.players, { seed: fixture.seed }),
-      setupChoices: 'applied', // a pre-unit-8 stored setup (D54)
+      setupChoices: 'open',
     });
     const checkUnique = (s: OathState, label: string) => {
       const ids = oath.pending(s).map((d) => d.id);

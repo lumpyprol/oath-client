@@ -13,6 +13,33 @@
     },
     {
       "seq": 1,
+      "type": "setup.choose",
+      "actor": 0,
+      "payload": {
+        "siteId": "site:narrow-pass",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 2,
+      "type": "setup.choose",
+      "actor": 1,
+      "payload": {
+        "siteId": "site:narrow-pass",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 3,
+      "type": "setup.choose",
+      "actor": 2,
+      "payload": {
+        "siteId": "site:narrow-pass",
+        "keepIndex": 0
+      }
+    },
+    {
+      "seq": 4,
       "type": "search",
       "actor": 0,
       "payload": {
@@ -20,7 +47,7 @@
       }
     },
     {
-      "seq": 2,
+      "seq": 5,
       "type": "card.play",
       "actor": 0,
       "payload": {
@@ -29,13 +56,13 @@
       }
     },
     {
-      "seq": 3,
+      "seq": 6,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}
     },
     {
-      "seq": 4,
+      "seq": 7,
       "type": "muster",
       "actor": 1,
       "payload": {
@@ -43,7 +70,7 @@
       }
     },
     {
-      "seq": 5,
+      "seq": 8,
       "type": "travel",
       "actor": 1,
       "payload": {
@@ -51,7 +78,7 @@
       }
     },
     {
-      "seq": 6,
+      "seq": 9,
       "type": "campaign.declare",
       "actor": 1,
       "payload": {
@@ -62,21 +89,15 @@
             "siteId": "site:great-slum"
           }
         ],
-        "attackDice": 5,
-        "attackFaces": [
-          "sword",
-          "sword",
-          "skull",
-          "skull",
-          "hollowSword"
-        ],
+        "attackDice": 0,
+        "attackFaces": [],
         "defenseFaces": [
-          "doubleShield"
+          "shieldX2"
         ]
       }
     },
     {
-      "seq": 7,
+      "seq": 10,
       "type": "campaign.resolve",
       "actor": 1,
       "payload": {
@@ -92,13 +113,13 @@
       }
     },
     {
-      "seq": 8,
+      "seq": 11,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 9,
+      "seq": 12,
       "type": "trade",
       "actor": 2,
       "payload": {
@@ -107,7 +128,7 @@
       }
     },
     {
-      "seq": 10,
+      "seq": 13,
       "type": "power.use",
       "actor": 2,
       "payload": {
@@ -130,7 +151,7 @@
       }
     },
     {
-      "seq": 11,
+      "seq": 14,
       "type": "recover",
       "actor": 2,
       "payload": {
@@ -139,13 +160,13 @@
       }
     },
     {
-      "seq": 12,
+      "seq": 15,
       "type": "turn.rest",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 13,
+      "seq": 16,
       "type": "wake.resolve",
       "actor": 0,
       "payload": {
@@ -157,7 +178,7 @@
       }
     },
     {
-      "seq": 14,
+      "seq": 17,
       "type": "warbands.move",
       "actor": 0,
       "payload": {
@@ -166,7 +187,7 @@
       }
     },
     {
-      "seq": 15,
+      "seq": 18,
       "type": "citizenship.offer",
       "actor": 0,
       "payload": {
@@ -175,13 +196,13 @@
       }
     },
     {
-      "seq": 16,
+      "seq": 19,
       "type": "citizenship.accept",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 17,
+      "seq": 20,
       "type": "power.use",
       "actor": 0,
       "payload": {
@@ -191,13 +212,13 @@
       }
     },
     {
-      "seq": 18,
+      "seq": 21,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}
     },
     {
-      "seq": 19,
+      "seq": 22,
       "type": "adviser.play",
       "actor": 1,
       "payload": {
@@ -206,13 +227,13 @@
       }
     },
     {
-      "seq": 20,
+      "seq": 23,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 21,
+      "seq": 24,
       "type": "campaign.declare",
       "actor": 2,
       "payload": {
@@ -227,19 +248,19 @@
       }
     },
     {
-      "seq": 22,
+      "seq": 25,
       "type": "campaign.respond",
       "actor": 0,
       "payload": {
         "attackFaces": [],
         "defenseFaces": [
           "shield",
-          "doubleShield"
+          "blank"
         ]
       }
     },
     {
-      "seq": 23,
+      "seq": 26,
       "type": "campaign.resolve",
       "actor": 2,
       "payload": {
@@ -247,13 +268,13 @@
       }
     },
     {
-      "seq": 24,
+      "seq": 27,
       "type": "turn.rest",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 25,
+      "seq": 28,
       "type": "wake.resolve",
       "actor": 0,
       "payload": {
@@ -265,10 +286,106 @@
       }
     },
     {
-      "seq": 26,
+      "seq": 29,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}
+    },
+    {
+      "seq": 30,
+      "type": "turn.rest",
+      "actor": 1,
+      "payload": {}
+    },
+    {
+      "seq": 31,
+      "type": "turn.rest",
+      "actor": 2,
+      "payload": {}
+    },
+    {
+      "seq": 32,
+      "type": "turn.rest",
+      "actor": 0,
+      "payload": {}
+    },
+    {
+      "seq": 33,
+      "type": "turn.rest",
+      "actor": 1,
+      "payload": {}
+    },
+    {
+      "seq": 34,
+      "type": "turn.rest",
+      "actor": 2,
+      "payload": {}
+    },
+    {
+      "seq": 35,
+      "type": "wake.resolve",
+      "actor": 0,
+      "payload": {
+        "steps": [
+          {
+            "choice": "return",
+            "bank": "discord"
+          }
+        ]
+      }
+    },
+    {
+      "seq": 36,
+      "type": "turn.rest",
+      "actor": 0,
+      "payload": {}
+    },
+    {
+      "seq": 37,
+      "type": "turn.rest",
+      "actor": 1,
+      "payload": {}
+    },
+    {
+      "seq": 38,
+      "type": "turn.rest",
+      "actor": 2,
+      "payload": {
+        "endDie": 3
+      }
+    },
+    {
+      "seq": 39,
+      "type": "wake.resolve",
+      "actor": 0,
+      "payload": {
+        "steps": [
+          {
+            "choice": "return",
+            "bank": "hearth"
+          }
+        ]
+      }
+    },
+    {
+      "seq": 40,
+      "type": "turn.rest",
+      "actor": 0,
+      "payload": {}
+    },
+    {
+      "seq": 41,
+      "type": "turn.rest",
+      "actor": 1,
+      "payload": {}
+    },
+    {
+      "seq": 42,
+      "type": "turn.rest",
+      "actor": 2,
+      "payload": {
+        "endDie": 6
+      }
     }
   ]
 }

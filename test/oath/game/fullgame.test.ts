@@ -121,6 +121,28 @@ function sacrificeFor(campaign: any, defenseBonus: number, boardWarbands: number
   return needed <= boardWarbands - skulls ? needed : 0;
 }
 
+/**
+ * A legal answer to whatever §4.1.1 owes this seat, computed from raw state.
+ * Prefers placing; falls back to returning to a least-full bank when the
+ * waking seat has no favor to place (§4.1.1.I's "unless you have no favor").
+ */
+function wakePayload(state: OathState): { steps: unknown[]; take?: { take: string } } {
+  const w = state.wake!;
+  const player = state.players[w.seat];
+  const banner = state.banners.find((b) => b.id === 'banner:peoples-favor')!;
+  const suits = Object.keys(state.favorBanks) as (keyof typeof state.favorBanks)[];
+  const min = Math.min(...suits.map((x) => state.favorBanks[x]));
+  const leastFull = suits.find((x) => state.favorBanks[x] === min)!;
+  const steps = Array.from({ length: w.stepsRemaining }, () =>
+    player.favor > 0 && (banner.tokens === 1 || banner.tokens === 0)
+      ? { choice: 'place' }
+      : player.favor > 0
+        ? { choice: 'place' }
+        : { choice: 'return', bank: leastFull },
+  );
+  return w.opportunity !== null ? { steps, take: { take: 'favor' } } : { steps };
+}
+
 /** The relic the seed leaves beside Narrow Pass — read from raw state, since a projection deliberately hides it. */
 function relicAtNarrowPass(ctx: Ctx): string {
   return rawState(ctx).sites.find((s) => s.id === 'site:narrow-pass')!.relics[0];
@@ -345,12 +367,40 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     await act(ctx, 0, 'wake.resolve', { steps: [{ choice: 'place' }] });
     r = await act(ctx, 0, 'turn.rest');
 
-    // ...and seat 1's Wake Phase ends the game: §3.2's Visionary Win, with
-    // the Vision of Conquest's goal met (every seat rules one site, and a
-    // tie MEETS the goal — D45) and three Visions drawn.
-    expect(r.complete).toBe(true);
+    // Seat 1 holds the Vision of Conquest and every seat rules exactly one
+    // site. This USED to end the game here, on the reading that a tie meets
+    // a "most" goal (D45) — and that was wrong: §3.2 says you win if you
+    // "have COMPLETED its goal", and being level with two rivals at one site
+    // apiece has not completed "rules the most sites". Corrected 2026-09-12
+    // (RULINGS.md); the tie rules in §2.11 are about keeping the TITLE held,
+    // which is a different question with its own explicit machinery.
+    //
+    // So the game does NOT end here, and this assertion is the regression
+    // guard for that: if a tie ever wins again, this fires.
+    expect(r.complete).toBe(false);
+    expect(rawState(ctx).players[1].vision).toBe('vision:conquest');
+
+    // ---- ...so the game goes the distance -----------------------------
+    // Nobody can complete a Vision goal from this position, so it runs to
+    // §3.3's Stable Regime check or §3.4's War Exhaustion. Rests alone are
+    // a legal game (§4.2 requires no action), and the end die is rolled for
+    // real by `prepareRest` — so which ending arrives is genuinely random,
+    // and every one of them is a correct answer. This is also the only
+    // place a committed fixture exercises the endgame end to end.
+    let guard = 0;
+    while (!(await view(ctx, 0)).complete && guard++ < 40) {
+      const live = rawState(ctx);
+      const seat = live.turn.activeSeat;
+      if (live.wake && live.wake.seat === seat) {
+        await act(ctx, seat, 'wake.resolve', wakePayload(live));
+      }
+      await act(ctx, seat, 'turn.rest');
+    }
+
     const final = rawState(ctx);
-    expect(final.winner).toBe(1);
+    expect(final.complete).toBe(true);
+    expect(final.turn.round).toBeGreaterThanOrEqual(6); // §3.3's earliest check is the END of round 5
+    expect([0, 1, 2]).toContain(final.winner);
     expect(oath.pending(final)).toEqual([]);
     checkInvariants(final);
 
@@ -404,14 +454,13 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     // To regenerate deliberately (e.g. after a payload-shape change):
     //     rm test/fixtures/fullgame.log.json && npm test
     //
-    // READ THIS BEFORE YOU DO. The committed fixture is a P2-era log: its
-    // game was created before P3 unit 8, so its setup record has no §1.23
-    // choices in it and `audit.test.ts` refolds it through D54's 'applied'
-    // back-compat path. That refold is currently the ONLY test proving a
-    // pre-unit-8 log still folds. Regenerating replaces it with a unit-8-era
-    // log (one `setup.choose` per seat, an 'open' setup) and would silently
-    // retire that coverage — so if you regenerate, move the back-compat
-    // assertion somewhere that keeps an old-shaped setup record alive.
+    // This log has been regenerated once already, on 2026-09-12, when the
+    // §3.2 tie correction (RULINGS.md) stopped its old ending from being a
+    // win at all — the game now runs to §3.3's Stable Regime instead. Note
+    // what that cost: it used to be a P2-era log and so doubled as D54's
+    // back-compat evidence. That coverage now lives explicitly in
+    // `setup-choices.test.ts`, which builds a legacy setup record by hand;
+    // keep it there rather than relying on a fixture's age again.
     // If an engine change makes the frozen log unreplayable, audit.test.ts's
     // first case fails by name and tells you to do exactly that.
     if (!existsSync(fixture)) {

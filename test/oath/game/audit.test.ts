@@ -74,10 +74,10 @@ const FIXTURES: {
   endsComplete: boolean;
 }[] = [
   {
-    name: '3-player (P2-era)',
+    name: '3-player',
     fixture: loadFixture('fullgame.log.json'),
-    setupChoices: 'applied',
-    endsComplete: true, // a Visionary Win
+    setupChoices: 'open',
+    endsComplete: true, // §3.3's Stable Regime, at the end of round 6
   },
   {
     name: '6-player (unit 9)',
@@ -150,14 +150,15 @@ function learn(state: OathState, seat: number | null, known: Set<string>): void 
 
 /** Rebuild the opening position the fixture's seed produces. */
 /**
- * Rebuild a fixture's opening position.
+ * Rebuild a fixture's opening position. Both committed logs are now
+ * unit-8-era games whose first actions are §1.23 setup choices, so both
+ * rebuild with those choices `'open'`.
  *
- * `setupChoices: 'applied'` is what a setup record STORED BEFORE P3 unit 8
- * reads as (D54: the field is absent, and absence means the choices were
- * already made by `oathSetup`). The 3-player fixture is such a game — frozen
- * in P2 — so rebuilding it that way is not a workaround, it is exactly the
- * back-compat path D54 promises, exercised on a real committed log. The
- * 6-player fixture is a unit-8-era game and opens its choices for real.
+ * (D54's other path — a setup record STORED BEFORE unit 8, which lacks the
+ * field and reads as `'applied'` — is covered by `setup-choices.test.ts`,
+ * which builds a legacy-shaped record by hand. The 3-player fixture used to
+ * carry that coverage incidentally, until the §3.2 tie correction of
+ * 2026-09-12 forced it to be regenerated.)
  */
 function openingState(f: Fixture, setupChoices: 'open' | 'applied'): OathState {
   return oath.init({ ...oath.setup(f.players, { seed: f.seed }), setupChoices });

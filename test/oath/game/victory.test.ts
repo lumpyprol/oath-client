@@ -387,6 +387,94 @@ describe('the Visionary Win (Law §3.2)', () => {
   });
 });
 
+/**
+ * The two kinds of tie (RULINGS.md 2026-09-12, correcting the 09-11 entry).
+ * These exist because the distinction changes who wins games, and because
+ * the engine got it wrong in exactly one direction for two phases.
+ */
+describe('ties: the TITLE accepts them, a VISIONARY WIN does not', () => {
+  /** A dead-even three-way tie at one relic-or-banner apiece. */
+  function evenAtOne(): OathState {
+    const s = quietBoard();
+    for (const b of s.banners) b.holder = null;
+    s.grandScepter = 2; // the Scepter is a held relic (§2.4), so it counts
+    s.players[0].relics = [s.relicDeck[0]];
+    s.players[1].relics = [s.relicDeck[1]];
+    s.players[2].relics = [];
+    s.relicDeck = s.relicDeck.slice(2);
+    s.oath = 'devotion';
+    s.oathkeeper = 0;
+    s.usurper = false;
+    s.turn.activeSeat = 1;
+    checkInvariants(s);
+    return s;
+  }
+
+  it('§3.2: an Exile level with everyone has NOT completed a "most" goal', () => {
+    const s = evenAtOne();
+    giveVision(s, 2, 'vision:sanctuary'); // goal: holds the MOST relics and banners
+    s.players[1].vision = null;
+    s.visionsDrawn = 3;
+    checkInvariants(s);
+    // Seat 2 holds one; so do the other two. Under the old reading this
+    // handed them the game outright.
+    const out = rest(s, 1); // seat 2 wakes -> §4.1.2 checks for a win
+    checkInvariants(out);
+    expect(out.complete).toBe(false);
+    expect(out.winner).toBeNull();
+  });
+
+  it('...and DOES complete it the moment they are uniquely ahead', () => {
+    const s = evenAtOne();
+    giveVision(s, 2, 'vision:sanctuary');
+    s.players[1].vision = null;
+    s.visionsDrawn = 3;
+    s.players[1].relics = []; // now seat 2 (the Scepter) leads 1-1-0... still tied with seat 0
+    s.relicDeck = [...s.relicDeck];
+    s.players[0].relics = []; // ...and now seat 2 leads 1-0-0 outright
+    checkInvariants(s);
+    const out = rest(s, 1);
+    checkInvariants(out);
+    expect(out.complete).toBe(true);
+    expect(out.winner).toBe(2);
+  });
+
+  it('§2.11: the same tie DOES decide the title — the holder keeps it', () => {
+    const s = evenAtOne();
+    s.oath = 'protection'; // the title's goal: most relics and banners
+    s.oathkeeper = 0; // seat 0 holds it, and is tied rather than ahead
+    checkInvariants(s);
+    const out = rest(s, 1);
+    checkInvariants(out);
+    // §2.11's own words: "If the title's holder becomes tied with another
+    // player for meeting the Oathkeeper goal, the holder keeps the token."
+    // That only parses if tied players MEET it — which is why the title and
+    // the win answer this question differently.
+    expect(out.oathkeeper).toBe(0);
+    expect(out.titleChoice).toBeNull();
+    expect(out.complete).toBe(false);
+  });
+
+  it('§3.4.3: a tied Visionary does not win at War Exhaustion either', () => {
+    const s = evenAtOne();
+    s.turn.round = 8;
+    s.turn.activeSeat = 2;
+    s.oathkeeper = 1; // an Exile holds it, not usurped, so §3.4.1/.2 pass
+    s.usurper = false;
+    s.banners[1].holder = 1;
+    giveVision(s, 2, 'vision:sanctuary');
+    s.players[1].vision = null;
+    s.visionsDrawn = 3;
+    checkInvariants(s);
+    const out = rest(s, 2); // ends round 8 -> §3.4
+    checkInvariants(out);
+    expect(out.complete).toBe(true);
+    // Seat 2 is tied, so §3.4.3 finds no satisfied Visionary and the ladder
+    // falls through to §3.4.4 — the Chancellor.
+    expect(out.winner).toBe(0);
+  });
+});
+
 describe('the Stable Regime Win (Law §3.3)', () => {
   /** Round `round`, seat 2 (the last seat) about to rest and end it. */
   function endOfRound(round: number): OathState {
@@ -477,8 +565,15 @@ describe('the War Exhaustion Win (Law §3.4)', () => {
     s.banners[1].holder = 1; // seat 1 holds the title, NOT usurped
     s.oathkeeper = 1;
     s.visionsDrawn = 3;
-    // Seat 2 has Conquest; seat 1 has Faith. Both goals hold (all sites are
-    // empty, so every seat ties for most; seat 1 holds the Darkest Secret).
+    // Seat 2 has Conquest; seat 1 has Faith, and BOTH goals genuinely hold.
+    //
+    // Seat 2 must rule the most sites OUTRIGHT (RULINGS.md 2026-09-12): this
+    // test used to leave every site empty and rely on a zero-all tie, which
+    // was asserting the very bug that ruling corrected — "rules the most
+    // sites" is not completed by ruling none of them. One warband on one
+    // site makes it true.
+    s.sites[3].warbands[2] = 1;
+    s.players[2].warbands.bank -= 1;
     giveVision(s, 2, 'vision:conquest');
     giveVision(s, 1, 'vision:faith');
     checkInvariants(s);
