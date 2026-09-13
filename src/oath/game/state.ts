@@ -157,6 +157,22 @@ export interface PlayerState {
   supply: number;
   /** Relics held in the personal bank (Law §2.2.3). */
   relics: string[];
+  /**
+   * Relic ids this seat has PEEKED (unit 2 of P4; Law §6.3/§6.4) — the
+   * third visibility class, alongside "public to everyone" and "hidden
+   * from everyone". "If you have ever peeked at a specific relic, you may
+   * peek at it again from any site" (§6.3's own parenthetical), so this
+   * only ever grows: nothing removes an entry once granted. Sorted and
+   * deduplicated (`checkInvariants` enforces both) so two folds of the
+   * same actions in different orders — impossible today, but the
+   * invariant costs nothing — produce identical state.
+   *
+   * Empty for every game before unit 3 grants the first entry; nothing in
+   * this unit reads it yet. Not surfaced as its own field in `project()` —
+   * it is expressed THROUGH `SiteView.relics[].id` and `reliquary[].id`
+   * being non-null only for a seat whose `peeked` contains that id.
+   */
+  peeked: string[];
   /** This seat's standing responses (P3 unit 6, D52). See `StandingPolicy`. */
   standing: StandingPolicy;
 }
@@ -654,6 +670,21 @@ export function checkInvariants(state: OathState): void {
     );
     if (p.vision !== null) seen(p.vision, `players[${i}].vision`, ['vision:']);
     p.relics.forEach((id, j) => seen(id, `players[${i}].relics[${j}]`, ['relic:']));
+
+    // `peeked` (unit 2 of P4) is KNOWLEDGE, not ownership — a relic can be
+    // legitimately at a site's `relics[]` AND peeked by this seat at the
+    // same time, so it is validated on its own, never through `seen()`
+    // (which would wrongly flag that as a duplicate-zone card).
+    p.peeked.forEach((id, j) => {
+      if (!findById(id)) fail(`players[${i}].peeked[${j}] (${id}) is not in the card database`);
+      if (!id.startsWith('relic:')) fail(`players[${i}].peeked[${j}] (${id}) is not a relic id`);
+    });
+    if (new Set(p.peeked).size !== p.peeked.length) {
+      fail(`players[${i}].peeked contains a duplicate relic id`);
+    }
+    if (JSON.stringify(p.peeked) !== JSON.stringify([...p.peeked].sort())) {
+      fail(`players[${i}].peeked is not sorted`);
+    }
   });
 
   state.banners.forEach((b, i) => seen(b.id, `banners[${i}]`, ['banner:']));

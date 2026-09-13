@@ -146,6 +146,13 @@ function learn(state: OathState, seat: number | null, known: Set<string>): void 
   // --- yours alone ---
   for (const id of state.players[seat].hand) known.add(id); // mid-Search only (§9.4)
   for (const a of state.players[seat].advisers) known.add(a.id); // incl. your facedown ones
+  // The third visibility class (unit 2 of P4; Law §6.3/§6.4): a relic THIS
+  // seat has peeked, at a site or in the Reliquary, known to them alone.
+  // Always empty in both frozen fixtures (see the structural checks below,
+  // which assert every relic slot's id stays null) — added anyway so this
+  // stays the ONE definition of "legitimately knows" (unit 1's own
+  // instruction), ready for unit 3 to actually grant an entry.
+  for (const id of state.players[seat].peeked) known.add(id);
 }
 
 /** Rebuild the opening position the fixture's seed produces. */
@@ -227,10 +234,19 @@ describe.each(FIXTURES)('hidden-information audit over a full game — $name', (
         if (Object.keys(v.dispossessed).join() !== 'count') fail('dispossessed carried more than a count');
 
         v.sites.forEach((s, i) => {
-          // Relics beside a site need a Peek to identify (§6.3) — which
-          // nobody has yet, so this is a count for EVERY viewer, the site's
-          // own ruler included. Tighten when P4 lands Peek.
-          if (Object.keys(s.relics).join() !== 'count') fail(`sites[${i}].relics leaked identities`);
+          // Relics beside a site need a Peek to identify (§6.3; unit 2 of
+          // P4's shape, `{ id: string | null }[]`, one slot per relic —
+          // still a count in every way that matters until unit 3 grants a
+          // peek). Neither frozen fixture ever plays a peek action (that
+          // action does not exist yet), and never will — these two logs
+          // are frozen — so every slot's id stays null for EVERY viewer,
+          // the site's own ruler included, permanently for this replay.
+          s.relics.forEach((slot, j) => {
+            if (Object.keys(slot).join() !== 'id') {
+              fail(`sites[${i}].relics[${j}] carried more than an id`);
+            }
+            if (slot.id !== null) fail(`sites[${i}].relics[${j}] leaked an unpeeked relic's id`);
+          });
           if (s.facedown) {
             if (s.id !== null) fail(`facedown sites[${i}] leaked its id`);
             if (s.cards.some((c) => c && c.id !== null)) fail(`facedown sites[${i}] leaked a card`);
@@ -249,11 +265,15 @@ describe.each(FIXTURES)('hidden-information audit over a full game — $name', (
         });
 
         // The Reliquary's four spaces are public board furniture; only what
-        // covers them is hidden (§2.3 with §9.4).
+        // covers them is hidden (§2.3 with §9.4). `id` (unit 2 of P4) is
+        // the same peeked-only rule as a site's relic slots — null for
+        // every viewer here, permanently, for the same reason: no peek
+        // action exists yet, and neither frozen fixture ever will play one.
         v.reliquary.forEach((sp, i) => {
-          if (Object.keys(sp).sort().join() !== 'covered,modifier') {
-            fail(`reliquary[${i}] carried more than its modifier and cover`);
+          if (Object.keys(sp).sort().join() !== 'covered,id,modifier') {
+            fail(`reliquary[${i}] carried more than its modifier, cover and id`);
           }
+          if (sp.id !== null) fail(`reliquary[${i}] leaked an unpeeked relic's id`);
         });
       }
     };

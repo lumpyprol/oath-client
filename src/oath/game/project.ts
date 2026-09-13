@@ -22,12 +22,18 @@
  * it exists only mid-Search — but while non-empty it is exactly as private
  * to other seats as a facedown card, so it redacts to a count too.
  *
- * Sites currently never go from facedown to faceup within P2 (Travel's
- * reveal is unit 9), and relics at a site require a "Peek" minor action
- * neither the owner nor anyone else has by default (Law §6.5's minor
- * actions list "peek at relics at your site" as something you DO, not
- * something you already know) — so `siteRelics` redacts to a count for
- * every viewer, including the site's own ruler, until a peek action exists.
+ * A facedown relic at a site (or in the Reliquary) needs its own "Peek"
+ * minor action (Law §6.3/§6.4) — a viewer does not already know it just by
+ * being at the site or holding the Scepter, the way they already know a
+ * faceup card there. Unit 2 of P4 gives the SHAPE this needs — an ORDERED
+ * array of `{ id: string | null }` slots per site (never a bare count:
+ * unit 1 of P4 made `recover` positional, so a client has to be able to
+ * point at "slot 1"), `id` non-null only for a viewer whose PlayerState
+ * `peeked` set contains it, same rule for the Reliquary's `id` field —
+ * with `peeked` empty for every seat until unit 3 builds the Peek family
+ * that grants it. Until then this redacts to all-null for every viewer,
+ * including the site's own ruler or the Scepter's own holder, which is
+ * byte-for-byte the same information a bare count carried.
  */
 
 import {
@@ -91,12 +97,23 @@ interface CardInPlayView {
   secrets: number;
 }
 
+/**
+ * One facedown relic slot at a site (unit 2 of P4; Law §6.3). `id` is
+ * non-null ONLY for a viewer whose `peeked` set contains it — ordered
+ * (unit 1 of P4 made `recover` positional, so a client has to be able to
+ * point at "slot 1"), and the slot count stays derivable as `.length`
+ * rather than a redundant separate field.
+ */
+interface RelicSlotView {
+  id: string | null;
+}
+
 interface SiteView {
   id: string | null; // hidden while the site itself is facedown
   region: Region;
   facedown: boolean;
   cards: (CardInPlayView | null)[];
-  relics: Redacted; // see file header: nobody sees identities without a peek action
+  relics: RelicSlotView[];
   warbands: number[];
   favor: number;
   secrets: number;
@@ -112,13 +129,23 @@ export interface OathView {
   favorBanks: OathState['favorBanks'];
   sharedBank: OathState['sharedBank'];
   worldDeck: Record<string, never>; // deliberately no size — see file header
+  /**
+   * A bare count, NEVER an array of slots, even after unit 2 gives sites
+   * and the Reliquary their own peekable slots. §6.3/§6.4 grant peeking at
+   * a SPECIFIC relic you already know is at a site or in the Reliquary,
+   * not vision into the deck's order or contents — revealing anything more
+   * than its size here would leak deck contents, which Law §9.4 makes
+   * private (the world-deck-count rule, one card database over).
+   */
   relicDeck: Redacted;
   /**
    * The 4 fixed named spaces (unit 16 follow-up; Law §2.3) are public board
    * facts, always visible — only WHICH relic (if any) currently covers a
-   * space is hidden, same as any other facedown relic (Law §9.4).
+   * space is hidden, same as any other facedown relic (Law §9.4). `id`
+   * follows the same peeked-only rule as `SiteView.relics` (unit 2 of P4;
+   * Law §6.4 — the Grand Scepter holder may peek any Reliquary relic).
    */
-  reliquary: { modifier: ReliquarySpace['modifier']; covered: boolean }[];
+  reliquary: { modifier: ReliquarySpace['modifier']; covered: boolean; id: string | null }[];
   grandScepter: number;
   discards: Record<Region, Redacted>;
   dispossessed: Redacted;
@@ -181,7 +208,7 @@ function projectPlayer(p: PlayerState, isSelf: boolean): PlayerView {
   };
 }
 
-function projectSite(s: SiteState): SiteView {
+function projectSite(s: SiteState, peeked: ReadonlySet<string>): SiteView {
   // A denizen/edifice at a faceup site is a visible card on the table; at a
   // facedown site, nothing about its slots is known yet (Law §2.8: a
   // facedown site hasn't been revealed).
@@ -191,7 +218,7 @@ function projectSite(s: SiteState): SiteView {
     region: s.region,
     facedown: s.facedown,
     cards: s.cards.map((c) => (c ? projectCardInPlay(c, revealed) : null)),
-    relics: { count: s.relics.length },
+    relics: s.relics.map((id): RelicSlotView => ({ id: peeked.has(id) ? id : null })),
     warbands: [...s.warbands],
     favor: s.favor,
     secrets: s.secrets,
@@ -201,6 +228,8 @@ function projectSite(s: SiteState): SiteView {
 export function project(state: OathState, seat: number | null): OathView {
   const discards = {} as Record<Region, Redacted>;
   for (const region of REGIONS) discards[region] = { count: state.discards[region].length };
+  // A spectator (`seat === null`) has peeked at nothing — unit 2 of P4.
+  const peeked = new Set(seat !== null ? state.players[seat].peeked : []);
 
   return {
     seats: state.seats,
@@ -208,12 +237,16 @@ export function project(state: OathState, seat: number | null): OathView {
     oathkeeper: state.oathkeeper,
     usurper: state.usurper,
     players: state.players.map((p, i) => projectPlayer(p, i === seat)),
-    sites: state.sites.map(projectSite),
+    sites: state.sites.map((s) => projectSite(s, peeked)),
     favorBanks: { ...state.favorBanks },
     sharedBank: { ...state.sharedBank },
     worldDeck: {},
     relicDeck: { count: state.relicDeck.length },
-    reliquary: state.reliquary.map((sp) => ({ modifier: sp.modifier, covered: sp.relicId !== null })),
+    reliquary: state.reliquary.map((sp) => ({
+      modifier: sp.modifier,
+      covered: sp.relicId !== null,
+      id: sp.relicId !== null && peeked.has(sp.relicId) ? sp.relicId : null,
+    })),
     grandScepter: state.grandScepter,
     discards,
     dispossessed: { count: state.dispossessed.length },

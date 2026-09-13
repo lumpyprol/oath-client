@@ -583,6 +583,9 @@ export function init(setup: OathSetup): OathState {
       warbands: { bank: totalWarbands - boardWarbands - onMap, board: boardWarbands },
       supply: isChancellor ? CHANCELLOR_STARTING_SUPPLY : EXILE_STARTING_SUPPLY,
       relics: [],
+      // Unit 2 of P4: nothing grants a peek yet, so every seat starts with
+      // none — the migration story a state-shape change owes (D61).
+      peeked: [],
       // P3 unit 6: every seat starts asking about everything, which is
       // exactly how the engine behaved before standing responses existed.
       standing: { ...DEFAULT_STANDING },

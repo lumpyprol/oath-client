@@ -295,7 +295,7 @@ by `sixplayer.test.ts` and `audit.test.ts`, same as `fullgame.log.json`.
 
 ---
 
-## Unit 2 — A slot that can hold a known id
+## Unit 2 — A slot that can hold a known id ✅ (completed 2026-09-13)
 
 **Purpose.** Make the projection able to *express* per-seat knowledge before
 anything grants it. A shape change whose proof of safety is that every

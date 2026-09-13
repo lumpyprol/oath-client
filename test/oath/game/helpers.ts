@@ -80,6 +80,7 @@ export function baseState(overrides: Partial<OathState> = {}): OathState {
     warbands: { bank: 0, board: 3 },
     supply: 4,
     relics: [],
+    peeked: [], // unit 2 of P4: nothing peeked by default
     standing: { ...DEFAULT_STANDING }, // P3 unit 6: all channels 'ask'
     ...p,
   });
