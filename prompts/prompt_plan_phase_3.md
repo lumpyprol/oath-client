@@ -1,5 +1,48 @@
 # Prompt plan — Phase 3: interrupts
 
+> ## ✅ PHASE 3 CLOSED — 2026-09-12. All ten units shipped.
+>
+> **The headline.** A campaign against a defender who has set a standing
+> response costs that defender **zero actions** — the log between `declare`
+> and `resolve` is empty. Measured over two frozen games that the audit
+> suite also re-checks for information leaks on every run:
+>
+> | | 3-player | 6-player |
+> | --- | --- | --- |
+> | Visits per turn | 1.39 avg, 4 max | **2.56 avg, 7 max** |
+> | Campaign vs a standing defence | — | **1 visit** |
+> | Campaign, allied, nobody on a policy | — | 7 visits |
+> | Campaign, contested, no policies | 3 visits | — |
+>
+> (Both maxima are the §1.23 setup prologue, which is not a turn. Full
+> decomposition in `INTERRUPTS.md`.)
+>
+> **Every HLD exit criterion is ticked**, including both P2 hand-offs:
+> §1.23's setup choices are the players' own, and a Citizen Ally can act in
+> §5.5.3's battle-plan window — which needed the Law's two windows, not new
+> rules.
+>
+> **Final state:** 693 tests + 1 skipped, 15/15 clean loop runs, typecheck
+> clean, 23 smoke checks, both frozen fixtures fold and audit clean.
+>
+> ### Work after unit 10, and why it counts as part of this phase
+>
+> Closing the phase did not end it. Four commits followed, three of them
+> prompted by Ben reading the close and asking pointed questions — which is
+> the review step this plan's TDD loop cannot replace:
+>
+> | Commit | What |
+> | --- | --- |
+> | `ffa6963` | Unit 10 proper: docs, HLD close, D48 symbol grep |
+> | `893deeb` | **Coverage gap.** Every §3.3/§3.4 test injected a state at round 5-8; no game had ever *played* into the endgame. Two rest-only games now do, reaching Stable Regime and War Exhaustion. Also corrected a comment that described the Visionary Win as depending on a campaign — it fires in the Wake Phase (§4.1.2); the campaign only changed the board it reads |
+> | `042275c` | **A rules bug that decided games (corrects D45).** A tie for a "most" goal was treated as meeting it everywhere. Right for the TITLE (§2.11 says the title is "always held" and supplies explicit tie rules); wrong for WINNING (§3.2 says "have COMPLETED its goal" and supplies none). An Exile tied at one relic apiece was being handed the game. Two tests were asserting the bug, and the 3-player fixture's ending was an instance of it |
+> | `10c9be9` | Re-measured the 3-player log after that regeneration, and pinned both logs' numbers by test so they cannot drift silently again |
+>
+> The second and third are the kind of defect this project's own method
+> predicts: **a claim that was "recorded as fine" and never re-derived from
+> the Law text.** D45 was reasoned from §2.11's structure alone; reading
+> §3.2 verbatim took ten minutes and overturned it.
+
 Phase 3 makes multi-party decisions survivable asynchronously. The HLD calls
 it the hardest design work in the project, and its constraint section says
 why: unmitigated, Oath's campaign resolution and reactive powers make a
@@ -17,10 +60,17 @@ consult points don't count as reopening).
 
 ---
 
-## What was verified on 2026-09-12
+## What was verified on 2026-09-12 (the PRE-PHASE snapshot)
 
 Read the code, not the notes — that rule found fifteen P2 bugs, and this
 section was compiled the same way.
+
+**Historical.** This describes the engine as P3 found it, and almost every
+line below is now out of date BY DESIGN — that was the point of the phase.
+`campaign.roll` and `campaign.seize` are gone, the Wake is one action, the
+response window is two windows, `/inbox` entries carry `url` and `since`,
+and §1.23's choices are the players'. Kept as the baseline the units were
+written against; for current behaviour read `INTERRUPTS.md`.
 
 - P2 is complete: 598 tests + 1 deliberately skipped, `npm run typecheck`
   covers `src` + `test` + `scripts`, 23 smoke checks pass against a live
@@ -778,34 +828,55 @@ fights the store or the replay tests, stop and fall back to keeping
 to two visits; D51 is the optimization, not the requirement) — record the
 fallback as a reversed decision, not a silent retreat.
 
+**In the event, the order held exactly and the fallback was never taken.**
+D51 landed in unit 4 and then had to stretch twice more — units 6 and 7
+made the window-closing action depend on standing policies — but
+`settleWindows` + a throwaway clone in `prepareCampaign` absorbed it
+without the store or the replay tests objecting.
+
 ## Mapping to HLD P3 exit criteria
 
-| Exit criterion | Unit(s) |
+All seven are ticked in the HLD. The seventh was in the HLD but missing
+from this table when the plan was written — a small reminder that a
+checklist kept in two places drifts.
+
+| Exit criterion | Unit(s) | Status |
+| --- | --- | --- |
+| Campaign vs standing defender in one round trip | 7 (asserted from the raw log), re-proven in 9 | ✅ **1 visit** |
+| Every interrupt maps to a stable-id pending decision | 1 (catalogue + conformance), maintained by every unit | ✅ |
+| Standing responses are logged actions, roll back cleanly | 6 | ✅ |
+| 6-player round-trip count measured and recorded | 9 (numbers into INTERRUPTS.md + HLD) | ✅ 2.56 avg, 7 max |
+| §1.23 setup choices are real decisions (P2 hand-off) | 8 | ✅ |
+| Citizen Ally can act in the battle-plan window (P2 hand-off) | 5 | ✅ |
+| Stale deep link resolves usefully, never an error page | 2 (the 410 contract) | ✅ |
+
+## Risks, and what actually happened
+
+Five were named up front. Four were correctly anticipated; none forced the
+recorded fallback. The two that hurt were not on the list.
+
+| Risk as written | Outcome |
 | --- | --- |
-| Campaign vs standing defender in one round trip | 7 (asserted from the raw log), re-proven in 9 |
-| Every interrupt maps to a stable-id pending decision | 1 (catalogue + conformance), maintained by every unit |
-| Standing responses are logged actions, roll back cleanly | 6 |
-| 6-player round-trip count measured and recorded | 9 (numbers into INTERRUPTS.md + HLD) |
-| §1.23 setup choices are real decisions (P2 hand-off) | 8 |
-| Citizen Ally can act in the battle-plan window (P2 hand-off) | 5 |
+| **D51 moves dice across actors** — take the fallback if it fights prepare/rollback/audit | **Did not fight.** But it grew past the plan's picture: units 6-7 made the window-closer depend on standing policies, so the roller can be `declare`, `ally`, `permit` or `respond`. Solved by having `prepareCampaign` run `settleWindows` against a throwaway clone of the campaign the reducer is about to build, so the two agree by construction. Fallback never needed |
+| **Fixture churn** — each regen deliberate, audited, named | **Held, but the count was three, not the "three casual regens" the risk feared.** Unit 3 (checked first — no `wake.favor` present, so none needed), unit 4 (deliberate, D53, named), and one after the close for the tie fix. Each was audited; each is in a commit message |
+| **The setup lock touches every test that creates a game** | **Nearly breached the stop-condition.** Six test files changed, not just the helper — but each was ONE edit to that file's own game-creating helper, so the containment held in substance. Judged and recorded rather than waved through |
+| **Standing-response scope creep** | **No creep.** Three global policies, exactly Q13 |
+| **The 6p script balloons** | **Held.** One deviation, recorded: the Mob-side (2-step) Wake was cut because reaching 6 favor on the People's Favor costs many scripted turns; the `wake` kind and the batched action are exercised, and the 2-step case stays covered by `victory.test.ts`. The plan's own rule — cut rounds before cutting kinds — was followed |
 
-## Risks
+**The two that actually cost time were unlisted:**
 
-- **D51 moves dice across actors.** Dice in another player's action
-  payload is novel; if it complicates prepare, rollback, or the audit,
-  take the recorded fallback (keep roll, batch the rest) — two visits
-  instead of one on defence, still far below baseline.
-- **Fixture churn.** Units 3, 4, 8 can each break the frozen fixtures.
-  D53 makes that legal but each regen must be deliberate, audited, and
-  named in the commit — three casual regens in one phase would erode
-  exactly the discipline unit 20 bought.
-- **The setup lock (unit 8) touches every test that creates a game.** The
-  completeSetup() helper contains the blast radius; if it doesn't, the
-  lock design is wrong — reconsider before pushing through.
-- **Standing-response scope creep.** Conditional policies (per site, per
-  opponent) are seductive and P4's problem. Three global policies, Q13,
-  nothing else.
-- **The 6p script is the biggest test in the repo.** Keep it intents-
-  driven like fullgame; if it balloons, cut scripted rounds before
-  cutting exercised decision kinds — coverage of kinds is the acceptance,
-  length is not.
+1. **A test helper replicating a rule, wrongly, in three places.** §5.5.5
+   kills the attacker's skulls *before* the sacrifice is paid. Three
+   separate copies of `sacrificeFor` measured affordability against the
+   pre-skull board. This produced a ~1-in-3 flake live for two units and a
+   ~1-in-25 one that survived every short loop until the close. A risk
+   register that had said "test helpers that re-derive a rule will drift
+   from it" would have been worth more than two of the five above.
+2. **A recorded ruling nobody re-derived.** D45 was reasoned from §2.11's
+   structure and never checked against §3.2's actual words. It was wrong,
+   and it decided games. The project's own method already warns about this
+   ("check every claim against the code, not the notes") — the gap is that
+   it says *code*, and this was a claim about the *Law*.
+
+Both are now written into `src/oath/game/README.md`'s testing guidance and
+`RULINGS.md` respectively.
