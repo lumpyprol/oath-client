@@ -96,13 +96,34 @@ suppress a question *while someone else's turn is what keeps asking it*.
 | Peeks (Law §6.3) | P4 | Needs a client before it means anything; `sites[].relics` stays a redacted count for every viewer, including the site's own ruler, until then. |
 | Notification delivery against a stalled decision | P6 | P3 only guarantees what P6 needs: stable ids to dedupe on (above), and a wall-clock "pending since" per decision (unit 2). |
 
-## Baseline (P2)
+## Current measurements
 
-Measured by `test/oath/game/metrics.ts`'s `computeVisitMetrics` over the
-frozen `test/fixtures/fullgame.log.json` (a real 3-player game, unit 19).
-A VISIT is a maximal run of consecutive actions by the same actor; turns
-are split at `turn.rest` boundaries. These are the numbers units 4-7 exist
-to shrink and unit 9 must beat in the six-player game.
+Measured by `test/oath/game/metrics.ts`'s `computeVisitMetrics` over the two
+frozen logs. A VISIT is a maximal run of consecutive actions by the same
+actor — the thing that costs wall-clock time in async play; turns are split
+at `turn.rest` boundaries.
+
+| Metric | 3-player (`fullgame.log.json`) | 6-player (`sixplayer.log.json`) |
+| --- | --- | --- |
+| Actions in the game | 43 | 62 |
+| Visits per turn | **1.389 avg, 4 max** (18 turns) | **2.56 avg, 7 max** (18 turns) |
+| Visits per campaign | `[1, 3]` | `[7, 1, 6]` |
+| Actions per campaign | `[2, 3]` | `[7, 2, 6]` |
+
+Both maxima are the SETUP PROLOGUE, not a turn: Law §1.23's per-seat choices
+are sequential by rule, and the metric buckets everything before the first
+`turn.rest` together. Three seats choosing gives the 3-player log its 4; six
+give the 6-player log one of its two 7s. The other 7 is a real campaign, and
+it is decomposed below.
+
+### Historical: the P2 baseline, and what unit 4 moved
+
+Recorded when P3 opened, and kept because the before/after comparison is the
+evidence for unit 4's finding. Both columns were measured on the 3-player
+fixture **as it stood then**, which is not the file in the tree today: that
+log has since been regenerated twice — by unit 4 (D53, action shapes
+changed) and again on 2026-09-12, when the §3.2 tie correction meant its old
+ending was no longer a win at all. The current numbers are above.
 
 | Metric | P2 baseline | After unit 4 | Avg (P2 → u4) | Max (P2 → u4) |
 | --- | --- | --- | --- | --- |
@@ -110,6 +131,12 @@ to shrink and unit 9 must beat in the six-player game.
 | Visits per campaign | `[1, 3]` | `[1, 3]` | 2 → 2 | 3 → 3 |
 | **Actions** per campaign | `[4, 4]` | `[2, 3]` | 4 → 2.5 | 4 → 3 |
 | Total actions in the game | 29 | 26 | — | — |
+
+The campaign rows are the durable part: those two campaigns still measure
+`[1, 3]` visits and `[2, 3]` actions today, because nothing since unit 4 has
+changed how a campaign is fought. The visits-per-turn row is the one the
+regenerations moved, and only because the game now runs to round 6 instead
+of ending in round 3 — more turns, almost all of them a single Rest.
 
 ### Unit 4's finding: batching cut actions, not visits
 
@@ -163,9 +190,11 @@ The third row is the phase's headline exit criterion, and it is asserted
 from the RAW LOG's actor sequence in `standing.test.ts` — two actions, both
 the attacker's, the defender having submitted nothing at all.
 
-The frozen fullgame fixture is the FIRST row, so its numbers and the log
-itself are **unchanged by units 5, 6 and 7** — the no-regression property
-each had to hold.
+The frozen fullgame fixture's two campaigns are the FIRST row, and were
+**unchanged by units 5, 6 and 7** — the no-regression property each had to
+hold. (They still measure `[1, 3]` visits today. The log around them grew
+later, when the 2026-09-12 tie correction made its old ending stop being a
+win, but nothing about how a campaign is fought moved.)
 
 Note the fourth row: a single Citizen who has not set `ally: 'pass'` costs
 a visit the defender's policy cannot remove, because it is not the

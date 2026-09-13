@@ -218,9 +218,14 @@ costs wall-clock time:
 
 | | 3-player | 6-player |
 | --- | --- | --- |
-| Visits per turn | 1.57 avg, 3 max | 2.56 avg, 7 max |
+| Visits per turn | 1.39 avg, 4 max | 2.56 avg, 7 max |
 | Campaign vs a standing defence | — | **1 visit** |
 | Campaign, allied, nobody on a policy | — | 7 visits |
+| Campaign, contested, no policies | 3 visits | — |
+
+Both maxima are the setup prologue rather than a turn — Law §1.23's
+per-seat choices are sequential by rule, and everything before the first
+Rest lands in one bucket.
 
 The headline is the third row: against a defender who has set a standing
 response, a campaign is `campaign.declare` then `campaign.resolve` and

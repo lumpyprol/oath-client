@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { computeVisitMetrics, summarize, type LoggedAction } from './metrics.js';
 
@@ -186,6 +188,26 @@ describe('computeVisitMetrics (unit 1: the visit metric)', () => {
 
   it('summarize reports avg and max over a list of visit counts', () => {
     expect(summarize([1, 1, 1, 3, 1, 3, 1])).toEqual({ avg: 11 / 7, max: 3 });
+  });
+
+  /**
+   * The committed 3-player log's numbers, asserted here so a change that
+   * moves them fails loudly instead of quietly making INTERRUPTS.md and the
+   * README wrong. (The 6-player log has the same guard in
+   * `sixplayer.test.ts`.) Both have drifted once already — the 3p fixture
+   * has been regenerated twice, and the docs had to be re-measured by hand
+   * the second time because nothing was watching.
+   */
+  it('the committed 3-player fixture measures what the docs say it does', () => {
+    const fixture = JSON.parse(
+      readFileSync(join(import.meta.dirname, '..', '..', 'fixtures', 'fullgame.log.json'), 'utf8'),
+    ) as { actions: LoggedAction[] };
+    const m = computeVisitMetrics(fixture.actions);
+    expect(m.turns).toEqual([4, 1, 1, 3, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(summarize(m.turns).avg).toBeCloseTo(1.389, 3);
+    expect(summarize(m.turns).max).toBe(4); // the §1.23 setup prologue, not a turn
+    expect(m.campaigns).toEqual([1, 3]); // vs bandits; contested with no policies
+    expect(m.campaignActions).toEqual([2, 3]);
   });
 
   it('summarize throws on an empty list rather than reporting a fake average', () => {
