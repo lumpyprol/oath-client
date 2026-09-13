@@ -22,7 +22,14 @@ Written in unit 20, walking the Law top to bottom. The method matters more
 than the table: P2 found **ten** rules bugs that were all already "recorded
 as fine", so a review that re-reads our own notes is worthless.
 
-- Check every claim against the **code**, not the notes.
+- Check every claim against the **code**, and check that the claim itself
+  **matches the Law** — not against the notes. Both halves matter, and the
+  second was added after it failed: checking only the code answers "does the
+  engine do what we wrote down?", which cannot catch a rule we wrote down
+  wrongly. The 09-12 tie ruling (RULINGS.md) was faithfully implemented,
+  tested, and dispositioned DONE — and was wrong about §3.2, handing games
+  to players who had tied rather than won. **Re-read the printed sentence**,
+  not the ruling that cites it.
 - **Distrust "inert in FIRST_GAME."** Seven of the ten were invisible
   because the fixture the tests use is a Supremacy first game with no
   facedown Cradle top, no ruins, no Citizens and no faceup Opportunity
