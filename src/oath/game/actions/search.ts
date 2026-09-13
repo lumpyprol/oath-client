@@ -35,7 +35,7 @@ const SEARCH_DRAW = 3; // Law §5.1.2
 const MAX_VISIONS_DRAWN = 5; // 5 Visions in the game; the track goes 0..5
 
 /** Law §5.1.1 / Visions Drawn track: Supply to draw from the world deck. */
-function worldDeckCost(visionsDrawn: number): number {
+export function worldDeckCost(visionsDrawn: number): number {
   if (visionsDrawn <= 0) return 2;
   if (visionsDrawn <= 2) return 3;
   return 4;

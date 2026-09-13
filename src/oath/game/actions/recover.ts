@@ -44,6 +44,24 @@ import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
 const RECOVER_COST = 1; // Supply (Law §5.4.1)
 
+/**
+ * The full cost to recover the relic at a site (Law §5.4.1's 1 Supply plus
+ * §5.4.2's printed site cost), as a resource breakdown. The ONE place the
+ * §5.4.2 amounts (3 favor to place, 2 favor to burn, N secrets to burn)
+ * live: `recover`'s reducer spends exactly these, and P4 unit 5's
+ * affordance describer reads exactly these to decide affordability and to
+ * label the cost — so the two can never disagree about what a relic costs.
+ * `placeFavor`'s suit (which bank) is not part of the cost's SIZE, so it
+ * stays in the reducer; only the amounts are shared here.
+ */
+export function relicRecoverCost(site: Site): { supply: number; favor?: number; secrets?: number } {
+  const c = site.recoverCost;
+  if (!c) return { supply: RECOVER_COST };
+  if (c.kind === 'placeFavor') return { supply: RECOVER_COST, favor: 3 };
+  if (c.kind === 'burnFavor') return { supply: RECOVER_COST, favor: 2 };
+  return { supply: RECOVER_COST, secrets: c.amount };
+}
+
 const RecoverPayloadSchema = z.discriminatedUnion('target', [
   z.object({
     target: z.literal('relic'),
@@ -65,7 +83,7 @@ const RecoverPayloadSchema = z.discriminatedUnion('target', [
 ]);
 
 /** Law §5.4.1: for the Darkest Secret held by another player. */
-function darkestSecretRecoverable(state: OathState, holder: number): boolean {
+export function darkestSecretRecoverable(state: OathState, holder: number): boolean {
   const site = state.sites.find((s) => s.id === state.players[holder].pawnSite);
   if (!site) return false;
   const cardSuits = site.cards
@@ -118,27 +136,31 @@ function recover(state: OathState, action: GameAction): OathState {
     if (!cost) {
       throw new IllegalAction(`recover: ${siteId} has no printed recover cost (Law §5.4.2)`);
     }
+    // The resource amounts live in ONE place — `relicRecoverCost` — so the
+    // affordance describer (P4 unit 5) reads the same numbers this reducer
+    // spends, never a second transcription of §5.4.2 (D48/D55).
+    const spend = relicRecoverCost(byId(siteId) as Site);
 
     if (cost.kind === 'placeFavor') {
       effects.push({
         kind: 'favor',
         from: { kind: 'seatFavor', seat },
         to: { kind: 'favorBank', suit: cost.suit },
-        amount: 3,
+        amount: spend.favor!,
       });
     } else if (cost.kind === 'burnFavor') {
       effects.push({
         kind: 'favor',
         from: { kind: 'seatFavor', seat },
         to: { kind: 'sharedFavor' },
-        amount: 2,
+        amount: spend.favor!,
       });
     } else {
       effects.push({
         kind: 'secret',
         from: { kind: 'seatSecrets', seat },
         to: { kind: 'sharedSecrets' },
-        amount: cost.amount,
+        amount: spend.secrets!,
       });
     }
     effects.push({

@@ -80,7 +80,7 @@ import { requireActiveSeat, type Handler } from '../turn.js';
  * modifier actually DOES stays declared (v1: same as every other card
  * power, per D9/D28 — see RULINGS.md for the transcribed text).
  */
-function reliquaryPowerId(modifier: ReliquaryModifier): string {
+export function reliquaryPowerId(modifier: ReliquaryModifier): string {
   return `reliquary:${modifier}`;
 }
 
@@ -95,7 +95,7 @@ const PowerUsePayloadSchema = z.object({
 });
 
 /** Law §7.1.1: does `actor` have access to `cardId`'s power? */
-function hasAccess(state: OathState, actor: number, cardId: string): boolean {
+export function hasAccess(state: OathState, actor: number, cardId: string): boolean {
   if (state.players[actor].relics.includes(cardId)) return true; // a relic you hold
   if (cardId === PEOPLES_FAVOR_ID || cardId === DARKEST_SECRET_ID) {
     return state.banners.find((b) => b.id === cardId)?.holder === actor;

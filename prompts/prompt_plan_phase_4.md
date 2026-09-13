@@ -520,7 +520,7 @@ affordances.
 
 ---
 
-## Unit 5 — Affordances for the major and minor actions
+## Unit 5 — Affordances for the major and minor actions ✅ (completed 2026-09-13)
 
 **Purpose.** Fill the table for everything a player does on their own turn.
 This is where §7.2's untranscribed restrictions and unit 3's peeked relics

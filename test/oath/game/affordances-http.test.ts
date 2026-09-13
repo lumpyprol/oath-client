@@ -70,13 +70,17 @@ async function newGame() {
 }
 
 describe('GET /games/:id — affordances transport (P4 unit 4)', () => {
-  it('carries affordances for the active seat, describing turn.rest, travel and standing.set', async () => {
+  it('carries affordances for the active seat, including the turn shapes', async () => {
     const { gameId, tokens } = await newGame();
     const r = await api(`/games/${gameId}`, { token: tokens[0] }); // seat 0 begins round 1
     expect(r.status).toBe(200);
     expect(Array.isArray(r.body.affordances)).toBe(true);
-    const types = (r.body.affordances as { type: string }[]).map((a) => a.type).sort();
-    expect(types).toEqual(['standing.set', 'travel', 'turn.rest']);
+    const types = new Set((r.body.affordances as { type: string }[]).map((a) => a.type));
+    // The three unit-4 shapes are always here at the start of a turn;
+    // unit 5 adds more (search, warbands.move, …) which vary by position.
+    expect(types.has('turn.rest')).toBe(true);
+    expect(types.has('travel')).toBe(true);
+    expect(types.has('standing.set')).toBe(true);
   });
 
   it('omits affordances entirely for a spectator (no token)', async () => {

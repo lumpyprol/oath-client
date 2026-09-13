@@ -118,6 +118,12 @@ export function auditAffordances(
   for (const entry of entries) {
     const where = `${entry.type}`;
 
+    // A `free` field carries a declared-power payload (power.use's effects,
+    // D9/D28) this harness cannot synthesize — so it cannot build a legal
+    // action for the entry at all, and skips it whole. power.use's fidelity
+    // is checked by its own dry run (unit 7), not here.
+    if (entry.fields.some((f) => f.kind === 'free')) continue;
+
     if (entry.fields.length === 0) {
       const err = foldError(state, seat, entry.type, {});
       if (err !== null) violations.push(`${where}: no-field action was refused by reduce: ${err}`);
@@ -153,9 +159,14 @@ export function auditAffordances(
         if (foldError(state, seat, entry.type, atMax) !== null) {
           violations.push(`${where}.${field.name}: max (${field.max}) was refused by reduce`);
         }
-        const overMax = { ...baselinePayload(entry.fields, field.name), [field.name]: field.max + 1 };
-        if (foldError(state, seat, entry.type, overMax) === null) {
-          violations.push(`${where}.${field.name}: max+1 (${field.max + 1}) was ACCEPTED by reduce`);
+        // A `deferred` bound is enforced on a later action (a §6.5 warband
+        // permission), not at submit — so reduce accepting max+1 here is
+        // correct, and the harness cannot assert otherwise.
+        if (!field.deferred) {
+          const overMax = { ...baselinePayload(entry.fields, field.name), [field.name]: field.max + 1 };
+          if (foldError(state, seat, entry.type, overMax) === null) {
+            violations.push(`${where}.${field.name}: max+1 (${field.max + 1}) was ACCEPTED by reduce`);
+          }
         }
       } else if (field.kind === 'flag') {
         for (const value of [true, false]) {
