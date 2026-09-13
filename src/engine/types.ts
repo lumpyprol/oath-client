@@ -97,6 +97,16 @@ export interface GameDefinition<S, Setup = unknown> {
   /** Everything the game is currently waiting on. */
   pending(state: S): PendingDecision[];
 
+  /**
+   * Optional (P4 D56): the option space a client at `seat` may offer right
+   * now — one entry per submittable action type, each describing its
+   * fields and their legal values. Optional so the contract stays additive
+   * for game definitions that never grew a client. `seat === null`
+   * (spectator) returns nothing. The shape is kind-specific; the HTTP
+   * layer passes it through verbatim.
+   */
+  affordances?(state: S, seat: number | null): unknown;
+
   /** True once the game is over and no further actions are accepted. */
   isComplete(state: S): boolean;
 }

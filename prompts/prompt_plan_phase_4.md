@@ -431,7 +431,7 @@ without ever appearing in the log; RULES-COVERAGE §6.3/§6.4 read DONE.
 
 ---
 
-## Unit 4 — `affordances`: the contract and the harness
+## Unit 4 — `affordances`: the contract and the harness ✅ (completed 2026-09-13)
 
 **Purpose.** D56's seam, plus the test that makes it trustworthy. The seam is
 small; the harness is the unit's real product, because it is what stops the

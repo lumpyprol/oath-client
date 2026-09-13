@@ -66,6 +66,9 @@ router.get('/games/:id', (req, res) => {
     complete: def.isComplete(state),
     view: def.project(state, seat),
     pending: def.pending(state),
+    // P4 unit 4 (D56): what this seat may offer, computed for the
+    // REQUESTING seat only — omitted for a spectator, who submits nothing.
+    ...(seat === null ? {} : { affordances: def.affordances?.(state, seat) }),
     players: playersOf(req.params.id).map(({ seat, name }) => ({ seat, name })),
   });
 });

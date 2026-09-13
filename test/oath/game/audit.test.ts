@@ -93,6 +93,8 @@ const FIXTURES: {
  * zone nobody thought about still matches.
  */
 const CARD_ID = /^(denizen|vision|relic|site|edifice|banner):/;
+/** The same namespaces, matched ANYWHERE in a string (for scanning generated prose — see the affordance sweep). */
+const CARD_ID_ANYWHERE = /(denizen|vision|relic|site|edifice|banner):[a-z0-9-]+/g;
 
 /** Every card id anywhere in a value, with the path that reached it. */
 function idsIn(value: unknown, path = '', found = new Map<string, string>()): Map<string, string> {
@@ -200,6 +202,20 @@ describe.each(FIXTURES)('hidden-information audit over a full game — $name', (
         learn(state, seat, seen);
         for (const [id, path] of idsIn(project(state, seat))) {
           if (!seen.has(id)) leaks.push(`${after}: ${nameOf(seat)} saw ${id} at view.${path}`);
+        }
+        // P4 unit 4: affordances ride the SAME leak sweep — a brand-new
+        // channel otherwise, and an affordance naming a card this seat
+        // cannot see is exactly the leak unit 1 closed on the action
+        // interface. Labels are generated PROSE ("Mine (Provinces)"), so
+        // unlike `project()`'s output an id could only sneak in EMBEDDED in
+        // a string, which `idsIn`'s whole-value match would miss — so this
+        // scans the serialized affordances for any card id as a SUBSTRING.
+        // A spectator is served none (the route omits them).
+        if (seat !== null) {
+          const serialized = JSON.stringify(oath.affordances!(state, seat));
+          for (const m of serialized.matchAll(CARD_ID_ANYWHERE)) {
+            if (!seen.has(m[0])) leaks.push(`${after}: ${nameOf(seat)} saw ${m[0]} in affordances`);
+          }
         }
       }
     };
