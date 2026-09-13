@@ -386,7 +386,7 @@ describe('id contracts', () => {
     const before = oath.pending(offered).find((d) => d.kind === 'citizenshipOffer');
     expect(before).toBeDefined();
 
-    const traveled = act(offered, 'travel', 0, { siteId: offered.sites[1].id });
+    const traveled = act(offered, 'travel', 0, { siteIndex: 1 });
     checkInvariants(traveled);
     const after = oath.pending(traveled).find((d) => d.kind === 'citizenshipOffer');
     expect(after).toBeDefined();

@@ -31,22 +31,34 @@ import { travelCost } from '../map.js';
 import type { OathState } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
-const TravelPayloadSchema = z.object({ siteId: z.string() });
+// Unit 1 of P4: addressed by SLOT, not id. Law §5.6.2 lets you travel to a
+// FACEDOWN site — that is the whole point of the flip-on-arrival clause —
+// but `project.ts` nulls a facedown site's id (§9.4), so a client had no
+// legal id to send for exactly the destinations the Law says are legal.
+// `siteIndex` is a position in the map's fixed slot order (`state.sites`,
+// unchanged in length or order all game — see `project()`), which is
+// public at every index whether or not that slot has been revealed yet.
+const TravelPayloadSchema = z.object({ siteIndex: z.number().int().min(0) });
 
 function travel(state: OathState, action: GameAction): OathState {
   const seat = requireActiveSeat(state, action);
   const parsed = TravelPayloadSchema.safeParse(action.payload);
   if (!parsed.success) throw new IllegalAction('travel: malformed payload');
-  const { siteId } = parsed.data;
+  const { siteIndex } = parsed.data;
   const player = state.players[seat];
 
-  if (siteId === player.pawnSite) {
+  const dest = state.sites[siteIndex];
+  if (!dest) {
+    throw new IllegalAction(
+      `travel: no site at slot ${siteIndex} — the map has ${state.sites.length} (Law §5.6.1)`,
+    );
+  }
+  if (dest.id === player.pawnSite) {
     throw new IllegalAction('travel: you are already on that site (Law §5.6.1)');
   }
-  const dest = state.sites.find((s) => s.id === siteId);
-  if (!dest) throw new IllegalAction(`travel: no site ${siteId}`);
   const from = state.sites.find((s) => s.id === player.pawnSite);
   if (!from) throw new IllegalAction('travel: your pawn is not on a real site');
+  const siteId = dest.id; // real, server-side — safe to use below whether or not this seat's view can see it
 
   const cost = travelCost(from.region, dest.region); // Law §5.6.1
   if (player.supply < cost) {

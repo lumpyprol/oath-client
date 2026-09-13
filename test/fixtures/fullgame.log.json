@@ -74,7 +74,7 @@
       "type": "travel",
       "actor": 1,
       "payload": {
-        "siteId": "site:great-slum"
+        "siteIndex": 2
       }
     },
     {
@@ -92,7 +92,7 @@
         "attackDice": 0,
         "attackFaces": [],
         "defenseFaces": [
-          "shieldX2"
+          "blank"
         ]
       }
     },
@@ -156,7 +156,7 @@
       "actor": 2,
       "payload": {
         "target": "relic",
-        "relicId": "relic:horned-mask"
+        "relicIndex": 0
       }
     },
     {
@@ -254,7 +254,7 @@
       "payload": {
         "attackFaces": [],
         "defenseFaces": [
-          "shield",
+          "blank",
           "blank"
         ]
       }
@@ -351,7 +351,7 @@
       "type": "turn.rest",
       "actor": 2,
       "payload": {
-        "endDie": 3
+        "endDie": 4
       }
     },
     {
@@ -384,7 +384,7 @@
       "type": "turn.rest",
       "actor": 2,
       "payload": {
-        "endDie": 6
+        "endDie": 5
       }
     }
   ]

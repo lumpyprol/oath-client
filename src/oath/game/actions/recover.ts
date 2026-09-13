@@ -47,7 +47,14 @@ const RECOVER_COST = 1; // Supply (Law §5.4.1)
 const RecoverPayloadSchema = z.discriminatedUnion('target', [
   z.object({
     target: z.literal('relic'),
-    relicId: z.string(),
+    // Unit 1 of P4: addressed by SLOT, not id — Law §5.4.1 is literal
+    // ("Choose one facedown relic at your site"): at a table you point at
+    // a card, you do not name it. Naming it by id let a wrong guess answer
+    // with `no facedown relic ${relicId} at your site`, a right guess fall
+    // through to the §5.4.2 cost checks, and the two failed differently —
+    // all 20 relic ids fit in a handful of guesses against a state built
+    // to reject every one on cost (see oracle.test.ts's exploit).
+    relicIndex: z.number().int().min(0),
     siteId: z.string().optional(),
   }),
   z.object({
@@ -91,15 +98,22 @@ function recover(state: OathState, action: GameAction): OathState {
   const post: Array<(s: OathState) => void> = [];
 
   if (parsed.data.target === 'relic') {
-    const { relicId } = parsed.data;
+    const { relicIndex } = parsed.data;
     const siteId = parsed.data.siteId ?? pawnSiteOf(state, seat);
     if (siteId !== player.pawnSite) {
       throw new IllegalAction('recover: the relic must be at your site (Law §5.4.1)');
     }
     const site = state.sites.find((s) => s.id === siteId);
-    if (!site || !site.relics.includes(relicId)) {
-      throw new IllegalAction(`recover: no facedown relic ${relicId} at your site`);
+    const relicCount = site?.relics.length ?? 0;
+    // Out-of-range and relic-free are ONE message: the count is public
+    // (Law §9.4), the identity behind any in-range slot is not, and a
+    // message that told the two apart would itself be the oracle.
+    if (!site || relicIndex >= relicCount) {
+      throw new IllegalAction(
+        `recover: no facedown relic at slot ${relicIndex} — your site holds ${relicCount} (Law §5.4.1)`,
+      );
     }
+    const relicId = site.relics[relicIndex];
     const cost = (byId(siteId) as Site).recoverCost;
     if (!cost) {
       throw new IllegalAction(`recover: ${siteId} has no printed recover cost (Law §5.4.2)`);

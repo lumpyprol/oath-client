@@ -204,7 +204,7 @@ each and says which**; a different answer changes one unit, not the phase.
 
 ---
 
-## Unit 1 — Close the action interface
+## Unit 1 — Close the action interface ✅ (completed 2026-09-13)
 
 **Purpose.** Fix a live hidden-information leak, and turn the class of bug
 into a conformance test. This is also the last unit allowed to change an
@@ -275,6 +275,23 @@ Commit: "Address facedown relics by slot; close the recover oracle"
 **Done when.** No action's error text discriminates a card the actor cannot
 see, a conformance test says so for every action type, and the log format is
 frozen behind an explicit line in the commit message.
+
+**What the premise-check found beyond `recover`.** The same oracle existed
+on SITE ids, not just relic ids, on two more actions the plan didn't name:
+`travel`'s destination and `campaign.resolve`'s `seize.banishTo`. Both were
+worse than described here — `travel` couldn't even reach a facedown
+destination at all (Law §5.6.2 requires one to be reachable; `project.ts`
+nulls its id), and `banishTo`'s old check didn't even error on a real
+guess, it silently succeeded. Both got the same slot-addressing fix as
+`recover`, in this unit rather than a later one, since D61 makes this the
+last unit allowed to change an action shape at all. `setup.choose`'s two
+discriminating messages (facedown vs. nonexistent) were also collapsed to
+one — message-only, no shape change, since a legal choice is always a
+public faceup site. `oracle.test.ts` covers all four. Regenerating the two
+frozen fixtures for `travel`'s and `recover`'s new shapes means the plan's
+own assumption that `sixplayer.log.json` "must fold unchanged" no longer
+holds for this unit — it re-folds under the new shape instead, re-verified
+by `sixplayer.test.ts` and `audit.test.ts`, same as `fullgame.log.json`.
 
 ---
 

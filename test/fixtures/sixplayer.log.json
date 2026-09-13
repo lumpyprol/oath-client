@@ -223,11 +223,11 @@
       "actor": 0,
       "payload": {
         "attackFaces": [
-          "sword",
+          "hollowSword",
           "sword"
         ],
         "defenseFaces": [
-          "doubleShield",
+          "blank",
           "blank"
         ]
       }
@@ -251,7 +251,7 @@
       "type": "travel",
       "actor": 4,
       "payload": {
-        "siteId": "site:wastes"
+        "siteIndex": 2
       }
     },
     {
@@ -363,7 +363,7 @@
       "type": "travel",
       "actor": 4,
       "payload": {
-        "siteId": "site:drowned-city"
+        "siteIndex": 0
       }
     },
     {
@@ -384,8 +384,8 @@
           "sword"
         ],
         "defenseFaces": [
-          "blank",
-          "shield"
+          "shield",
+          "blank"
         ]
       }
     },
@@ -513,11 +513,11 @@
       "actor": 0,
       "payload": {
         "attackFaces": [
-          "skull",
+          "hollowSword",
           "hollowSword"
         ],
         "defenseFaces": [
-          "shieldX2",
+          "blank",
           "shield"
         ]
       }

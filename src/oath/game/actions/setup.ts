@@ -75,10 +75,15 @@ function choose(state: OathState, action: GameAction): OathState {
   const { siteId, keepIndex } = parsed.data;
 
   // --- §1.23.1, the pawn ---
-  const site = state.sites.find((s) => s.id === siteId);
-  if (!site) throw new IllegalAction(`setup.choose: no site ${siteId}`);
-  if (site.facedown) {
-    throw new IllegalAction(`setup.choose: ${siteId} is facedown — the pawn goes on a FACEUP site (Law §1.23.1)`);
+  // Unit 1 of P4: a real-but-facedown id and a nonexistent one get the
+  // SAME message. The pawn only ever legally goes on a faceup (hence
+  // already-public) site, so `siteId` itself leaks nothing here — but a
+  // FACEDOWN-vs-NONEXISTENT split would have let a guess across every
+  // known site id tell the two apart, mapping which of them are on this
+  // board (and still hidden) before anyone had traveled there.
+  const site = state.sites.find((s) => s.id === siteId && !s.facedown);
+  if (!site) {
+    throw new IllegalAction(`setup.choose: ${siteId} is not a real, currently faceup site (Law §1.23.1)`);
   }
   if (seat === CHANCELLOR_SEAT) {
     const required = topCradleSite(state);

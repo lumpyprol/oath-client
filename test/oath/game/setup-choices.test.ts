@@ -61,7 +61,7 @@ describe('the opening position, before anyone has chosen', () => {
       ['turn.rest', 0, {}],
       ['search', 0, { from: 'deck' }],
       ['standing.set', 1, { ally: 'pass' }], // the one action legal everywhere else
-      ['travel', 0, { siteId: faceup(s)[1].id }],
+      ['travel', 0, { siteIndex: s.sites.findIndex((x) => x.id === faceup(s)[1].id) }],
     ] as const) {
       expect(() => act(s, type, actor, payload), `${type} escaped the setup lock`).toThrow(/§1.23/);
     }
@@ -104,16 +104,30 @@ describe('setup.choose — Law §1.23.1, the pawn', () => {
     expect(out.players[1].pawnSite).toBe(otherFaceup.id);
   });
 
-  it('rejects a facedown site and a nonexistent one', () => {
+  it('rejects a facedown site and a nonexistent one — with the SAME message either way (closes the facedown-site oracle)', () => {
     const s = opening();
     const afterChancellor = act(s, 'setup.choose', 0, { siteId: topCradle(s), keepIndex: 0 });
     const hidden = afterChancellor.sites.find((x) => x.facedown)!;
-    expect(() => act(afterChancellor, 'setup.choose', 1, { siteId: hidden.id, keepIndex: 0 })).toThrow(
-      /facedown/,
-    );
-    expect(() => act(afterChancellor, 'setup.choose', 1, { siteId: 'site:nope', keepIndex: 0 })).toThrow(
-      /no site/,
-    );
+    let hiddenMsg = '';
+    let nopeMsg = '';
+    try {
+      act(afterChancellor, 'setup.choose', 1, { siteId: hidden.id, keepIndex: 0 });
+    } catch (e) {
+      hiddenMsg = (e as Error).message;
+    }
+    try {
+      act(afterChancellor, 'setup.choose', 1, { siteId: 'site:nope', keepIndex: 0 });
+    } catch (e) {
+      nopeMsg = (e as Error).message;
+    }
+    // Unit 1 of P4: these used to read /facedown/ and /no site/ — two
+    // messages that told a guess whether a given id was a real, currently-
+    // hidden site or not one on the board at all. A real facedown site's
+    // identity is exactly what Law §9.4 protects, so the two now share ONE
+    // template. Each message echoes back the id the caller ALREADY sent
+    // (not new information), so compare shape, not the literal string.
+    expect(hiddenMsg).not.toBe('');
+    expect(hiddenMsg.replace(hidden.id, '<id>')).toBe(nopeMsg.replace('site:nope', '<id>'));
   });
 
   it('enforces §1.23\'s turn order — seat 2 cannot act before seat 1', () => {

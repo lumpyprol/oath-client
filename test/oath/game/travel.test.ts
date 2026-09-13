@@ -31,7 +31,7 @@ describe('travel — cost by region pair (Law §5.6.1)', () => {
     const s = baseState();
     s.players[1].supply = 4;
     const destId = s.sites[destIdx].id;
-    const out = travel(s, 1, { siteId: destId });
+    const out = travel(s, 1, { siteIndex: destIdx });
     expect(out.players[1].pawnSite).toBe(destId);
     expect(out.players[1].supply).toBe(4 - cost);
     checkInvariants(out);
@@ -40,14 +40,14 @@ describe('travel — cost by region pair (Law §5.6.1)', () => {
   it('cradle -> other cradle costs 1', () => {
     const s = baseState();
     s.players[1].pawnSite = s.sites[0].id;
-    const out = travel(s, 1, { siteId: s.sites[1].id });
+    const out = travel(s, 1, { siteIndex: 1 });
     expect(out.players[1].supply).toBe(s.players[1].supply - 1);
   });
 
   it('provinces -> any other site costs 2', () => {
     const s = baseState();
     s.players[1].pawnSite = s.sites[2].id;
-    const out = travel(s, 1, { siteId: s.sites[4].id });
+    const out = travel(s, 1, { siteIndex: 4 });
     expect(out.players[1].supply).toBe(s.players[1].supply - 2);
   });
 });
@@ -63,7 +63,7 @@ describe('travel — arrival reveal (Law §5.6.2 / §2.8.2)', () => {
     expect(n).toBeGreaterThan(0);
     const deckTop = s.relicDeck.slice(0, n);
 
-    const out = travel(s, 1, { siteId: dest.id });
+    const out = travel(s, 1, { siteIndex: 6 });
 
     const revealed = out.sites.find((x) => x.id === dest.id)!;
     expect(revealed.facedown).toBe(false);
@@ -82,7 +82,7 @@ describe('travel — arrival reveal (Law §5.6.2 / §2.8.2)', () => {
     const bankFavorBefore = s.sharedBank.favor;
     const bankSecretsBefore = s.sharedBank.secrets;
 
-    const out = travel(s, 1, { siteId: dest.id });
+    const out = travel(s, 1, { siteIndex: 1 });
 
     const revealed = out.sites.find((x) => x.id === dest.id)!;
     expect(revealed.favor).toBe(2);
@@ -103,7 +103,7 @@ describe('travel — arrival reveal (Law §5.6.2 / §2.8.2)', () => {
     s.favorBanks.hearth += s.sharedBank.favor - 1;
     s.sharedBank.favor = 1;
 
-    const out = travel(s, 1, { siteId: dest.id });
+    const out = travel(s, 1, { siteIndex: 1 });
     expect(out.sites.find((x) => x.id === dest.id)!.favor).toBe(1);
     expect(out.sharedBank.favor).toBe(0);
     checkInvariants(out);
@@ -117,7 +117,7 @@ describe('travel — arrival reveal (Law §5.6.2 / §2.8.2)', () => {
     dest.cards = dest.cards.map(() => null);
     s.relicDeck = []; // deck empty
 
-    const out = travel(s, 1, { siteId: dest.id });
+    const out = travel(s, 1, { siteIndex: 7 });
     expect(out.sites.find((x) => x.id === dest.id)!.facedown).toBe(false);
     expect(out.sites.find((x) => x.id === dest.id)!.relics).toEqual([]);
     checkInvariants(out);
@@ -127,7 +127,7 @@ describe('travel — arrival reveal (Law §5.6.2 / §2.8.2)', () => {
     const s = baseState();
     s.players[1].supply = 4;
     const deckBefore = [...s.relicDeck];
-    const out = travel(s, 1, { siteId: s.sites[6].id });
+    const out = travel(s, 1, { siteIndex: 6 });
     expect(out.relicDeck).toEqual(deckBefore);
   });
 });
@@ -135,35 +135,59 @@ describe('travel — arrival reveal (Law §5.6.2 / §2.8.2)', () => {
 describe('travel — legality', () => {
   it('is illegal for a non-active seat', () => {
     const s = baseState();
-    expect(() => travel(s, 2, { siteId: s.sites[6].id })).toThrow(IllegalAction);
+    expect(() => travel(s, 2, { siteIndex: 6 })).toThrow(IllegalAction);
   });
 
   it('is illegal with insufficient Supply', () => {
     const s = baseState();
     s.players[1].supply = 2; // hinterland -> other hinterland costs 3
-    expect(() => travel(s, 1, { siteId: s.sites[6].id })).toThrow(IllegalAction);
+    expect(() => travel(s, 1, { siteIndex: 6 })).toThrow(IllegalAction);
   });
 
   it('is illegal to travel to the site you are already on (Law §5.6.1)', () => {
     const s = baseState();
-    expect(() => travel(s, 1, { siteId: s.players[1].pawnSite })).toThrow(IllegalAction);
+    const here = s.sites.findIndex((x) => x.id === s.players[1].pawnSite);
+    expect(() => travel(s, 1, { siteIndex: here })).toThrow(IllegalAction);
   });
 
-  it('is illegal to travel to a site that does not exist', () => {
+  it('is illegal to travel to a slot off the end of the map', () => {
     const s = baseState();
-    expect(() => travel(s, 1, { siteId: 'site:nowhere' })).toThrow(IllegalAction);
+    expect(() => travel(s, 1, { siteIndex: s.sites.length })).toThrow(IllegalAction);
+  });
+
+  it("a nonexistent slot and the site you're already on fail with the SAME shape of message (no id echoed back that could distinguish a guess)", () => {
+    const s = baseState();
+    const here = s.sites.findIndex((x) => x.id === s.players[1].pawnSite);
+    let offEnd = '';
+    let alreadyThere = '';
+    try {
+      travel(s, 1, { siteIndex: s.sites.length + 5 });
+    } catch (e) {
+      offEnd = (e as Error).message;
+    }
+    try {
+      travel(s, 1, { siteIndex: here });
+    } catch (e) {
+      alreadyThere = (e as Error).message;
+    }
+    // Both are real IllegalActions, but the point of this test is narrower:
+    // neither message discriminates one FACEDOWN site's real id from
+    // another's, which is the only thing §9.4 protects here — asserted
+    // properly (across every slot) in oracle.test.ts's exploit.
+    expect(offEnd).not.toBe('');
+    expect(alreadyThere).not.toBe('');
   });
 
   it('is illegal once the game is complete', () => {
     const s = baseState();
     s.complete = true;
-    expect(() => travel(s, 1, { siteId: s.sites[6].id })).toThrow(IllegalAction);
+    expect(() => travel(s, 1, { siteIndex: 6 })).toThrow(IllegalAction);
   });
 
   it('does not advance the turn', () => {
     const s = baseState();
     s.players[1].supply = 4;
-    const out = travel(s, 1, { siteId: s.sites[2].id });
+    const out = travel(s, 1, { siteIndex: 2 });
     expect(out.turn.activeSeat).toBe(1);
   });
 });

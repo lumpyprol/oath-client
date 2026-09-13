@@ -282,9 +282,19 @@ describe("campaign.resolve's seize block — the winner's remaining choices (Law
 
   it('banishes the pawn to a site of the attacker\'s choice', () => {
     const s = aboutToWin();
-    const out = resolveAction(s, 1, { sacrifice: 0, seize: { banishTo: s.sites[0].id } });
+    // Unit 1 of P4: banishTo is a slot index, same addressing as travel —
+    // it must reach a facedown site (Law §5.5.7.3 defers to travel's own
+    // rules), which has no id a client could name.
+    const out = resolveAction(s, 1, { sacrifice: 0, seize: { banishTo: 0 } });
     expect(out.players[2].pawnSite).toBe(s.sites[0].id);
     checkInvariants(out);
+  });
+
+  it('rejects a banishTo slot off the end of the map (closes the old id-guessing oracle)', () => {
+    const s = aboutToWin();
+    expect(() =>
+      resolveAction(s, 1, { sacrifice: 0, seize: { banishTo: s.sites.length } }),
+    ).toThrow(IllegalAction);
   });
 
   it("burns half (rounded down) of the defender's favor", () => {
@@ -331,7 +341,7 @@ describe("campaign.resolve's seize block — the winner's remaining choices (Law
     const declared = declare(s, 1, { defender: 2, targets: [{ kind: 'site', siteId: s.sites[3].id }], attackDice: 2 });
     const r = respond(declared, 2, { attackFaces: ['sword', 'sword'], defenseFaces: ['blank'] });
     expect(() => resolveAction(r, 1, { sacrifice: 0, seize: { burnFavor: true } })).toThrow(IllegalAction);
-    expect(() => resolveAction(r, 1, { sacrifice: 0, seize: { banishTo: s.sites[0].id } })).toThrow(
+    expect(() => resolveAction(r, 1, { sacrifice: 0, seize: { banishTo: 0 } })).toThrow(
       IllegalAction,
     );
   });
@@ -395,7 +405,7 @@ describe('P3 unit 4 — the campaign costs two attacker visits (D50 + D51)', () 
     const canWin = needed <= rolled.players[1].warbands.board - skulls;
     const final = append('campaign.resolve', 1, {
       sacrifice: canWin ? needed : 0,
-      ...(canWin ? { seize: { banishTo: initial.sites[0].id } } : {}),
+      ...(canWin ? { seize: { banishTo: 0 } } : {}),
     });
     expect(final.campaign).toBeNull(); // finished — no seize action to come
     checkInvariants(final);

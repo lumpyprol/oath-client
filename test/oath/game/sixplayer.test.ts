@@ -90,6 +90,13 @@ function rawState(ctx: Ctx): OathState {
   return store.loadState(oath, ctx.gameId).state as OathState;
 }
 
+/** The board slot a real site id occupies — `travel`'s addressing since unit 1 of P4. */
+function siteIndexOf(ctx: Ctx, siteId: string): number {
+  const i = rawState(ctx).sites.findIndex((s) => s.id === siteId);
+  expect(i, `${siteId} is not on this board`).toBeGreaterThanOrEqual(0);
+  return i;
+}
+
 async function view(ctx: Ctx, seat: number) {
   const r = await api(`/games/${ctx.gameId}`, { token: ctx.tokens[seat] });
   expect(r.status).toBe(200);
@@ -170,10 +177,11 @@ async function resolveWakeIfAny(ctx: Ctx, seat: number) {
 }
 
 /** Any faceup site that is not `avoid` — for a legal Travel destination. */
-function pickOtherFaceup(v: { view: Record<string, any> }, avoid: string): string {
-  const site = v.view.sites.find((s: any) => !s.facedown && s.id !== null && s.id !== avoid);
-  expect(site, 'the board has no second faceup site to travel to').toBeDefined();
-  return site.id;
+/** A slot index (unit 1 of P4's addressing) for some OTHER faceup site — `avoid`'s own id is enough to skip it, since a faceup site's id is already public. */
+function pickOtherFaceup(v: { view: Record<string, any> }, avoid: string): number {
+  const index = v.view.sites.findIndex((s: any) => !s.facedown && s.id !== null && s.id !== avoid);
+  expect(index, 'the board has no second faceup site to travel to').toBeGreaterThanOrEqual(0);
+  return index;
 }
 
 describe('six players, measured (P3 unit 9)', () => {
@@ -302,7 +310,7 @@ describe('six players, measured (P3 unit 9)', () => {
 
     // ---- Round 1, seats 4-5 --------------------------------------------
     await resolveWakeIfAny(ctx, 4);
-    await act(ctx, 4, 'travel', { siteId: pickOtherFaceup(await view(ctx, 4), site) });
+    await act(ctx, 4, 'travel', { siteIndex: pickOtherFaceup(await view(ctx, 4), site) });
     await act(ctx, 4, 'turn.rest');
 
     await resolveWakeIfAny(ctx, 5);
@@ -357,7 +365,7 @@ describe('six players, measured (P3 unit 9)', () => {
     // by policy, so the log between declare and resolve is empty and the
     // defender submits nothing at all.
     await resolveWakeIfAny(ctx, 4);
-    await act(ctx, 4, 'travel', { siteId: site }); // back to the contested site
+    await act(ctx, 4, 'travel', { siteIndex: siteIndexOf(ctx, site) }); // back to the contested site
     const beforeStanding = ctx.seq;
     r = await act(ctx, 4, 'campaign.declare', {
       defender: 0,

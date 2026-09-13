@@ -143,9 +143,11 @@ function wakePayload(state: OathState): { steps: unknown[]; take?: { take: strin
   return w.opportunity !== null ? { steps, take: { take: 'favor' } } : { steps };
 }
 
-/** The relic the seed leaves beside Narrow Pass — read from raw state, since a projection deliberately hides it. */
-function relicAtNarrowPass(ctx: Ctx): string {
-  return rawState(ctx).sites.find((s) => s.id === 'site:narrow-pass')!.relics[0];
+/** The board slot a real site id occupies — `travel`/`recover`'s addressing since unit 1 of P4 (Law §9.4: a facedown site or relic has no id a client can name). */
+function siteIndexOf(ctx: Ctx, siteId: string): number {
+  const i = rawState(ctx).sites.findIndex((s) => s.id === siteId);
+  expect(i, `${siteId} is not on this board`).toBeGreaterThanOrEqual(0);
+  return i;
 }
 
 /** A Reliquary relic id. Hidden from every projection (§9.4) until §6.4's peek exists (P4), so the script reads it from raw state — scaffolding, not a move. */
@@ -219,7 +221,7 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     r = await act(ctx, 1, 'muster', { cardId: denizen });
     expect(r.view.players[1].warbands.board).toBe(5); // 3 + 2 (§5.2.2)
 
-    await act(ctx, 1, 'travel', { siteId: 'site:great-slum' });
+    await act(ctx, 1, 'travel', { siteIndex: siteIndexOf(ctx, 'site:great-slum') });
 
     // A campaign against the bandits (§5.5.1: nobody rules great-slum, so
     // they are the only legal defender). Winning it is what puts seat 1's
@@ -291,8 +293,8 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     expect(r.view.players[2].favor).toBe(4);
 
     // Recover the facedown relic beside Narrow Pass — its §2.8.4 cost is
-    // three favor into the Arcane bank.
-    r = await act(ctx, 2, 'recover', { target: 'relic', relicId: relicAtNarrowPass(ctx) });
+    // three favor into the Arcane bank. It's the only relic there, slot 0.
+    r = await act(ctx, 2, 'recover', { target: 'relic', relicIndex: 0 });
     expect(r.view.players[2].relics).toHaveLength(1);
     expect(r.view.players[2].favor).toBe(1);
 

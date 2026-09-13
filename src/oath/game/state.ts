@@ -324,7 +324,7 @@ export interface CampaignState {
    * choices wait here and are applied by `campaign.casualties` once the
    * allocation lands. Absent on every path that finishes inside `resolve`.
    */
-  seize?: { placements: { siteId: string; warbands: number }[]; banishTo?: string; burnFavor: boolean };
+  seize?: { placements: { siteId: string; warbands: number }[]; banishTo?: number; burnFavor: boolean };
   /** `actionCount` at declare — the pending-decision id's stable anchor. */
   declaredAt: number;
 }

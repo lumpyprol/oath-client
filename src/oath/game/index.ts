@@ -71,8 +71,13 @@ const PREPARE: Record<string, (state: OathState, proposed: ProposedAction) => un
   'turn.rest': prepareRest,
 };
 
-/** Action types a client may actually submit — 'game.created' is a marker, never one of them. */
-const RESOLVABLE_TYPES = Object.keys(HANDLERS).filter((t) => t !== 'game.created');
+/**
+ * Action types a client may actually submit — 'game.created' is a marker,
+ * never one of them. Exported so oracle.test.ts's conformance table can
+ * assert against the REAL dispatch table rather than a hand-copied list
+ * that a new handler could silently outrun (unit 1 of P4).
+ */
+export const RESOLVABLE_TYPES = Object.keys(HANDLERS).filter((t) => t !== 'game.created');
 /** Mid-Search, the ONLY legal action is resolving the drawn cards (Law §5.1.4). */
 const PLAY_TYPES = ['card.play'];
 

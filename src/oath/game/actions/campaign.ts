@@ -1103,8 +1103,21 @@ function applyVictorySpoils(state: OathState, c: CampaignState): OathState {
 }
 
 const SeizeChoicesSchema = z.object({
+  // `placements` names sites from the campaign's OWN `targets` (already
+  // public — declared at `campaign.declare`, Law §9.4 hides nothing about
+  // a campaign in progress), so addressing them by id leaks nothing and
+  // stays as-is.
   placements: z.array(z.object({ siteId: z.string(), warbands: z.number().int().min(0) })).default([]),
-  banishTo: z.string().optional(),
+  // Unit 1 of P4: `banishTo` is unlike `placements` — §5.5.7.3 lets the
+  // attacker send the loser's pawn to ANY site they could travel to
+  // (`travel`'s own §5.6.1/.2, including a facedown one), not just a
+  // declared target. The old `!state.sites.find(...)` check didn't even
+  // discriminate a real facedown id from a fake one — it silently
+  // SUCCEEDED for either, so a failed `campaign.resolve` (which never
+  // persists) could be resubmitted with every known site id to map out
+  // the whole board, facedown sites included, before anyone had traveled
+  // there. Addressed by slot instead, exactly like `travel`.
+  banishTo: z.number().int().min(0).optional(),
   burnFavor: z.boolean().default(false),
 });
 
@@ -1278,7 +1291,7 @@ function casualties(state: OathState, action: GameAction): OathState {
 function applySeizure(
   state: OathState,
   c: CampaignState,
-  choices: { placements: { siteId: string; warbands: number }[]; banishTo?: string; burnFavor: boolean } | undefined,
+  choices: { placements: { siteId: string; warbands: number }[]; banishTo?: number; burnFavor: boolean } | undefined,
 ): OathState {
   const seat = c.attackerSeat;
   const { placements, banishTo, burnFavor } = choices ?? { placements: [], burnFavor: false };
@@ -1313,8 +1326,11 @@ function applySeizure(
       'campaign.resolve: banishing the pawn or burning favor requires a pawnFavor target (Law §5.5.7)',
     );
   }
-  if (banishTo !== undefined && !state.sites.find((s) => s.id === banishTo)) {
-    throw new IllegalAction(`campaign.resolve: ${banishTo} is not a real site`);
+  const banishSite = banishTo !== undefined ? state.sites[banishTo] : undefined;
+  if (banishTo !== undefined && !banishSite) {
+    throw new IllegalAction(
+      `campaign.resolve: no site at slot ${banishTo} — the map has ${state.sites.length} (Law §5.5.7)`,
+    );
   }
 
   let working = applyEffects(state, seat, effects);
@@ -1328,8 +1344,8 @@ function applySeizure(
       ]);
     }
   }
-  if (banishTo !== undefined) {
-    working.players[defenderSeat].pawnSite = banishTo;
+  if (banishSite) {
+    working.players[defenderSeat].pawnSite = banishSite.id;
   }
 
   working.campaign = null;
