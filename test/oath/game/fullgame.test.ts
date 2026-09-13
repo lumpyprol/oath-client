@@ -203,10 +203,18 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
     // they are the only legal defender). Winning it is what puts seat 1's
     // first warband on the map.
     //
-    // ZERO attack dice, deliberately, and the reason is worth stating: the
-    // rest of this game depends on winning here (seat 1's Visionary Win
-    // needs the site this puts a warband on), and committing dice makes the
-    // win a coin flip — every attack die risks a §5.5.5 skull that kills a
+    // ZERO attack dice, deliberately. The reason is worth stating precisely,
+    // because it is easy to state wrongly: this campaign is NOT part of the
+    // win condition — §3.2's Visionary Win fires in seat 1's WAKE PHASE
+    // (§4.1.2), three turns later and in a different phase entirely. What it
+    // does is change the board the Wake check reads. Seat 1 holds the Vision
+    // of Conquest, whose goal is Supremacy ("rules the most sites"); winning
+    // here is what puts their first warband on the map, so they rule ONE
+    // site, tie the other two at one apiece, and a tie MEETS the goal (D45).
+    // Lose here and they rule nothing, so the Wake check finds nothing.
+    //
+    // That makes the outcome load-bearing, and committing dice makes it a
+    // coin flip — every attack die risks a §5.5.5 skull that kills a
     // board warband BEFORE the sacrifice is paid, so a bad roll can leave
     // the attacker unable to afford §9.5's exact amount. With no dice there
     // are no skulls: defense is at most 2 shields + 1 bandit, so the exact

@@ -523,6 +523,72 @@ describe('a completed game is closed (Law §3)', () => {
   });
 });
 
+/**
+ * Every other §3.3/§3.4 test here injects a state at round 5-8 through a
+ * snapshot, and neither frozen game fixture ever gets past round 3 — so
+ * until this was written, NO test had played a game organically into the
+ * rounds where the endgame lives. That is precisely the blind spot
+ * RULES-COVERAGE's own method warns about ("distrust inert in
+ * FIRST_GAME"): seven of P2's fifteen defects were invisible because the
+ * fixture never reached them.
+ *
+ * These two play a real game from `init` — setup choices, Wake Phases and
+ * all — with nothing but Rests, and assert it arrives at each ending.
+ * Rests alone are a legal game: §4.2 never requires an action.
+ */
+describe('a game played organically into the endgame (Law §3.3, §3.4)', () => {
+  /**
+   * Rest through the game, answering any Wake, until it ends. The end die
+   * is supplied rather than rolled because these tests drive `reduce`
+   * directly — `prepareRest`'s own rolling and persistence is covered by
+   * the store-backed test below.
+   */
+  function playRests(endDie: number): { state: OathState; rests: number } {
+    let state = completeSetup(oath, init(oathSetup(4, undefined)));
+    let rests = 0;
+    while (!state.complete && rests < 40) {
+      const seat = state.turn.activeSeat;
+      if (state.wake && state.wake.seat === seat) {
+        const steps = Array.from({ length: state.wake.stepsRemaining }, () => ({ choice: 'place' }));
+        const take = state.wake.opportunity !== null ? { take: 'favor' } : undefined;
+        state = act(state, 'wake.resolve', seat, take ? { steps, take } : { steps });
+      }
+      // §3.3's die is owed only on a rest that ENDS round 5, 6 or 7.
+      const endsRound = (state.turn.activeSeat + 1) % state.seats === 0;
+      const owesDie = endsRound && [5, 6, 7].includes(state.turn.round);
+      state = act(state, 'turn.rest', seat, owesDie ? { endDie } : {});
+      rests += 1;
+      checkInvariants(state);
+    }
+    return { state, rests };
+  }
+
+  it('ends on the Stable Regime Win when the die passes (§3.3)', () => {
+    // 4 beats round seven's target of 3, but not five's (6) or six's (5) —
+    // so the game survives two checks and ends on the third.
+    const { state, rests } = playRests(4);
+    expect(state.complete).toBe(true);
+    expect(rests).toBe(28); // 7 rounds x 4 seats
+    expect(state.turn.round).toBe(8); // the marker advanced past the round that ended
+    expect(state.winner).toBe(0); // §3.3 -> successorOrChancellor; no Citizen exists here
+    expect(oath.pending(state)).toEqual([]);
+  });
+
+  it('...and on War Exhaustion when it never does (§3.4.1)', () => {
+    // A 1 clears no target, so rounds five, six and seven all pass and the
+    // end of round EIGHT ends the game with no die at all.
+    const { state, rests } = playRests(1);
+    expect(state.complete).toBe(true);
+    expect(rests).toBe(32); // 8 rounds x 4 seats
+    expect(state.turn.round).toBe(9);
+    // §3.4.1: the Chancellor holds the Oathkeeper title (nobody took it in a
+    // game of pure Rests), so the Empire wins before any other clause.
+    expect(state.oathkeeper).toBe(0);
+    expect(state.winner).toBe(0);
+    expect(oath.pending(state)).toEqual([]);
+  });
+});
+
 describe("§3.3's end die comes from prepare() and survives replay (HLD D14)", () => {
   it('is rolled once, persisted in the payload, and the refold reuses it', () => {
     const opening = quietBoard();

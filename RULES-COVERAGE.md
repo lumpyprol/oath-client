@@ -102,9 +102,9 @@ as fine", so a review that re-reads our own notes is worthless.
 | --- | --- | --- |
 | 3.1 | Usurper Win | **DONE** `wakeMidEpilogue` |
 | 3.2 | Visionary Win, incl. the three-Vision floor | **DONE** `visionGoalMet`, `VISION_FLOOR` |
-| 3.3 | Stable Regime, rounds 5–7, die faces | **DONE** `roundEnd`, `STABLE_REGIME_TARGET`; die from `prepareRest` (D14) |
+| 3.3 | Stable Regime, rounds 5–7, die faces | **DONE** `roundEnd`, `STABLE_REGIME_TARGET`; die from `prepareRest` (D14). Exercised end-to-end by a rest-only game played from `init` to round 7, not only by injected states |
 | 3.3.1 | Successor goals (crossed against the oath) | **DONE** `meetsSuccessorGoal` |
-| 3.4 / 3.4.1–3.4.4 | War Exhaustion and its priority order, incl. the Vision tiebreak | **DONE** `warExhaustion`, `VISION_TIEBREAK` |
+| 3.4 / 3.4.1–3.4.4 | War Exhaustion and its priority order, incl. the Vision tiebreak | **DONE** `warExhaustion`, `VISION_TIEBREAK`; all four clauses tested individually, and §3.4.1 also reached end-to-end by a rest-only game played through round 8 |
 
 ## §4 Sequence of Play — `turn.ts`, `victory.ts`, `index.ts`
 
