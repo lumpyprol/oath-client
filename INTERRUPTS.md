@@ -22,6 +22,16 @@ resolved by an ordinary logged action, which is already rewindable,
 replayable, and projectable for free. What follows is the catalogue that
 keeps that claim honest.
 
+**Tied to affordances (P4 unit 6).** `src/oath/game/affordances.ts` (D56)
+describes the option space for each submittable action, and
+`test/oath/game/affordances-conformance.test.ts` binds the two catalogues:
+every dispatch-table type is either described there or explicitly
+never-offered, and for every specific (non-`turn`) decision live in a
+frozen fixture, each type in its `Resolves` column has an affordance entry
+for the owning seat. So this table and the affordance table cannot drift.
+`standing.set` is the one action offered off-turn to any seat (it resolves
+no decision — see its `turn`-row note below).
+
 Every id is `` `${kind-prefix}:${seat}:${anchor}` `` where `anchor` is the
 `actionCount` at the moment the decision arose — stable across polls
 (nothing about re-fetching `pending()` changes it) and distinct per

@@ -90,9 +90,11 @@ describe('card.play mid-Search', () => {
     expect(s.players[1].citizenship).toBe('exile');
     checkInvariants(s);
 
-    const entries = aff(s, 1);
-    // Only card.play is offered mid-Search (the 'play' decision resolves it alone).
-    expect(entries.every((e) => e.type === 'card.play')).toBe(true);
+    const all = aff(s, 1);
+    // Mid-Search the 'play' decision resolves only card.play; the sole other
+    // offer is the universal standing.set (P4 unit 6).
+    expect(new Set(all.map((e) => e.type))).toEqual(new Set(['card.play', 'standing.set']));
+    const entries = all.filter((e) => e.type === 'card.play');
     const asOptionsForDenizen = entries
       .filter((e) => (e.fields[0] as any).options[0].value === 0)
       .flatMap((e) => ((e.fields[1] as any).options as { value: string }[]).map((o) => o.value));

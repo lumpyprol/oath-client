@@ -593,7 +593,7 @@ the server and proven against `reduce`.
 
 ---
 
-## Unit 6 — Affordances for every pending decision, and the bidirectional tie
+## Unit 6 — Affordances for every pending decision, and the bidirectional tie ✅ (completed 2026-09-13)
 
 **Purpose.** Close the table, and bind it to `INTERRUPTS.md` so the two
 contracts cannot drift. After this unit, "the client never computes a rule"

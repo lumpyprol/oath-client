@@ -71,6 +71,10 @@ describe.each(FIXTURES)('the harness over a full game — $name', ({ fixture }) 
           oath.pending(state).filter((d) => d.seat === seat).flatMap((d) => d.resolves),
         );
         for (const entry of affordancesOf(state, seat)) {
+          // standing.set is the one universal off-turn action (P4 unit 6):
+          // legal any time the game runs, so it is exempt from the
+          // pending-driven subset rule.
+          if (entry.type === 'standing.set') continue;
           if (!resolvable.has(entry.type)) {
             wrong.push(`${after}: seat ${seat} was offered ${entry.type}, which no pending decision of theirs resolves`);
           }
@@ -195,13 +199,13 @@ describe('the pending-driven contract', () => {
     expect(affordancesOf(s, 1)).toEqual([]);
   });
 
-  it('a non-active seat with no pending decision is offered nothing (not even the always-legal standing.set)', () => {
+  it('a non-active seat with no pending decision is offered ONLY standing.set (the universal off-turn action, P4 unit 6)', () => {
     const s = baseState(); // seat 1 active
-    expect(affordancesOf(s, 2)).toEqual([]);
     expect(oath.pending(s).some((d) => d.seat === 2)).toBe(false);
+    expect(affordancesOf(s, 2).map((e) => e.type)).toEqual(['standing.set']);
   });
 
-  it('a locked Campaign phase yields only what that decision resolves — none of the wired shapes', () => {
+  it('a locked Campaign phase offers exactly the phase resolver (for its owner) and standing.set — nothing else', () => {
     const s = baseState();
     s.campaign = {
       attackerSeat: 1,
@@ -216,12 +220,14 @@ describe('the pending-driven contract', () => {
       phase: 'respond',
       declaredAt: s.actionCount,
     };
-    // The defender owes the only decision; it resolves campaign.respond,
-    // which this unit does not describe — so nothing is offered to anyone.
     const respond = oath.pending(s).find((d) => d.seat === 2)!;
     expect(respond.resolves).toEqual(['campaign.respond']);
-    expect(affordancesOf(s, 2)).toEqual([]);
-    expect(affordancesOf(s, 1)).toEqual([]); // the attacker is locked out mid-campaign
+    // The defender owns the window: they get campaign.respond + the
+    // universal standing.set, and nothing from the turn menu.
+    expect(affordancesOf(s, 2).map((e) => e.type).sort()).toEqual(['campaign.respond', 'standing.set']);
+    // The attacker is locked out mid-campaign: only standing.set.
+    expect(affordancesOf(s, 1).map((e) => e.type)).toEqual(['standing.set']);
     expect(auditAffordances(s, 2)).toEqual([]);
+    expect(auditAffordances(s, 1)).toEqual([]);
   });
 });

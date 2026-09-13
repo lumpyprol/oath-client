@@ -91,10 +91,11 @@ describe('GET /games/:id — affordances transport (P4 unit 4)', () => {
     expect('affordances' in r.body).toBe(false);
   });
 
-  it('gives a seat whose turn it is not an empty affordance list', async () => {
+  it('gives a seat whose turn it is not only the universal standing.set', async () => {
     const { gameId, tokens } = await newGame();
     const r = await api(`/games/${gameId}`, { token: tokens[1] }); // not seat 1's turn yet
     expect(r.status).toBe(200);
-    expect(r.body.affordances).toEqual([]);
+    // standing.set is legal off-turn (P4 unit 6); nothing else is offered.
+    expect((r.body.affordances as { type: string }[]).map((a) => a.type)).toEqual(['standing.set']);
   });
 });

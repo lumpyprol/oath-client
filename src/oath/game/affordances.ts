@@ -49,12 +49,26 @@ import {
   type PlayerState,
   type SiteState,
 } from './state.js';
+import type { Relic } from '../cards/schema.js';
 import { isRestricted, restrictionKnown } from './restrictions.js';
-import { rulersOf, chancellorSeatOf } from './rule.js';
+import { rulersOf, chancellorSeatOf, imperialExclusionFor } from './rule.js';
 import { consultStanding } from './standing.js';
 import { worldDeckCost } from './actions/search.js';
 import { darkestSecretRecoverable, relicRecoverCost } from './actions/recover.js';
 import { hasAccess, reliquaryPowerId } from './actions/power.js';
+import { exileFavorCost, selfExileFavorCost } from './actions/citizenship.js';
+import {
+  CAMPAIGN_COST,
+  PAWN_FAVOR_DICE,
+  SITE_DEFENSE_DICE,
+  SCEPTER_DEFENSE_DICE,
+  titleDefenseDice,
+  attackTotal,
+  defenseTotal,
+  defendingForce,
+  eligibleAllyVolunteers,
+  casualtyChooser,
+} from './actions/campaign.js';
 
 /** A resource cost attached to an option, for the client to render beside it. */
 export interface Cost {
@@ -504,6 +518,396 @@ function describePowerUse(state: OathState, seat: number): Affordance[] {
   ];
 }
 
+// § Peek (Law §6.3/§6.4) — free minor actions on your turn (unit 3). Both
+// address a SLOT, never an id (D60), so nothing here leaks: an unpeeked
+// slot labels by position, a peeked one may add the name the seat already
+// knows.
+function describePeekRelic(state: OathState, seat: number): Affordance[] {
+  const site = pawnSiteOf(state, seat);
+  if (!site || site.relics.length === 0) return [];
+  const peeked = state.players[seat].peeked;
+  return [
+    {
+      type: 'peek.relic',
+      fields: [
+        {
+          name: 'relicIndex',
+          kind: 'choose-one',
+          options: site.relics.map((relicId, i) => ({
+            value: i,
+            label: peeked.includes(relicId) ? `Slot ${i} (${byId(relicId).name})` : `Slot ${i}`,
+          })),
+        },
+      ],
+      note: 'Peek at a facedown relic at your site (Law §6.3) — free.',
+    },
+  ];
+}
+
+function describePeekReliquary(state: OathState, seat: number): Affordance[] {
+  if (seat !== state.grandScepter) return [];
+  const peeked = state.players[seat].peeked;
+  const covered = state.reliquary
+    .map((sp, i) => ({ sp, i }))
+    .filter(({ sp }) => sp.relicId !== null);
+  if (covered.length === 0) return [];
+  return [
+    {
+      type: 'peek.reliquary',
+      fields: [
+        {
+          name: 'spaces',
+          kind: 'choose-many',
+          options: covered.map(({ sp, i }) => ({
+            value: i,
+            label: peeked.includes(sp.relicId!) ? `${sp.modifier} (${byId(sp.relicId!).name})` : `${sp.modifier} space`,
+          })),
+        },
+      ],
+      note: 'Peek at any Imperial Reliquary relics (Law §6.4) — free; Grand Scepter only.',
+    },
+  ];
+}
+
+// ---- unit 6: the pending decisions ----------------------------------------
+
+// Every describer below is registered against a type that ALSO appears in
+// the `turn` decision's `resolves` (RESOLVABLE_TYPES is the whole dispatch
+// table), so each guards its own precondition — a response action is
+// offered only when its specific decision is actually live for this seat,
+// never merely because it is your turn.
+
+// § Setup (Law §1.23.1) — offered only inside the §1.23 window.
+function describeSetupChoose(state: OathState, seat: number): Affordance[] {
+  if (!state.setupChoices || state.setupChoices.remaining[0] !== seat) return [];
+  const faceup = state.sites.map((s, i) => ({ s, i })).filter(({ s }) => !s.facedown);
+  const topCradle = faceup.find(({ s }) => s.region === 'cradle');
+  // §1.23.1: the Chancellor must use the top Cradle site; everyone else any faceup site.
+  const siteOptions =
+    seat === chancellorSeatOf(state) && topCradle
+      ? [{ value: topCradle.s.id, label: `${byId(topCradle.s.id).name} (top Cradle — required, Law §1.23.1)` }]
+      : faceup.map(({ s }) => ({ value: s.id, label: `${byId(s.id).name} (${s.region})` }));
+  const hand = state.players[seat].hand; // the seat's OWN three drawn cards (§1.20)
+  return [
+    {
+      type: 'setup.choose',
+      fields: [
+        { name: 'siteId', kind: 'choose-one', options: siteOptions },
+        {
+          name: 'keepIndex',
+          kind: 'choose-one',
+          options: hand.map((id, i) => ({ value: i, label: byId(id).name })),
+        },
+      ],
+      note: 'Place your pawn and keep one card as a facedown adviser (Law §1.23).',
+    },
+  ];
+}
+
+// § Wake Phase (Law §4.1) — batched; the ordered steps + optional take are a
+// structured payload the client builds from the (public) wake decision, so
+// this is a `free` field the harness skips (like power.use).
+function describeWakeResolve(state: OathState, seat: number): Affordance[] {
+  if (!state.wake || state.wake.seat !== seat) return [];
+  const w = state.wake;
+  const parts = [
+    w.stepsRemaining > 0 ? `${w.stepsRemaining} People's Favor step(s) (§4.1.1)` : null,
+    w.opportunity !== null ? `an Opportunity Site take (§4.1.4)` : null,
+  ].filter((s) => s !== null);
+  return [
+    {
+      type: 'wake.resolve',
+      fields: [
+        {
+          name: 'steps',
+          kind: 'free',
+          schema:
+            "WakeStep[] of length stepsRemaining (each { choice: 'place' } or { choice: 'return', bank: <suit> }), plus an optional { take: { take: 'favor'|'secret'|'none' } } when an Opportunity Site is owed",
+        },
+      ],
+      note: `Resolve your Wake Phase: ${parts.join(', then ')}.`,
+    },
+  ];
+}
+
+// § Campaign (Law §5.5). declare is a major action (on your turn); the rest
+// resolve a live campaign phase.
+function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
+  const p = state.players[seat];
+  const site = pawnSiteOf(state, seat);
+  if (!site || p.supply < CAMPAIGN_COST) return []; // §5.5.1: costs 2 Supply
+  const attackerSite = site.id;
+  const out: Affordance[] = [];
+
+  const candidateDefenders: (number | 'bandits')[] = [
+    ...state.players.map((_, s) => s).filter((s) => s !== seat),
+    'bandits',
+  ];
+  for (const defender of candidateDefenders) {
+    const exclude = imperialExclusionFor(state, seat, defender); // §5.5.1 carve-out — not restated
+    const rulers = rulersOf(state, attackerSite, exclude);
+    const pawnHere = defender !== 'bandits' && state.players[defender].pawnSite === attackerSite;
+    if (defender === 'bandits') {
+      if (rulers.length > 0) continue; // bandits defend only an unruled site (§5.5.1)
+    } else if (!rulers.includes(defender) && !pawnHere) {
+      continue; // §5.5.1: defender must rule your site or have their pawn there
+    }
+    const rulesYourSite = defender === 'bandits' ? true : rulers.includes(defender);
+
+    // Legal SOLO targets (each a complete one-target declaration, Law §5.5.2
+    // with the "at least one target at your site" / "must target the ruled
+    // site" clauses). Multi-target declarations are the client's to assemble.
+    const soloTargets: { value: unknown; label: string }[] = [];
+    if (rulesYourSite) {
+      // §5.5.2: when the defender rules your site you MUST target the site,
+      // so the site is the only solo-legal target.
+      soloTargets.push({
+        value: [{ kind: 'site', siteId: attackerSite }],
+        label: `${byId(attackerSite).name} — ${SITE_DEFENSE_DICE} defense die`,
+      });
+    } else if (pawnHere) {
+      // Pawn present but not ruling: the at-your-site targets are solo-legal.
+      soloTargets.push({ value: [{ kind: 'pawnFavor' }], label: `their pawn & favor — ${PAWN_FAVOR_DICE} defense dice` });
+      for (const banner of state.banners) {
+        if (banner.holder === defender) {
+          soloTargets.push({
+            value: [{ kind: 'banner', bannerId: banner.id.slice('banner:'.length) }],
+            label: `${byId(banner.id).name} — ${banner.tokens} defense dice`,
+          });
+        }
+      }
+      for (const relicId of state.players[defender].relics) {
+        soloTargets.push({
+          value: [{ kind: 'relic', relicId }],
+          label: `${byId(relicId).name} — ${(byId(relicId) as Relic).defenseDice} defense dice`,
+        });
+      }
+      if (state.grandScepter === defender) {
+        soloTargets.push({ value: [{ kind: 'scepter' }], label: `the Grand Scepter — ${SCEPTER_DEFENSE_DICE} defense dice` });
+      }
+    }
+    if (soloTargets.length === 0) continue;
+
+    out.push({
+      type: 'campaign.declare',
+      fields: [
+        {
+          name: 'defender',
+          kind: 'choose-one',
+          options: [{ value: defender, label: defender === 'bandits' ? 'the bandits' : `seat ${defender}` }],
+        },
+        { name: 'targets', kind: 'choose-one', options: soloTargets },
+        { name: 'attackDice', kind: 'count', min: 0, max: p.warbands.board },
+      ],
+      note:
+        `Costs ${CAMPAIGN_COST} Supply. The defender's title adds ` +
+        `${titleDefenseDice(state, seat, defender)} defense dice (Law §2.11); ` +
+        `Plains +1 / Mountain -1 attack die (§11.4). Defense per target is shown above.`,
+    });
+  }
+  return out;
+}
+
+function describeCampaignAlly(state: OathState, seat: number): Affordance[] {
+  const c = state.campaign;
+  if (!c || c.phase !== 'join' || !eligibleAllyVolunteers(state, c).includes(seat)) return [];
+  return [
+    {
+      type: 'campaign.ally',
+      fields: [{ name: 'join', kind: 'flag' }],
+      note: 'Join the defence as an Ally, or decline (Law §5.5.2).',
+    },
+  ];
+}
+
+function describeCampaignPermit(state: OathState, seat: number): Affordance[] {
+  const c = state.campaign;
+  if (!c || c.phase !== 'permit' || c.defenderSeat !== seat) return [];
+  return [
+    {
+      type: 'campaign.permit',
+      fields: [
+        {
+          name: 'allies',
+          kind: 'choose-many',
+          options: c.allyVolunteers.map((s) => ({ value: s, label: `seat ${s}` })),
+        },
+      ],
+      note: "Name which volunteers you permit as Allies (Law §5.5.2) — an empty list permits none.",
+    },
+  ];
+}
+
+function describeCampaignRespond(state: OathState, seat: number): Affordance[] {
+  const c = state.campaign;
+  if (!c || c.phase !== 'respond' || c.defenderSeat !== seat) return [];
+  // The dice are rolled server-side in prepare() (D14/D51) — the defender
+  // just closes the window, so there are no fields to fill.
+  return [
+    {
+      type: 'campaign.respond',
+      fields: [],
+      note: 'Respond to close the window (Law §5.5.3); the dice are rolled server-side.',
+    },
+  ];
+}
+
+function describeCampaignResolve(state: OathState, seat: number): Affordance[] {
+  const c = state.campaign;
+  if (!c || c.phase !== 'rolled' || c.attackerSeat !== seat) return [];
+  const force = defendingForce(state, c);
+  const defense = defenseTotal(state, c, force);
+  const { swords, skulls } = attackTotal(c.attackFaces ?? []);
+  const needed = Math.max(0, defense - swords + 1); // §5.5.5
+  const board = state.players[c.attackerSeat].warbands.board;
+  const postSkull = board - Math.min(skulls, board); // §5.5.5 kills skulls before the sacrifice
+  // Legal sacrifice values are exactly 0 (accept the outcome) or `needed`
+  // (pay for the win, if the post-skull board can afford it) — never a value
+  // in between (the reducer rejects those), so this is a choose-one, not a
+  // count. The §5.5.7 seizure choices ride the same payload on a win; that
+  // richer block is self-policed (see note), offered here as sacrifice only.
+  const sacrifice: Option[] = [{ value: 0, label: swords > defense ? 'resolve (already victorious)' : 'resolve without sacrificing' }];
+  if (needed > 0 && needed <= postSkull) {
+    sacrifice.push({ value: needed, label: `sacrifice ${needed} warband(s) to become victorious` });
+  }
+  return [
+    {
+      type: 'campaign.resolve',
+      fields: [{ name: 'sacrifice', kind: 'choose-one', options: sacrifice }],
+      note:
+        `Attack ${swords} sword(s) vs ${defense} defense (${skulls} skull(s) kill your own first, §5.5.5). ` +
+        `On a win you may also seize (§5.5.7): pass a seize block of placements/banish/burnFavor in the same action.`,
+    },
+  ];
+}
+
+function describeCampaignCasualties(state: OathState, seat: number): Affordance[] {
+  const c = state.campaign;
+  if (!c || c.phase !== 'casualties' || casualtyChooser(state, c) !== seat) return [];
+  // The kill allocation is a structured choice over the (public) defeated
+  // force and quota — a `free` field the client builds and the engine
+  // validates; the harness skips it, like power.use.
+  return [
+    {
+      type: 'campaign.casualties',
+      fields: [
+        {
+          name: 'kills',
+          kind: 'free',
+          schema:
+            'Array<{ kind: "site", siteId, seat, count } | { kind: "board", seat, count }> summing to the quota, drawn from campaign.casualties.force',
+        },
+      ],
+      note: `Allocate exactly ${c.casualties?.quota} kill(s) among the defeated force (Law §5.5.6).`,
+    },
+  ];
+}
+
+// § Citizenship (Law §6.6-6.8).
+function describeCitizenshipOffer(state: OathState, seat: number): Affordance[] {
+  // §6.6.1: only the Grand Scepter holder, only with no offer already open.
+  if (seat !== state.grandScepter || state.citizenshipOffer) return [];
+  const exiles = state.players.map((p, s) => ({ p, s })).filter(({ p, s }) => p.citizenship === 'exile' && s !== seat);
+  if (exiles.length === 0) return [];
+  // The mandatory relic must be named by id (§6.6.1) — so it must be one the
+  // holder legitimately knows. §6.4 lets them PEEK any Reliquary relic; our
+  // model requires actually having peeked it (unit 3), and putting an
+  // un-peeked id here would be a leak the audit correctly catches. So the
+  // offer lists only PEEKED Reliquary relics; the holder peeks (peek.reliquary)
+  // to reveal more. (give/take negotiation is optional — self-policed.)
+  const peekedReliquary = state.reliquary
+    .filter((sp) => sp.relicId !== null && state.players[seat].peeked.includes(sp.relicId))
+    .map((sp) => sp.relicId!);
+  if (peekedReliquary.length === 0) return [];
+  return [
+    {
+      type: 'citizenship.offer',
+      fields: [
+        { name: 'exile', kind: 'choose-one', options: exiles.map(({ s }) => ({ value: s, label: `seat ${s}` })) },
+        { name: 'relicId', kind: 'choose-one', options: peekedReliquary.map((id) => ({ value: id, label: byId(id).name })) },
+      ],
+      note: 'Offer Citizenship with one Reliquary relic (Law §6.6.1). Peek more relics (peek.reliquary) to offer them; give/take negotiation is self-policed.',
+    },
+  ];
+}
+
+function describeCitizenshipAccept(state: OathState, seat: number): Affordance[] {
+  if (!state.citizenshipOffer || state.citizenshipOffer.exile !== seat) return [];
+  return [{ type: 'citizenship.accept', fields: [], note: 'Accept the Citizenship offer (Law §6.6.2).' }];
+}
+function describeCitizenshipDecline(state: OathState, seat: number): Affordance[] {
+  if (!state.citizenshipOffer || state.citizenshipOffer.exile !== seat) return [];
+  return [{ type: 'citizenship.decline', fields: [], note: 'Decline the Citizenship offer.' }];
+}
+
+function describeCitizenshipExile(state: OathState, seat: number): Affordance[] {
+  // §6.7: the Grand Scepter holder exiles another Citizen (never themselves),
+  // paying them favor — so only Citizens the actor can AFFORD to exile are
+  // offered (the cost varies per target by their/your titles).
+  if (seat !== state.grandScepter) return [];
+  const affordable = state.players
+    .map((p, s) => ({ p, s }))
+    .filter(({ p, s }) => p.citizenship === 'citizen' && s !== seat)
+    .filter(({ s }) => state.players[seat].favor >= exileFavorCost(state, seat, s));
+  if (affordable.length === 0) return [];
+  return [
+    {
+      type: 'citizenship.exile',
+      fields: [
+        {
+          name: 'citizen',
+          kind: 'choose-one',
+          options: affordable.map(({ s }) => ({
+            value: s,
+            label: `seat ${s}`,
+            cost: { favor: exileFavorCost(state, seat, s) },
+          })),
+        },
+      ],
+      note: 'Exile a Citizen by giving them favor (Law §6.7).',
+    },
+  ];
+}
+
+function describeCitizenshipSelfExile(state: OathState, seat: number): Affordance[] {
+  // §6.8: a Citizen who is NOT the Grand Scepter holder may exile themselves,
+  // PAYING the Scepter holder favor equal to their secrets + board warbands —
+  // offered only when the actor can afford it.
+  if (state.players[seat].citizenship !== 'citizen' || seat === state.grandScepter) return [];
+  const cost = selfExileFavorCost(state, seat);
+  if (state.players[seat].favor < cost) return [];
+  return [
+    {
+      type: 'citizenship.selfExile',
+      fields: [],
+      note: `Exile yourself, paying the Grand Scepter holder ${cost} favor (Law §6.8).`,
+    },
+  ];
+}
+
+// § Warband permission (Law §6.5) — the approver's answer.
+function describeWarbandsAllow(state: OathState, seat: number): Affordance[] {
+  if (!state.warbandRequest || state.warbandRequest.approver !== seat) return [];
+  return [{ type: 'warbands.allow', fields: [], note: 'Allow the warband move (Law §6.5).' }];
+}
+function describeWarbandsDeny(state: OathState, seat: number): Affordance[] {
+  if (!state.warbandRequest || state.warbandRequest.approver !== seat) return [];
+  return [{ type: 'warbands.deny', fields: [], note: 'Deny the warband move (Law §6.5).' }];
+}
+
+// § Oathkeeper title (Law §2.11) — the losing holder chooses the heir.
+function describeOathkeeperGrant(state: OathState, seat: number): Affordance[] {
+  if (!state.titleChoice || state.titleChoice.holder !== seat) return [];
+  const c = state.titleChoice;
+  return [
+    {
+      type: 'oathkeeper.grant',
+      fields: [{ name: 'seat', kind: 'choose-one', options: c.candidates.map((s) => ({ value: s, label: `seat ${s}` })) }],
+      note: 'Choose which qualifying seat takes the Oathkeeper title (Law §2.11).',
+    },
+  ];
+}
+
 // ---- registration & assembly ----------------------------------------------
 
 /** Stable order; additive as later units register more. */
@@ -519,7 +923,34 @@ const DESCRIBERS: Record<string, Describer> = {
   'adviser.play': describeAdviserPlay,
   'warbands.move': describeWarbandsMove,
   'power.use': describePowerUse,
+  'peek.relic': describePeekRelic,
+  'peek.reliquary': describePeekReliquary,
+  // unit 6: the pending decisions
+  'setup.choose': describeSetupChoose,
+  'wake.resolve': describeWakeResolve,
+  'campaign.declare': describeCampaignDeclare,
+  'campaign.ally': describeCampaignAlly,
+  'campaign.permit': describeCampaignPermit,
+  'campaign.respond': describeCampaignRespond,
+  'campaign.resolve': describeCampaignResolve,
+  'campaign.casualties': describeCampaignCasualties,
+  'citizenship.offer': describeCitizenshipOffer,
+  'citizenship.accept': describeCitizenshipAccept,
+  'citizenship.decline': describeCitizenshipDecline,
+  'citizenship.exile': describeCitizenshipExile,
+  'citizenship.selfExile': describeCitizenshipSelfExile,
+  'warbands.allow': describeWarbandsAllow,
+  'warbands.deny': describeWarbandsDeny,
+  'oathkeeper.grant': describeOathkeeperGrant,
 };
+
+/**
+ * Every action type this module can describe. Exported so the bidirectional
+ * conformance test (affordances.test.ts) can assert every dispatch-table
+ * type is either described here or explicitly never-offered — the two
+ * catalogues cannot drift.
+ */
+export const DESCRIBED_TYPES: readonly string[] = Object.keys(DESCRIBERS);
 
 export function computeAffordances(
   state: OathState,
@@ -535,12 +966,20 @@ export function computeAffordances(
     for (const type of d.resolves) if (!decisionOf.has(type)) decisionOf.set(type, d.id);
   }
 
+  // `standing.set` is the one action legal for any seat at any time (it
+  // bypasses `requireActiveSeat`), so it is offered even off-turn — during
+  // another seat's Campaign, say, which is exactly when you would want to
+  // stop being asked (P3 unit 6). The only bar is the §1.23 setup lock,
+  // which forbids every action but `setup.choose`. Every OTHER describer is
+  // gated on a live decision that names its type for this seat.
+  const alwaysOn = !state.setupChoices ? new Set(['standing.set']) : new Set<string>();
+
   const out: Affordance[] = [];
   for (const [type, describe] of Object.entries(DESCRIBERS)) {
-    if (!decisionOf.has(type)) continue;
-    const decisionId = decisionOf.get(type)!;
+    if (!decisionOf.has(type) && !alwaysOn.has(type)) continue;
+    const decisionId = decisionOf.get(type); // may be undefined for an off-turn standing.set
     for (const entry of describe(state, seat)) {
-      entry.decisionId = decisionId;
+      if (decisionId !== undefined) entry.decisionId = decisionId;
       out.push(entry);
     }
   }

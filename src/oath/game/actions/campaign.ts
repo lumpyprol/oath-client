@@ -242,9 +242,9 @@ import {
 import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 import { consultStanding } from '../standing.js';
 
-const CAMPAIGN_COST = 2; // Supply (Law §5.5.1)
-const PAWN_FAVOR_DICE = 2; // Law §5.5.2 (fixed, "as shown by the shield on their board")
-const SITE_DEFENSE_DICE = 1; // Law §2.8.3 ("a defense die" — every site prints exactly one)
+export const CAMPAIGN_COST = 2; // Supply (Law §5.5.1)
+export const PAWN_FAVOR_DICE = 2; // Law §5.5.2 (fixed, "as shown by the shield on their board")
+export const SITE_DEFENSE_DICE = 1; // Law §2.8.3 ("a defense die" — every site prints exactly one)
 const SEIZE_BANNER_BURN = 2; // Law §2.5.3
 const SEIZE_BANNER_MINIMUM = 1; // Law §2.5.3 ("to a minimum of one")
 /**
@@ -253,7 +253,7 @@ const SEIZE_BANNER_MINIMUM = 1; // Law §2.5.3 ("to a minimum of one")
  * the card itself (cards.buriedgiant.com/card/OATH-231, "Defense: 5"); see
  * RULINGS.md, since the Scepter is not in the P1 card database.
  */
-const SCEPTER_DEFENSE_DICE = 5;
+export const SCEPTER_DEFENSE_DICE = 5;
 /** Law §2.11: "The Oathkeeper must add one defense die... the Usurper must add two." */
 const OATHKEEPER_DEFENSE_DICE = 1;
 const USURPER_DEFENSE_DICE = 2;
@@ -309,7 +309,7 @@ const TargetSchema = z.discriminatedUnion('kind', [
  * attack gets no Imperial backing — consistent with that same Campaign
  * having no Allies.
  */
-function titleDefenseDice(
+export function titleDefenseDice(
   state: OathState,
   attackerSeat: number,
   defenderSeat: number | 'bandits',
@@ -764,7 +764,7 @@ function storeFaces(c: CampaignState, payload: unknown, actionName: string): voi
 // ---- resolution (unit 13) -------------------------------------------------
 
 /** Law §5.5.5: a sword counts 1; two hollowSwords count as 1 (a lone one, 0). */
-function attackTotal(faces: AttackFace[]): { swords: number; skulls: number } {
+export function attackTotal(faces: AttackFace[]): { swords: number; skulls: number } {
   const swords = faces.filter((f) => f === 'sword').length;
   const hollow = faces.filter((f) => f === 'hollowSword').length;
   const skulls = faces.filter((f) => f === 'skull').length;
@@ -866,7 +866,7 @@ export function eligibleAllyVolunteers(state: OathState, c: CampaignState): numb
  * §5.5.1 has either suspended the attacker (Citizen-vs-Empire) or the
  * attacker is an Exile. The `filter` states that rather than relying on it.
  */
-function defendingForce(state: OathState, c: CampaignState): ForceEntry[] {
+export function defendingForce(state: OathState, c: CampaignState): ForceEntry[] {
   if (c.defenderSeat === 'bandits') return []; // Glossary §10.3: bandits are not warbands
   const exclusion = imperialExclusionFor(state, c.attackerSeat, c.defenderSeat);
   const imperial = imperialForce(state, exclusion);
@@ -902,7 +902,7 @@ function forceTotal(force: ForceEntry[]): number {
 }
 
 /** Law §5.5.4's full defense-total arithmetic, from the persisted faces + the force. */
-function defenseTotal(state: OathState, c: CampaignState, force: ForceEntry[]): number {
+export function defenseTotal(state: OathState, c: CampaignState, force: ForceEntry[]): number {
   const shields = c.defenseFaces!.filter((f) => f === 'shield').length;
   const doubleShields = c.defenseFaces!.filter((f) => f === 'doubleShield').length;
   const doublings = c.defenseFaces!.filter((f) => f === 'shieldX2').length;

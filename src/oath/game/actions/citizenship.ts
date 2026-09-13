@@ -151,6 +151,30 @@ import { requireActiveSeat, type Handler } from '../turn.js';
 
 const EXILE_BASE_FAVOR = 5; // Law §6.7
 
+/**
+ * Law §6.7's favor the Grand Scepter holder pays to exile a Citizen: 5,
+ * +1 per title the CITIZEN holds (Oathkeeper / People's Favor), -1 per
+ * title the ACTOR holds, floored at 0. The ONE definition — `exile`'s
+ * reducer spends exactly this and P4's affordance describer reads it to
+ * decide whether the move is affordable (never a second transcription).
+ */
+export function exileFavorCost(state: OathState, actor: number, citizen: number): number {
+  const holdsPeoplesFavor = (s: number) => state.banners.find((b) => b.id === PEOPLES_FAVOR_ID)?.holder === s;
+  const citizenFlags = (state.oathkeeper === citizen ? 1 : 0) + (holdsPeoplesFavor(citizen) ? 1 : 0);
+  const actorFlags = (state.oathkeeper === actor ? 1 : 0) + (holdsPeoplesFavor(actor) ? 1 : 0);
+  return Math.max(0, EXILE_BASE_FAVOR + citizenFlags - actorFlags);
+}
+
+/**
+ * Law §6.8's favor a self-exiling Citizen pays the Grand Scepter holder:
+ * their board secrets (ready + flipped) + secrets on their own advisers +
+ * their board warbands. Same single-definition contract as `exileFavorCost`.
+ */
+export function selfExileFavorCost(state: OathState, seat: number): number {
+  const p = state.players[seat];
+  return p.secrets.ready + p.secrets.flipped + p.advisers.reduce((sum, a) => sum + a.secrets, 0) + p.warbands.board;
+}
+
 function bannerFullId(short: 'peoples-favor' | 'darkest-secret'): string {
   return short === 'peoples-favor' ? PEOPLES_FAVOR_ID : DARKEST_SECRET_ID;
 }
@@ -411,10 +435,7 @@ function exile(state: OathState, action: GameAction): OathState {
     throw new IllegalAction('citizenship.exile: the target must currently be a Citizen (Law §6.7)');
   }
 
-  const holdsPeoplesFavor = (s: number) => state.banners.find((b) => b.id === PEOPLES_FAVOR_ID)?.holder === s;
-  const citizenFlags = (state.oathkeeper === citizen ? 1 : 0) + (holdsPeoplesFavor(citizen) ? 1 : 0);
-  const actorFlags = (state.oathkeeper === seat ? 1 : 0) + (holdsPeoplesFavor(seat) ? 1 : 0);
-  const amount = Math.max(0, EXILE_BASE_FAVOR + citizenFlags - actorFlags);
+  const amount = exileFavorCost(state, seat, citizen);
 
   const effects: Effect[] = [];
   if (amount > 0) {
@@ -440,10 +461,7 @@ function selfExile(state: OathState, action: GameAction): OathState {
     throw new IllegalAction('citizenship.selfExile: the Grand Scepter holder cannot exile themselves (Law §6.8)');
   }
   const scepterSeat = state.grandScepter;
-  const player = state.players[seat];
-  const boardSecrets = player.secrets.ready + player.secrets.flipped;
-  const adviserSecrets = player.advisers.reduce((sum, a) => sum + a.secrets, 0);
-  const amount = boardSecrets + adviserSecrets + player.warbands.board;
+  const amount = selfExileFavorCost(state, seat);
 
   const effects: Effect[] = [];
   if (amount > 0) {
