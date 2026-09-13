@@ -126,6 +126,12 @@ const TABLE: Record<string, FieldEntry[]> = {
     { field: 'siteId', classification: 'public' },
     { field: 'bannerId', classification: 'public' }, // one of exactly 2, always on the table
   ],
+  // Unit 3 of P4: the payload NEVER carries the id at all (D60) — a
+  // peeked relic is private to the peeking seat, so a card-id field here
+  // would put private knowledge in a log every seat can read. Both are
+  // positional for the same structural reason recover/travel are.
+  'peek.relic': [{ field: 'relicIndex', classification: 'positional' }],
+  'peek.reliquary': [{ field: 'spaces[]', classification: 'positional' }],
   'campaign.declare': [
     // every target kind requires the site/banner/relic to already be
     // public: a site the defender RULES (faceup), a banner (always on the

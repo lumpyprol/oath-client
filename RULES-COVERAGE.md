@@ -157,12 +157,12 @@ as fine", so a review that re-reads our own notes is worthless.
 
 | § | Rule | Disposition |
 | --- | --- | --- |
-| 6.1 | Play or discard a facedown adviser | **DONE** `adviser.ts` |
+| 6.1 | Play or discard a facedown adviser | **DONE** `adviser.ts`. §9.4's "a player who holds a facedown adviser can peek at it and allow any other player to peek at it" is a NARROWER grant than §6.3/§6.4's Peek family (P4 unit 3) — table talk between the players present, not a state transition the engine can observe or enforce. Self-policed in v1, recorded here rather than silently skipped (the Peek family itself sat homeless for four units on exactly this kind of unrecorded gap) |
 | 6.2 | Use an Action power | **DONE (structurally)** `power.use`; what the power does → v2 |
-| 6.3 | Peek at a relic at your site | **DEFER** — needs persistent peek memory + a projection change. Home: **P4 scope bullet** |
-| 6.4 | Peek at an Imperial relic | **DEFER** — with 6.3, **P4** |
+| 6.3 | Peek at a relic at your site | **DONE** `peek.ts`'s `peekRelic` (P4 unit 3) — addressed by slot (`relicIndex`, unit 1's convention), never by id (D60: the payload must never carry a peeked identity). Persists in `PlayerState.peeked` (unit 2), gated in `project.ts` |
+| 6.4 | Peek at an Imperial relic | **DONE** `peek.ts`'s `peekReliquary` (P4 unit 3), gated on `state.grandScepter`. Batched (`spaces: number[]`, D50) since §6.4 grants "any relic" with no singular framing |
 | 6.5 | Move warbands to/from your site; Citizen permission; Imperial give/take | **DONE** `warbands.ts` |
-| 6.6.1–6.6.3 | Offering, accepting, Imperial players | **DONE** `citizenship.ts`, `rule.ts`. The Reliquary's revealed modifier: access **DONE**, its effect → v2 |
+| 6.6.1–6.6.3 | Offering, accepting, Imperial players | **DONE** `citizenship.ts`, `rule.ts`. The Reliquary's revealed modifier: access **DONE**, its effect → v2. §6.6.1's "you can let them peek at any relics in the Imperial Reliquary" is a BROADER grant than what `citizenship.offer` publishes (the one offered `relicId`, per Law §9.4's binding-terms reading — see `audit.test.ts`'s `learn()`); showing the exile more than the offered relic to negotiate is table talk, same self-policed carve-out as §6.1's adviser peek, recorded here rather than silently skipped |
 | 6.7 | Exiling a Citizen | **DONE** `citizenship.ts` |
 | 6.8 | Self-exiling | **DONE** `citizenship.ts` |
 

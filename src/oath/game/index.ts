@@ -18,6 +18,7 @@ import { TRADE_HANDLERS } from './actions/trade.js';
 import { TRAVEL_HANDLERS } from './actions/travel.js';
 import { SEARCH_HANDLERS } from './actions/search.js';
 import { RECOVER_HANDLERS } from './actions/recover.js';
+import { PEEK_HANDLERS } from './actions/peek.js';
 import {
   CAMPAIGN_HANDLERS,
   casualtyChooser,
@@ -43,6 +44,7 @@ const HANDLERS: Record<string, Handler> = {
   ...TRAVEL_HANDLERS,
   ...SEARCH_HANDLERS,
   ...RECOVER_HANDLERS,
+  ...PEEK_HANDLERS,
   ...CAMPAIGN_HANDLERS,
   ...POWER_HANDLERS,
   ...CITIZENSHIP_HANDLERS,

@@ -352,7 +352,7 @@ grants it, and both fixtures fold unchanged.
 
 ---
 
-## Unit 3 — Law §6.3 and §6.4: the Peek family
+## Unit 3 — Law §6.3 and §6.4: the Peek family ✅ (completed 2026-09-13)
 
 **Purpose.** The P2 hand-off that has been homeless longest. It lands here
 because peeking only does anything once something can show the result — and
