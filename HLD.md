@@ -6,8 +6,8 @@ unit of work; update the decision log whenever a decision is made or reversed.
 | Field | Value |
 | --- | --- |
 | Started | 2026-09-07 |
-| Last updated | 2026-09-12 |
-| Current phase | P3 (planned 09-12, not started) |
+| Last updated | 2026-09-13 |
+| Current phase | P4 (planned 09-13, not started) |
 | Owner | Ben |
 
 ---
@@ -512,7 +512,7 @@ power text to **v2**, where the registry is waiting and empty.
 
 ---
 
-### P3 — Interrupts — `planned`
+### P3 — Interrupts — `done`
 
 **Goal.** Make multi-party decisions survivable asynchronously. This is the
 hardest design work in the project.
@@ -619,6 +619,34 @@ paid, so a test that picks a sacrifice must measure affordability against
 the post-skull board. That is now written into the engine README's testing
 guidance, with the meta-lesson that a 1-in-25 flake survives a short loop.
 
+**After the close — four commits, and why they belong to this phase.**
+Closing a phase is not the same as finishing it. Three of the four came from
+Ben reading the close and asking pointed questions, which is the review step
+a TDD loop cannot perform on itself.
+
+- `893deeb` — **a coverage gap.** Every §3.3/§3.4 endgame test injected a
+  state at round 5–8; no game had ever *played* into the endgame. Two
+  rest-only games now do, reaching Stable Regime and War Exhaustion.
+- `042275c` — **a rules bug that decided games, and it reverses half of
+  D45 (see D55).** A tie for a "most" goal was treated as meeting it
+  everywhere. That is right for the TITLE (§2.11 says the title is "always
+  held" and then spends two sentences on ties) and wrong for WINNING (§3.2
+  says "have COMPLETED its goal" and supplies no tie rule at all). An Exile
+  tied at one relic apiece was being handed the game. Two tests were
+  asserting the bug and the 3-player fixture's ending was an instance of it.
+- `10c9be9` — re-measured both frozen logs after that regeneration and
+  pinned their numbers by test, so they cannot drift silently again.
+- `8427aa3` — D48 gained its missing half: check a claim against the code
+  **and** against the Law text. Checking only the code answers "does the
+  engine do what we wrote down?", which cannot catch a rule we wrote down
+  wrongly — which is exactly what D45 was.
+
+The second and fourth are the same lesson twice. P2's method already said
+"check every claim against the code, not the notes"; D45 was faithfully
+implemented, tested, and dispositioned DONE, and was still wrong, because
+nobody re-read §3.2's printed sentence. **A recorded ruling is evidence of a
+decision, never of its correctness.**
+
 **Deferred, with homes.** Conditional standing responses (per site, per
 opponent) → **P4**, because authoring one needs a UI to author it in.
 Nudge delivery against the `since` field each decision now carries → **P6**.
@@ -672,11 +700,17 @@ card text and the campaign window is the only reactive window there is.
 
 ---
 
-### P4 — Client — `not started`
+### P4 — Client — `planned`
 
 **Goal.** A web client for tablets and laptops that renders the full table
 from a projected view, shows the decision inbox, and submits actions with
 `prevSeq`. The inbox and simple decisions also work on a phone.
+
+**Prompt plan.** `prompt_plan_phase_4.md` — 18 TDD units (09-13), plus one
+cuttable stretch unit. Units 1–7 are server-side and carry the phase's
+architecture (the leak sweep, the third visibility class, `affordances`, the
+dry run); units 8–13 are the client itself; 14–16 finish policy, art and the
+visual pass; 17 is the acceptance game and 18 the close.
 
 **Scope.**
 - Board: sites in play with denizens, relics, warbands; hand; advisers;
@@ -714,24 +748,85 @@ from a projected view, shows the decision inbox, and submits actions with
   with smaller variants for the phone inbox view
 - On a phone (~380px): the inbox, simple yes/no and pick-one decisions, and
   a read-only board. Composing a full turn on a phone is not a target
+- **NEW at planning (09-13) — `affordances(state, seat)`, the option space.**
+  The single architectural decision the rest of the phase hangs off. A
+  composer has to know which sites this pawn can reach and at what Supply
+  cost, which denizens can be mustered, how many warbands may be committed,
+  which relic slots are recoverable. Every one of those is a rule, and a
+  client that computes it is a second implementation of the Law with no
+  tests on it. So the server computes the option space and the client only
+  renders it — a third member alongside `project()` and `pending()` (D56)
+- **NEW at planning (09-13) — session cookies and join links.** The current
+  scheme puts the player token in an `x-player-token` header. Neither an
+  address-bar navigation nor an `<img src>` can set a header, so it cannot
+  satisfy either "a deep link opens the right prompt with one tap" or "an
+  unauthenticated asset request is refused". Browser credentials become an
+  HttpOnly cookie, bootstrapped once from a per-player join link; the header
+  stays for the API, the smoke script and P6's worker (D58)
+- **NEW at planning (09-13) — the audit extends past `project()`.** P2's
+  hidden-information audit sweeps projected views, and that is not the whole
+  attack surface: **`recover` names a facedown site relic by id, and its
+  error text tells you whether that relic is there.** Twenty relic ids are
+  public data in this repo, so a player can enumerate their own site's
+  facedown relics for free, without ever taking an action. Found while
+  planning this phase by reading `recover.ts` (unit 1's fix: address relic
+  slots positionally, per §5.4.1's "choose one facedown relic at your
+  site" — you point at a card, you do not name it). The audit grows to
+  cover payload shapes, error strings, `affordances` output and rendered
+  HTML (D59)
+- **NEW at planning (09-13) — a dry-run submit.** `?dryRun=1` runs
+  `prepare` + `reduce` inside a rolled-back transaction and returns the
+  would-be view or the exact error. The declared-power composer needs to
+  tell a player their effects are infeasible before it costs a log entry,
+  and v1's whole bargain is that powers are declared (D64)
 
-**Decisions to make in P4.**
-- Framework: plain server-rendered + small JS, or a React SPA. Leaning
-  small: this is one maintainer and a fixed audience
-- Image pipeline: source resolution, output sizes, format (WebP/AVIF), and
-  whether resizing happens at build time or on first request
-- Transport: poll `/inbox` on focus vs SSE. Start with poll-on-focus; async
-  play doesn't need live updates
-- Where the client is served from: same process (simplest) vs static hosting
-- Auth upgrade: keep per-player tokens or move to magic links
+**Decisions made at planning (09-13, see D55–D65).** Every "decision to
+make" the phase carried is now made; the five that were listed here are
+answered in place.
+
+- **Framework, and where it is served from** — server-rendered HTML from
+  the same express process. No framework, no bundler, no client-side build;
+  one hand-written ES2022 file for progressive enhancement. Forms work
+  before the script loads, POST-Redirect-Get everywhere, and a 409 is
+  recovered server-side into a re-rendered page rather than shown (D57,
+  resolving Q7). *The leaning in the old bullet was right and the reason is
+  the same one that picked `node:sqlite`: no toolchain in the runtime image,
+  and one maintainer who has to read this again in a year.*
+- **Transport** — poll `/inbox` on focus, plus ordinary form posts. No SSE;
+  async play does not need live updates and P6's notifications are the real
+  channel (D57).
+- **Image pipeline** — an OFFLINE script, run on Ben's machine, that
+  produces two sizes per face and fills `width`/`height` into the committed
+  manifest. The server only serves bytes. This keeps every image library out
+  of the runtime image, exactly as D15 kept native modules out (D63).
+- **Auth upgrade** — magic join link once, HttpOnly session cookie
+  thereafter; `x-player-token` retained for non-browser callers. Deep links
+  carry no token, so a link posted to Discord is safe (D58).
+- **The client never computes a rule** — `affordances(state, seat)` joins
+  `project` and `pending` on `GameDefinition`, and a bidirectional
+  conformance test ties rendered forms to it in both directions (D56).
 
 **Exit criteria.**
-- [ ] a full game playable from a tablet and from a laptop
+- [ ] a full game playable from a tablet and from a laptop *(two gates: plan
+      unit 17's browserless driver plays a 3-player game to a win through the
+      HTML surface and freezes its log; and a real game taken on a real
+      device, recorded here with date and device — P0's precedent)*
 - [ ] on a phone, the inbox loads and a pending yes/no decision can be answered
 - [ ] a stale-state conflict is handled without the user seeing an error page
 - [ ] decision deep link opens the right prompt with one tap
 - [ ] every card and site shows its art; an unauthenticated asset request is
       refused
+- [ ] **the client never computes a rule** — every legal choice it offers
+      comes from `affordances`, proven bidirectionally: every affordance is
+      accepted by `reduce`, and every rendered form field names a real
+      affordance field
+- [ ] **nothing leaks past the view** — no rendered page, affordance list or
+      error message contains an id outside the audit's per-seat `knownTo`
+      set, and `recover`'s relic oracle is closed
+- [ ] Law §6.3/§6.4 peeks are real actions, with a third visibility class
+      the audit understands (P2/P3 hand-off)
+- [ ] standing responses can be authored with conditions from the client,
+      and every pre-P4 `standing.set` still folds (P3 hand-off)
 
 ---
 
@@ -1012,7 +1107,7 @@ with `reversed by`.
 | D42 | 09-11 | Unit 16 follow-up, same day, on user review: (1) Law §6.6.3 "every Imperial player rules every purple site" + §5.5.1's Campaign-scoped carve-out, implemented in a new shared `rule.ts` (`rulersOf`/`imperialExclusionFor`) imported by both `campaign.ts` and `power.ts` rather than duplicated; (2) the Imperial Reliquary's 4 fixed named spaces (Brutal/Decadent/Careless/Greedy — printed board text, RULINGS.md has the transcription) are now structural state: `reliquary: string[]` became `reliquary: ReliquarySpace[]` (`{modifier, relicId}`, always length 4), letting `power.ts#hasAccess` grant the Chancellor a `reliquary:<modifier>` id once its covering relic is gone — the MODIFIER's actual effects stay declared (v1, same as every other card power, D9/D28), only ACCESS is structural. Deliberately NOT done: the Allies mechanic itself (defense-total/casualty arithmetic across multiple Imperial seats' combined force) — ruling legality and access are now correct for any number of Imperial seats, but the DICE math still reads only the single recorded defender's own counts, since combining forces needs the opt-in Ally mechanic (who joins, the Chancellor's mandatory join) to do correctly | The user flagged these as under-scoped in the initial unit 16 pass rather than genuinely low-priority — same pattern as unit 12's relic-targets pushback: a "ripple" that looked deferrable on paper turns out to matter the instant a second Imperial seat exists, which unit 16 itself just made possible for the first time | active |
 | D43 | 09-11 | Full Law review before unit 17 (findings table in the plan) added three units and rewrote unit 17's prompt with the now-known Law specifics. Structural closures, all by unit 12's Plains/Mountain precedent (identity-only + mandatory ⇒ engine's job, not card text): the §6.1/§6.5 minor actions (unit 16b — a game literally cannot garrison a site or surface a facedown adviser without them), the §2.11 Oathkeeper/Usurper mandatory defense dice and the Grand Scepter as a campaign target (unit 16c), a `supply` effect + the §7.1.2 occupied-card feasibility rule (unit 16d — without the supply effect, every deferred Supply-touching power was *undeclarable*, breaking the v1 deferral premise, not just unenforced). The People's Favor Wake maintenance (§4.1.1) is Law ch. 4 turn sequence, so it's structural and folded into unit 17 alongside the Wake-timed win checks. Deferred with a recorded home instead of silently: peeks (§6.3/§6.4 → v2/P4 boundary), opportunity-site Wake take (§4.1.4, declared), §5.5.4 multi-roll doubling (rides with battle plans), restriction banners (§7.2 → Q12, since resolved by D46) | A one-sitting sweep of the reference against the built system is cheap insurance right before the victory unit locks in endgame semantics; the alternative — discovering §6.5 during unit 19's scripted game — would have cost more and been diagnosed worse | active |
 | D44 | 09-11 | Imperial Allies are pulled forward into P2 as plan unit 16a rather than left on the v2 deferred list. Prompted by a re-check of all eight of the Law's purple Imperial asides against the code: three (§5.2.2 Muster purple, §4.3.3 Citizen Supply, §5.5.1's carve-out) are implemented; the other five are not. Two of those five — §5.5.6's "the Chancellor chooses which warbands die" and §5.5.7's "Imperial warbands at sites move to the Chancellor's board" — are reachable with ONE Citizen and no Allies whatsoever, and `defenseTotal`'s site bonus is a seam D42 itself opened (D42 made every Imperial seat rule a purple site, so a Citizen can now be declared defender of a site garrisoned by the Chancellor and defend it with zero site warbands counted). The unit therefore splits along reachability, not along "Allies vs not": part 1 is the correctness fix (combined site warbands, §5.5.7 consolidation, §5.5.6's allocation choice as a `casualties` phase, auto-skipped when allocation cannot change the outcome — unit 13's existing shortcut stays valid for single-owner forces), part 2 is the opt-in mechanic (Chancellor mandatory join, Citizens' permissioned join via `campaign.ally` + `respond.allies`, §5.5.4's per-Ally board bonus, and §5.5.3's response-window membership). Battle-plan effects, §5.5.3's once-each bookkeeping, and §5.5.2's modifier activation stay v2 — they are card powers | Third time a "documented deferral" turned out to be a reachable defect the moment a prerequisite shipped (relic targets in D39, site ruling in D42, now the Imperial force): the pattern is that deferrals reasoned about on paper age badly against code, so the check is now against the code. Deferring further would also have left unit 19's acceptance game unable to campaign against a Citizen correctly | active |
-| D45 | 09-11 | Unit 17 reads "meets the Oathkeeper goal" as INCLUDING a tie, on the strength of §2.11's own tie rule ("if the title's holder becomes tied with another player *for meeting* the goal, the holder keeps the token"), which only parses if both tied players meet it. The same reading then settles a question §3.2 leaves open — whether an Exile tied for "rules the most sites" wins a Visionary Win — in favour of yes. Also: only Supremacy is collective (§2.11 names the Chancellor's Empire clause for it alone, and §6.6.3 is why it must be — every Imperial seat rules the same purple sites and can never break that tie internally); the other three goals stay individual, so a Citizen can hold the Oathkeeper of Protection | The alternative reading ("strictly the most") would make the §2.11 tie rule dead text, and would silently change who wins a game; a rule that decides games belongs in RULINGS.md with its evidence rather than buried in a predicate | active |
+| D45 | 09-11 | Unit 17 reads "meets the Oathkeeper goal" as INCLUDING a tie, on the strength of §2.11's own tie rule ("if the title's holder becomes tied with another player *for meeting* the goal, the holder keeps the token"), which only parses if both tied players meet it. The same reading then settles a question §3.2 leaves open — whether an Exile tied for "rules the most sites" wins a Visionary Win — in favour of yes. Also: only Supremacy is collective (§2.11 names the Chancellor's Empire clause for it alone, and §6.6.3 is why it must be — every Imperial seat rules the same purple sites and can never break that tie internally); the other three goals stay individual, so a Citizen can hold the Oathkeeper of Protection | The alternative reading ("strictly the most") would make the §2.11 tie rule dead text, and would silently change who wins a game; a rule that decides games belongs in RULINGS.md with its evidence rather than buried in a predicate | **half reversed by D55** |
 | D46 | 09-12 | Law §7.2's restriction banners are scoped into unit 19 rather than deferred wholesale or transcribed in full. Decided after the 09-12 sweep of the publisher's card CDN established that the data exists in NO machine-readable source — restrictions are iconography on the card face and appear in no field — so a complete transcription means classifying an icon on ~204 images, the same error-prone icon-counting RULINGS.md already flags for two site relic counts. Unit 19 instead transcribes only the cards its acceptance game plays, into a PARTIAL addendum (`card-restrictions.json`) where absence means "unread" rather than "unrestricted", enforces it in the zone-choosing paths, and asserts the script never plays a card whose restriction is unread | Makes the headline acceptance game provably legal under §7.2 — the property that actually matters for P2's exit criterion — at a fraction of the cost, without the engine ever pretending to know a restriction it has not read. The remaining ~200 cards cost nothing to leave self-policed, because v1 does not enforce their powers either | active |
 | D47 | 09-12 | Law §4.1.4's Opportunity Site take (Salt Flats, Mine, Drowned City) is ENGINE-OWNED and offered at the end of the Wake Phase (`wake.take`, with an explicit 'none'), reversing its earlier classification as a declarable power. Two things changed the call: the tokens are a FIXED supply — placed once when the site is revealed (§1.16 at setup, §5.6.2 on Travel) and never replenished — so five of the game's 36 favor and three secrets sit there, and leaving them unclaimed because nobody declared a power is a real economic change rather than a declined option; and the rule is identity-only and decidable from P1 data, the same footing as Plains/Mountain (§11.4) which the engine already owns. Implementing it also exposed that §1.16 was never implemented at setup at all — `travel` placed reveal tokens but `init` did not — so a faceup Opportunity Site began the game empty | The original "it's a may, so skipping it corrupts nothing" reasoning was wrong: a "may" nobody would ever decline, over a finite pool, is not optional in any meaningful sense, and the engine was silently sequestering 14% of the game's favor | active |
 | D48 | 09-12 | Every numbered subsection of the Law gets a recorded disposition in a committed `RULES-COVERAGE.md`: IMPLEMENTED naming the file and function, DEFERRED naming both where it is RECORDED and where it will be DONE, or N/A with a reason. "v2" alone is not a valid home — a deferral must name a unit, a phase scope bullet, or a Q. Dispositions are checked against the CODE **and the claim itself re-derived from the LAW TEXT**, never against these notes; unit 20 verified every symbol it cites is a real declaration in the file it is attributed to. **Both halves are load-bearing, and the second was added 2026-09-13 after it failed.** Checking only the code answers "does the engine do what we wrote down?" — it cannot catch a disposition that is faithfully implemented and *wrong about the Law*. D45 was exactly that: a tie-handling ruling reasoned from §2.11's structure, never re-read against §3.2's actual words, implemented correctly, tested, dispositioned DONE — and it handed games to players who had tied rather than won. Re-reading the printed sentence took ten minutes and overturned it | Two deferrals recorded as deliberate (§6.6.3 site ruling, §4.1.4 Opportunity Sites) turned out to be live defects, and the Peek family sat for four units described as "the v2/P4 boundary" while P4's scope never mentioned it — nothing would ever have picked it up. A review that re-reads its own notes finds nothing; the notes are what was wrong | active |
@@ -1022,6 +1117,18 @@ with `reversed by`.
 | D52 | 09-12 | Standing responses are STATE written by a logged `standing.set` action (legal outside your turn — it resolves no decision and touches no game object), consulted by one shared helper at the exact points a pending decision would be raised, short-circuiting the raise purely; the short-circuit never appends a synthetic action. Global-only in P3 (per site/opponent conditions are P4, once a UI exists); revocation is another `standing.set` and affects future raises only; rollback across a `standing.set` restores prior behaviour like any other action. Timeouts still never auto-resolve — a policy is player-authored, a timeout is not. Consequential decisions (wake choices, title grants, casualty allocation, citizenship offers) can never be defaulted | Purity: policy-in-state means replay reproduces the skip identically, and the log stays complete — the causing policy is visible in the log as its own action. Synthetic actions would corrupt actor attribution and prevSeq; per-decision defaults hidden outside the log would break rewind | active |
 | D53 | 09-12 | Log-compatibility rule, stated for the first time: through P3, action shapes and setup semantics may change at the cost of DELIBERATE regeneration of the frozen fixtures (code-driven regen is the acceptable kind; unit 20's ban was on regen-every-run) and draining the disposable smoke games on the Fly volume (Q14 confirms). From P4 on — a client ships, the group's real campaigns start — the log format freezes and any breaking change needs an explicit migration story. Every P3 unit that breaks folding of existing logs must say so in its commit message | P2 proved the log is the system's one long-lived artifact; pretending shape changes are free would silently orphan live games, while freezing now would calcify P2's naive interrupt shapes exactly when P3 exists to fix them. The rule buys P3's redesign window and names its price | active |
 | D54 | 09-12 | Law §1.23's two setup choices (pawn placement; keep 1 of 3 as facedown adviser) become real pending decisions raised from `init`, before any action — sequential in turn order per the Law, one BATCHED `setup.choose` per seat (the choices are coupled: the chosen site's region decides where the two rejects are discarded), locking until done. Back-compat rides on the setup record, not log migration: `OathSetup` gains `setupChoices: 'open' \| 'applied'`; old stored setups (and P2's frozen fixtures) read as 'applied' and fold byte-identically, new games open. Payload names `keepIndex`, never card ids, so the two discards stay out of the shared log — unit 10's Search precedent | The setups table is already the persistence boundary for "decided once at creation" (D13); flagging there fixes replay for free where an action-log migration would not. A from-init decision is a new shape and P3 is the phase that owns decision shapes | active |
+
+| D55 | 09-12 | **Half of D45 is reversed.** A tie for a "most" goal MEETS the goal for the Oathkeeper TITLE (§2.11) and does NOT complete it for a VISIONARY WIN (§3.2/§3.4.3). The goal text is word-for-word identical in both places, which is what made D45 treat them alike; the sections around it are not. §2.11 says the title "is always held by the player who meets the Oathkeeper goal" and then spends two sentences on ties, machinery that presupposes tied players meeting it. §3.2 says you win "if you have a revealed Vision card and have COMPLETED its goal" and supplies no tie rule at all, because nothing requires a Visionary Win to happen. Implemented as `seatsWithMax` (title) and `uniquelyMost` (winning) | It decided games: a three-way tie at one relic apiece handed an Exile holding the Vision of Sanctuary the win, reproducibly. Two further supports in the Law text — §3.3.1 says "holds MORE ... THAN", so the Law demands strictness explicitly when it means it; and §3.4.3's tiebreak breaks ties between different VISIONS, never between players level on a count. **The method lesson is the durable part:** D45 was reasoned from one section's structure and never re-read against the section it was applied to. Folded into D48 | active |
+| D56 | 09-13 | P4 planning: **the client renders, the server decides.** `affordances(state, seat)` joins `project()` and `pending()` on `GameDefinition` — one entry per action this seat may submit now, carrying each payload field's legal domain and any precomputed cost (travel destinations with their Supply price, musterable denizens, recoverable relic SLOTS, dice caps). The client never evaluates a rule. Enforced in both directions: every enumerated option is accepted by `reduce` and every near-miss rejected; and every rendered form field names a real affordance field | The alternative is a second implementation of the Law living in templates with no tests on it. P3's own post-mortem is the evidence — a test helper that re-derived §5.5.5 in three places produced a 1-in-3 flake that lived for two units and a 1-in-25 one that survived every short loop. A client would be that failure at a larger scale and in a place vitest cannot see | active |
+| D57 | 09-13 | P4 client architecture: **server-rendered HTML from the same express process.** No framework, no bundler, no client-side build step; one hand-written ES2022 file for progressive enhancement. POST-Redirect-Get; a 409 is recovered server-side into a re-rendered page carrying a banner and the fresh `seq`, never surfaced as an error. Transport is poll-`/inbox`-on-focus; no SSE. Resolves Q7 | One maintainer, a fixed audience, and "understandable in one sitting a year from now". A form works before any script loads, a deep link is just a URL, and nothing new enters the runtime image — the same reasoning that chose `node:sqlite` over a native module (D15). SSE buys liveness that async play does not want and P6's notifications already cover | active |
+| D58 | 09-13 | P4 auth: browser credentials are an **HttpOnly, SameSite=Lax session cookie**, bootstrapped once from a per-player join link (`/join/:token`, which sets the cookie and immediately redirects). `x-player-token` stays for the JSON API, the smoke script and P6's worker. Deep links carry NO token; a signed-out deep link redirects to sign-in preserving the destination | Forced by two exit criteria rather than chosen: an address-bar navigation cannot set a header, and neither can an `<img src>` — so the header-only scheme can satisfy neither "deep link opens the right prompt with one tap" nor "an unauthenticated asset request is refused". Keeping tokens out of shared links is what makes a Discord post safe (P6's whole delivery model) | active |
+| D59 | 09-13 | P4: **the hidden-information audit extends past `project()`** — to payload shapes, error strings, `affordances` output, and rendered HTML. Card ids in a payload are addressed POSITIONALLY unless the actor legitimately knows them; error text must not discriminate between "that card is not here" and any other failure for a card the actor cannot see | Found by reading `recover.ts` while planning: it names a facedown site relic by `relicId` and answers a wrong guess with `no facedown relic X at your site`, so a player can enumerate their own site's facedown relics against the repo's own 20 public relic ids, for free and without acting. The P2 audit was written around views and could not have seen it. §5.4.1's own wording is the fix — "choose one facedown relic at your site" is pointing at a card, not naming it | active |
+| D60 | 09-13 | P4: **peeked knowledge is per-seat state** (`players[seat].peeked`), defaulted in `init` so every stored setup folds unchanged. A peeked id is revealed only in zones the view already exposes as SLOTS — site relic slots and Reliquary spaces — never in the relic deck, which stays a bare count. The peek actions' payloads carry an INDEX, never the id, so the public log never learns what was seen | §6.3's "if you have ever peeked at a specific relic, you may peek at it again from any site" is persistent memory, not a momentary reveal, so it has to be state. Revealing only into existing slots keeps the third visibility class from becoming a deck-order leak. The index-not-id payload is `card.play`'s and `setup.choose`'s precedent: the log is safe to share (§4), so a private identity must never enter it | active |
+| D61 | 09-13 | **D53's log freeze moves from the start of P4 to the end of P4 unit 1.** Unit 1 is the last unit permitted to change an action shape; it regenerates the frozen fixtures and drains the Fly smoke games, and everything after it needs an explicit migration story. Amends D53 | D53's purpose is "a client ships and real campaigns start", which happens at P4's CLOSE, not its start. And unit 1 is precisely where a known shape defect has to be fixed (D59's relic oracle) — freezing the format one unit before fixing it would buy a migration story for no benefit | active |
+| D62 | 09-13 | P4: **conditional standing responses keep the scalar as the base case.** A channel is either today's scalar or `{ default, unless: {...} }`, normalized by `consultStanding`, which grows a context argument (who is asking, what is targeted). Every pre-P4 `standing.set` payload folds unchanged and the short-circuit contract is untouched. Extends D52 | P3 deliberately shipped global-only and its own measurement says why this matters: the six-player max of 7 visits/turn is entirely "nobody set a policy", so the remaining win is making policies easy to author — which needs a client, which is why it waited. Normalizing rather than migrating keeps D53/D61's freeze honest | active |
+| D63 | 09-13 | P4 art pipeline: an **offline script** on Ben's machine produces two sizes per face (board and thumb, by filename convention) and fills `width`/`height` into the committed manifest; the server only serves bytes from `ART_DIR`, token-gated, immutable-cached, path-traversal guarded. A manifest key whose file is absent renders a placeholder, never a broken image | Keeps every image library out of the runtime image, the same call as D15. `ArtEntry` already reserved optional `width`/`height`, so the manifest was built for this. The placeholder path is what lets the phase close before ~261 faces have been collected — see Q15 | active |
+| D64 | 09-13 | P4: **a dry-run submit.** `POST /api/games/:id/actions?dryRun=1` runs `prepare` + `reduce` inside a transaction that is always rolled back, returning the would-be view/pending/affordances or the exact error. No log entry, no `seq` bump. Dice rolled in a dry run are explicitly flagged speculative and are NOT the ones the real submit will produce | v1's bargain is that card powers are declared, so the composer's hardest job is telling a player their effects are infeasible before it costs a log entry. The store already runs `reduce` inside a transaction, so this is a flag, not a mechanism. It must return byte-identical errors to the real path, which is why D59's leak sweep is unit 1 and this is unit 7 | active |
+| D65 | 09-13 | P4 acceptance evidence: the phase has **one unit that is not TDD and says so** (the visual pass). Its gate is human judgement, backed by two mechanical proxies — a class-name conformance test between templates and stylesheet, and a scripted viewport check (`scrollWidth <= clientWidth` at 1024x768 and 380x800) driven by the browser tools outside `npm test`. The "playable from a tablet" criterion is ticked with a date and a device, as P0's deployment criterion was | Pretending a CSS pass is test-driven would make the phase's green suite mean less, not more. Naming the one place tests do not reach is cheaper than discovering later that a tick was decoration | active |
 
 ---
 
@@ -1034,8 +1141,8 @@ with `reversed by`.
 | P0 Skeleton | done | 09-07 | 09-10 | — | deployed to `oath-async.fly.dev` 09-10, tablet turn confirmed |
 | P1 Card data | done | 09-08 | 09-08 | `prompt_plan_phase_1.md` + addendum | art assets themselves deferred to P4 (manifest done) |
 | P2 Core loop | done | 09-09 | 09-12 | `prompt_plan_phase_2.md` | feasibility gate — passed. All 24 units (1–20 plus 16a–16d, inserted by the 09-11 Law review D43/D44). 15 rules defects found in already-written code; 7 were invisible from `FIRST_GAME`. §1.23.1/§1.23.2 and §5.5.3's Citizen-ally window → P3; Peeks → P4; chronicle writing → P5; card power text → v2 |
-| P3 Interrupts | done | 09-12 | 09-12 | `prompt_plan_phase_3.md` | All 10 units. Every exit criterion ticked. Headline: a campaign against a standing defence is **1 visit** (defender submits zero actions); 6-player game measured at **2.56 visits/turn avg, 7 max** and frozen as `sixplayer.log.json`. Closed both P2 hand-offs (§1.23.1/.2, §5.5.3's Citizen-ally window). Q13/Q14 resolved before unit 4. Two findings recorded rather than papered over: batching cuts ACTIONS not VISITS unless another seat interleaves (unit 4), and the max-7 turn is irreducible by batching (unit 9). Deferred with homes: conditional standing responses → P4; nudge delivery against `since` → P6; general reaction windows → v2 |
-| P4 Client | not started | | | | |
+| P3 Interrupts | done | 09-12 | 09-12 | `prompt_plan_phase_3.md` | All 10 units. Every exit criterion ticked. Headline: a campaign against a standing defence is **1 visit** (defender submits zero actions); 6-player game measured at **2.56 visits/turn avg, 7 max** and frozen as `sixplayer.log.json`. Closed both P2 hand-offs (§1.23.1/.2, §5.5.3's Citizen-ally window). Q13/Q14 resolved before unit 4. Two findings recorded rather than papered over: batching cuts ACTIONS not VISITS unless another seat interleaves (unit 4), and the max-7 turn is irreducible by batching (unit 9). Deferred with homes: conditional standing responses → P4; nudge delivery against `since` → P6; general reaction windows → v2. **Four commits followed the close**, three of them prompted by Ben's review — including D55, which reversed half of D45 after it was found handing games to players who had tied rather than won |
+| P4 Client | planned | | | `prompt_plan_phase_4.md` | 18 TDD units + 1 cuttable stretch (09-13). Architecture first: `affordances` so the client never computes a rule (D56), cookie sessions because a header cannot ride an `<img>` or an address bar (D58), and the audit extended past `project()` after planning found a free relic oracle in `recover` (D59). Carries three hand-offs: §6.3/§6.4 peeks (P2), conditional standing responses (P3), and filling `ART_DIR` (P1). D53's log freeze starts at the end of unit 1, not the start of the phase (D61) |
 | P5 Chronicle | not started | | | | |
 | P6 Notify & polish | not started | | | | |
 
@@ -1057,18 +1164,21 @@ with `reversed by`.
 | --- | --- | --- | --- |
 | Q1 | ~~Which Oath printing does Ben own?~~ **Resolved 09-08:** 2nd printing or later; newer names canonical, old names aliased | — | — |
 | Q2 | ~~Fly.io vs VPS?~~ **Resolved 09-10:** Fly — `fly launch --copy-config` against the existing `fly.toml`/Dockerfile, volume created, deployed, tablet turn confirmed against `oath-async.fly.dev` | — | — |
-| Q3 | Does the client need `powerKind`? | P4 | Ben, decide in P4 |
+| Q3 | ~~Does the client need `powerKind`?~~ **Resolved 09-13:** no — the composer works without it, because `power.ts hasAccess` already says which cards a seat may use. It is a grouping nicety, and the card CDN's `tags` carry the classification mechanically (Battle Plan 52, Muster 8, Search 33, Travel 21, Recover 7, Trade 11, Campaign 17, plain Power 107), so it is cheap when wanted. Scheduled as P4's one **cuttable stretch unit**, and it pre-pays v2's §7.4/§7.5 classification | — | — |
 | Q4 | ~~Commit `text.json`?~~ **Resolved 09-08:** yes, when it exists (default stood) | — | — |
 | Q5 | ~~Rulebook edition~~ **Resolved 09-09:** the Buried Giant rules library, Oath printing p1 (Ben's pick), numbering-identical to the Law of Oath Oct 20 2020; cited as `Law §x.y`; edition + p1-vs-2nd-printing caveat recorded in `RULINGS.md` | — | — |
 | Q6 | ~~Validate declared-power effects for feasibility?~~ **Resolved 09-08:** yes — `applyEffects` checks feasibility, never card text (P2 units 3, 14) | — | — |
-| Q7 | Client framework and transport | P4 | defer to P4 |
+| Q7 | ~~Client framework and transport~~ **Resolved 09-13 (D57):** server-rendered HTML from the same express process; no framework, no bundler, no client-side build; one hand-written ES2022 file for progressive enhancement; POST-Redirect-Get with server-side 409 recovery; poll-`/inbox`-on-focus, no SSE | — | — |
 | Q8 | ~~Where do art assets live?~~ **Resolved 09-08:** Fly volume beside the db; only the manifest is committed (see P1 addendum) | — | — |
 | Q9 | ~~Art source?~~ **Resolved 09-08:** composite — Buried Giant card search for faces, Dev Kit for frames, Vassal module for boards (see P1 addendum); filling `ART_DIR` is P4 work | — | — |
 | Q10 | ~~Initial effect vocabulary~~ **Resolved 09-08 in principle (D33):** minimal zone-addressed movers, growth only on need; concrete set designed in P2 unit 3 | — | — |
-| Q11 | Is any phone support required for v1, or is inbox-on-phone a P6 nicety? | P4 | Ben — HLD assumes inbox-on-phone is in P4 |
+| Q11 | ~~Is any phone support required for v1, or is inbox-on-phone a P6 nicety?~~ **Resolved 09-13:** in P4, at exactly the level the exit criterion states — the inbox loads and a pending yes/no or pick-one decision can be answered, plus a read-only board. Composing a full turn on a phone stays a non-target. It is cheap here because D57's pages are server-rendered HTML: the phone gets the same documents at a narrower breakpoint, not a second client | — | — |
 | Q13 | ~~Standing-response starter set: `defense: close/ask`, `ally: pass/ask`, `warbands: allow/deny/ask` — veto or extend? Conditional (per-site/per-opponent) variants are explicitly P4~~ **Resolved 09-12:** proposed set stands unchanged | — | — |
 | Q14 | ~~Are the smoke games on the Fly volume disposable? D53's drain rule assumes yes; if any must survive, P3 unit 4 grows a fold-compat shim for the old campaign shapes~~ **Resolved 09-12:** yes, disposable — unit 4 regenerates the fixture and drains them, no shim | — | — |
 | Q12 | ~~Restriction banners (Law §7.2): transcribe a `restriction` field, or leave self-policed until v2?~~ **Resolved 09-12 (D46):** neither wholesale — scoped into unit 19. The 09-12 CDN sweep showed the data is in no machine-readable source, so a full transcription means icon-reading ~204 card faces; unit 19 transcribes only the cards its acceptance game plays, and asserts the script never leans on an unread one | — | — |
+| Q15 | **How much of `ART_DIR` must be filled for P4 to close?** Collecting ~261 card faces plus board art is manual work outside the repo and outside the plan's control. The plan assumes the ROUTE, the pipeline script and the placeholder fallback are P4's, and the corpus is Ben's own task — with the phase closable once the cards a real game touches are placed. Confirm, or set a higher bar | P4 unit 15 | Ben |
+| Q16 | **Is a player token in a join-link URL acceptable?** D58's `/join/:token` sets the cookie and redirects immediately, and nothing in this server logs request paths today — but the Fly proxy is outside our control. The alternative is a paste-your-token page: same security, worse first-run UX for a friend group. Plan assumes the join link | P4 unit 8 | Ben |
+| Q17 | **Does P4 ship game creation and link handout in the client?** Strictly the criterion is "a full game playable", and a game can still be created with `curl`. But handing six people their links is the first thing that happens in a real campaign, and it is one page. Plan assumes yes, gated behind an admin token, and moves P6's "admin page" bullet down to rollback-and-ops only | P4 unit 8 | Ben |
 
 ---
 
@@ -1085,6 +1195,10 @@ with `reversed by`.
 | Single machine dies | Game state lost | P6 backups; SQLite is one file to copy |
 | Art assets leak or bloat the repo | IP exposure; unwieldy clones | Assets outside git, token-gated; only the manifest is committed |
 | Enforcement creep: implementing "just a few" cards eats P2 | Schedule | Registry stays empty in v1 except the one test card; enforced cards are v2 (§6, "v2 — Engine-enforced card powers"), which carries the running list of deferred card-text rules |
+| **A helper or a client re-derives a rule instead of calling it** | Silent divergence from the Law, invisible to the suite | Added 09-13 from P3's post-mortem, which named it as the risk that should have been on P3's register and was not: three copies of `sacrificeFor` each re-derived §5.5.5's skull ordering and each got it wrong, producing a flake that lived for two units. The mitigation is structural — `affordances` (D56) is the only source of legality for a client, and the round-trip conformance test makes a divergence a test failure rather than a rare wrong answer |
+| **A recorded ruling is never re-derived from the Law text** | A rule that is faithfully implemented and wrong decides games | Added 09-13 after D55 reversed half of D45. D48 now requires both halves — check the claim against the code AND re-read the printed sentence it cites. `RULES-COVERAGE.md`'s method block names the failure so the next reviewer inherits the lesson, not just the rule |
+| **A UI phase has no natural test gate and drifts into polish** | P4 never ends | The gate is plan unit 17: a browserless driver plays a full game through the HTML surface and freezes its log into the audit. The visual pass is exactly one timeboxed unit and is labelled not-TDD (D65) |
+| **Hidden-info leaks through a channel the audit does not sweep** | Trust, and it is invisible to a green suite | Found in practice while planning P4 — `recover`'s error text is a free oracle over facedown site relics. D59 extends the audit to payloads, error strings, `affordances` and rendered HTML; unit 1 makes it a conformance test so a new action cannot add an oracle quietly |
 
 ---
 
