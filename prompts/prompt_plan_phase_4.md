@@ -655,7 +655,7 @@ never-offered, and `pending()`'s `resolves` and `affordances` agree by test.
 
 ---
 
-## Unit 7 — The dry run
+## Unit 7 — The dry run ✅ (completed 2026-09-13)
 
 **Purpose.** v1's bargain is that card powers are declared, so the composer's
 hardest job is telling a player their declaration is infeasible *before* it

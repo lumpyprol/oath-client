@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { db, transaction } from './db.js';
+import { db, transaction, dryRunTransaction } from './db.js';
 import { StaleSeq, type GameAction, type GameDefinition } from './engine/types.js';
 
 /** Snapshot cadence. Purely a performance knob. */
@@ -198,6 +198,64 @@ export function appendAction<S, Setup>(
     }
 
     return { state: next, seq };
+  });
+}
+
+/**
+ * The top-level payload fields `prepare()` added or changed relative to
+ * what the client submitted — the SPECULATIVE fields of a dry run (unit 7).
+ * These are the dice `prepare()` rolled (D14): real dice at real append,
+ * so a dry run's are a preview that will never be the actual ones. Listing
+ * them lets the client render them as such.
+ */
+function speculativeFields(submitted: unknown, enriched: unknown): string[] {
+  if (typeof enriched !== 'object' || enriched === null) return [];
+  const before = (typeof submitted === 'object' && submitted !== null ? submitted : {}) as Record<string, unknown>;
+  const after = enriched as Record<string, unknown>;
+  return Object.keys(after)
+    .filter((k) => JSON.stringify(after[k]) !== JSON.stringify(before[k]))
+    .sort();
+}
+
+/**
+ * A DRY RUN of an action (unit 7): run the SAME `prepare()` + `reduce()`
+ * pipeline `appendAction` runs, inside a transaction that ALWAYS rolls
+ * back, so a client can check a declaration's feasibility before it costs
+ * a log entry. No action row, no seq bump, no snapshot — the DB is left
+ * byte-identical. Errors are byte-identical to the real path (same
+ * `IllegalAction` / `StaleSeq`), which is exactly why unit 1 had to make
+ * error text leak-free first: a leaky dry run would be a free, unlimited
+ * oracle rather than a costly one.
+ *
+ * `state` is the position the real submit WOULD produce (for the preview
+ * view/pending/affordances); `speculative` names the dice fields that a
+ * real submit will re-roll (see `speculativeFields`).
+ */
+export function dryRunAction<S, Setup>(
+  def: GameDefinition<S, Setup>,
+  gameId: string,
+  prevSeq: number,
+  proposed: { type: string; actor: number | null; payload: unknown },
+): { state: S; seq: number; speculative: string[] } {
+  return dryRunTransaction(() => {
+    const head = headSeq(gameId);
+    if (head !== prevSeq) throw new StaleSeq(head, prevSeq);
+
+    const { state } = loadState(def, gameId);
+    const payload = def.prepare ? def.prepare(state, proposed) : proposed.payload;
+    const seq = head + 1;
+    const action: GameAction = {
+      gameId,
+      seq,
+      type: proposed.type,
+      actor: proposed.actor,
+      payload,
+      createdAt: new Date().toISOString(),
+    };
+    // Throws IllegalAction on rejection — same as the real path; the
+    // dryRunTransaction rolls back either way.
+    const next = def.reduce(structuredClone(state), action);
+    return { state: next, seq, speculative: speculativeFields(proposed.payload, payload) };
   });
 }
 

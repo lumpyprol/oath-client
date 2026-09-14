@@ -87,3 +87,22 @@ export function transaction<T>(fn: () => T): T {
     depth--;
   }
 }
+
+/**
+ * A transaction that ALWAYS rolls back (P4 unit 7's dry run) — whether `fn`
+ * returns or throws, nothing it wrote is committed. The returned value is
+ * an in-memory result computed inside the transaction, so it outlives the
+ * rollback; the DB is left byte-identical. Refuses to nest, so it can never
+ * silently sabotage a real committing transaction around it.
+ */
+export function dryRunTransaction<T>(fn: () => T): T {
+  if (depth > 0) throw new Error('dryRunTransaction must not nest inside another transaction');
+  db.exec('BEGIN IMMEDIATE');
+  depth++;
+  try {
+    return fn();
+  } finally {
+    db.exec('ROLLBACK'); // never COMMIT — a dry run leaves no trace
+    depth--;
+  }
+}

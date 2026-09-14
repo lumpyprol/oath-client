@@ -5,6 +5,7 @@ import { IllegalAction, StaleSeq, type GameDefinition } from './engine/types.js'
 import {
   actionAt,
   appendAction,
+  dryRunAction,
   createGame,
   getGame,
   headSeq,
@@ -84,14 +85,40 @@ router.post('/games/:id/actions', (req, res) => {
   if (!found) return res.status(404).json({ error: 'no such game' });
   const { def } = found;
   const seat = seatOf(req, req.params.id);
+  // Auth is identical for a dry run — it must not be a way to probe another
+  // seat's options (unit 7).
   if (seat === null) return res.status(401).json({ error: 'missing or invalid player token' });
 
   const body = ActionBody.parse(req.body);
-  const { state, seq } = appendAction(def, req.params.id, body.prevSeq, {
-    type: body.type,
-    actor: seat,
-    payload: body.payload,
-  });
+  const proposed = { type: body.type, actor: seat, payload: body.payload };
+
+  // A DRY RUN (unit 7): validate + preview, writing nothing. Same auth, same
+  // prepare()+reduce(), and — because it throws the same IllegalAction /
+  // StaleSeq into the shared error middleware — byte-identical 400/409
+  // bodies to a real submit.
+  //
+  // WHY THE DISCARDED DICE ARE NOT A RANDOMNESS LEAK: prepare() rolls at
+  // append time (D14), so a dry run rolls dice that will never be the real
+  // ones. Each roll is independent — nothing about a discarded roll
+  // constrains the next (no shared PRNG state is persisted; a real submit
+  // rolls afresh) — so seeing a preview roll tells a client nothing about
+  // what the real submit will roll. Those fields are returned in
+  // `speculative` precisely so a client renders them as a preview, never a
+  // result.
+  if (req.query.dryRun !== undefined) {
+    const { state, seq, speculative } = dryRunAction(def, req.params.id, body.prevSeq, proposed);
+    return res.status(200).json({
+      dryRun: true,
+      seq, // the seq this WOULD have been; the log is unchanged
+      complete: def.isComplete(state),
+      view: def.project(state, seat),
+      pending: def.pending(state),
+      affordances: def.affordances?.(state, seat),
+      speculative,
+    });
+  }
+
+  const { state, seq } = appendAction(def, req.params.id, body.prevSeq, proposed);
 
   res.status(201).json({
     seq,
