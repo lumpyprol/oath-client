@@ -781,7 +781,7 @@ internet.
 
 ---
 
-## Unit 9 — The HTML shell, and the inbox
+## Unit 9 — The HTML shell, and the inbox ✅ (completed 2026-09-14)
 
 **Purpose.** The smallest end-to-end page, and the one the phone criterion
 hangs off. Establishes the render pattern every later page follows: a pure
