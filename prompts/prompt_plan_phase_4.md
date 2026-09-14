@@ -838,7 +838,7 @@ waiting on them, with a link to each decision.
 
 ---
 
-## Unit 10 — The board
+## Unit 10 — The board ✅ (completed 2026-09-14)
 
 **Purpose.** Render the whole table from one projected view, read-only. The
 unit's real test is not that it looks right — it is that nothing appears on

@@ -35,6 +35,42 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .empty { color: var(--muted); }
 .others ul { color: var(--muted); }
 .page-nav { display: flex; gap: 1rem; margin-top: 1.5rem; }
+
+/* ---- the board (unit 10) — phone-first, plain until unit 16's visual pass ---- */
+.status { color: var(--muted); margin: 0 0 var(--gap); }
+.status.done { color: inherit; font-weight: 700; }
+.spectator-note { font-style: italic; color: var(--muted); }
+.site-grid, .player-grid {
+  display: grid; gap: var(--gap);
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+.site, .player {
+  border: 1px solid #8886; border-radius: 6px; padding: 0.5rem;
+}
+.player.you { border-color: currentColor; }
+.site h3, .player h3 { font-size: 0.95rem; margin: 0 0 0.5rem; }
+.pmeta { display: block; font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+.slots, .advisers { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.slot.empty { display: none; }
+.face {
+  display: inline-flex; align-items: center; justify-content: center; text-align: center;
+  min-width: 4.5rem; min-height: 3rem; padding: 0.2rem 0.35rem;
+  border: 1px solid #8888; border-radius: 4px; font-size: 0.75rem;
+}
+.face.placeholder { background: #8881; }
+.face.back { background: repeating-linear-gradient(45deg, #8883, #8883 4px, transparent 4px, transparent 8px); }
+img.face { object-fit: cover; }
+.tokens { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+.tokens .favor { margin-right: 0.3rem; }
+.ruined { font-size: 0.7rem; color: #b00; }
+.relics, .warbands, .vision, .held-relics { font-size: 0.8rem; margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 0.75rem; margin: 0 0 0.5rem; font-size: 0.85rem; }
+.stats div { display: flex; justify-content: space-between; gap: 0.5rem; }
+.stats dt { color: var(--muted); margin: 0; }
+.stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+.banks, .banners, .reliquary { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; }
+.banks li, .banners li, .reliquary li { padding: 0.15rem 0; }
+.campaign, .pending { border: 1px solid #b008; border-radius: 6px; padding: 0.5rem; margin: var(--gap) 0; }
 `.trim();
 
 export const APP_JS = `

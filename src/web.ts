@@ -8,13 +8,15 @@
  */
 
 import express from 'express';
-import { isAdmin, buildInbox } from './routes.js';
+import { isAdmin, buildInbox, buildBoard } from './routes.js';
 import { oath } from './oath/game/index.js';
 import { createGame, playerByToken } from './actionlog.js';
 import { sessionFromRequest, setCookieHeader } from './session.js';
 import { APP_CSS, APP_JS } from './client/assets.js';
-import { inboxModel } from './client/model.js';
+import { inboxModel, boardModel } from './client/model.js';
 import { inboxPage } from './client/pages/inbox.js';
+import { boardPage } from './client/pages/board.js';
+import type { OathView } from './oath/game/project.js';
 
 const page = (title: string, body: string): string =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
@@ -132,6 +134,25 @@ webRouter.get('/', (req, res) => {
     Date.now(),
   );
   res.type('html').send(inboxPage(model, { seat: session.seat, gameId: session.gameId }));
+});
+
+// ---- /games/:id — the board, read-only (unit 10) --------------------------
+
+/**
+ * The full table, rendered from this browser's own view. The seat comes from
+ * the session cookie only when it belongs to THIS game; anyone else (a signed-
+ * in player of another game, or a shared link) sees the spectator board, which
+ * project(state, null) has already stripped of every hand, face, and policy.
+ */
+webRouter.get('/games/:id', (req, res) => {
+  const session = sessionFromRequest(req.header('cookie'));
+  const seat = session && session.gameId === req.params.id ? session.seat : null;
+  const board = buildBoard(req.params.id, seat);
+  if (!board) {
+    return res.status(404).type('html').send(page('Not found', '<p>That game no longer exists.</p>'));
+  }
+  const model = boardModel(board.view as OathView, { gameId: req.params.id, seat, names: board.names });
+  res.type('html').send(boardPage(model));
 });
 
 // ---- /admin — create a game and hand out its join links (Q17) --------------

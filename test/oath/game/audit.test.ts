@@ -36,144 +36,19 @@
  * ever change `project.ts` and this file stays quiet.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { oath } from '../../../src/oath/game/index.js';
 import { project } from '../../../src/oath/game/project.js';
-import { checkInvariants, type OathState } from '../../../src/oath/game/state.js';
+import { checkInvariants } from '../../../src/oath/game/state.js';
 import type { GameAction } from '../../../src/engine/types.js';
-
-interface Fixture {
-  seed: string;
-  players: number;
-  actions: {
-    seq: number;
-    type: string;
-    actor: number | null;
-    payload: unknown;
-  }[];
-}
-
-function loadFixture(name: string): Fixture {
-  return JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', 'fixtures', name), 'utf8'));
-}
-
-/**
- * Both frozen games. The 3-player log is a P2-era record (see `openingState`
- * on why it rebuilds through D54's 'applied' path); the 6-player one is unit
- * 9's, created after §1.23's choices became the players' own — so it also
- * exercises the audit against a log whose first six actions are setup
- * decisions, and against a table with Citizens in it.
- */
-const FIXTURES: {
-  name: string;
-  fixture: Fixture;
-  setupChoices: 'open' | 'applied';
-  /** Whether the scripted game played through to a win (the 6p one stops at round 3). */
-  endsComplete: boolean;
-}[] = [
-  {
-    name: '3-player',
-    fixture: loadFixture('fullgame.log.json'),
-    setupChoices: 'open',
-    endsComplete: true, // §3.3's Stable Regime, at the end of round 6
-  },
-  {
-    name: '6-player (unit 9)',
-    fixture: loadFixture('sixplayer.log.json'),
-    setupChoices: 'open',
-    endsComplete: false, // stops after round 3, before §3.3's first check
-  },
-];
-
-/**
- * Anything namespaced like a card id. Matching on the PREFIX rather than on
- * a list of known ids is what makes this an audit: a card that leaks from a
- * zone nobody thought about still matches.
- */
-const CARD_ID = /^(denizen|vision|relic|site|edifice|banner):/;
-/** The same namespaces, matched ANYWHERE in a string (for scanning generated prose — see the affordance sweep). */
-const CARD_ID_ANYWHERE = /(denizen|vision|relic|site|edifice|banner):[a-z0-9-]+/g;
-
-/** Every card id anywhere in a value, with the path that reached it. */
-function idsIn(value: unknown, path = '', found = new Map<string, string>()): Map<string, string> {
-  if (typeof value === 'string') {
-    if (CARD_ID.test(value) && !found.has(value)) found.set(value, path);
-    return found;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((v, i) => idsIn(v, `${path}[${i}]`, found));
-    return found;
-  }
-  if (value && typeof value === 'object') {
-    for (const [k, v] of Object.entries(value)) idsIn(v, path ? `${path}.${k}` : k, found);
-  }
-  return found;
-}
-
-/**
- * Fold into `known` every card id `seat` can legitimately see in `state`.
- * Read from TRUE state — deriving this from the projection would just
- * assert that the projection equals itself.
- *
- * `seat === null` is a spectator, who learns only the table-public half.
- */
-function learn(state: OathState, seat: number | null, known: Set<string>): void {
-  // --- public to everyone, Law §9.4 ---
-  for (const site of state.sites) {
-    if (site.facedown) continue; // a facedown site reveals neither itself nor its slots
-    known.add(site.id);
-    for (const card of site.cards) if (card) known.add(card.id);
-  }
-  for (const p of state.players) {
-    if (p.vision !== null) known.add(p.vision); // a Revealed Vision is faceup (§2.2.1)
-    for (const r of p.relics) known.add(r); // held relics are faceup (§5.4.3)
-    for (const a of p.advisers) if (!a.facedown) known.add(a.id);
-  }
-  for (const b of state.banners) known.add(b.id); // the two banners are on the table
-
-  // The ONE place a hidden card is revealed on purpose. §6.6.1's offer is a
-  // relic taken out of the Imperial Reliquary and put on the table, so every
-  // seat — and a spectator — sees which one, and goes on knowing it even if
-  // the offer is declined and the relic goes back facedown. Run this audit
-  // strict and it is the only id that trips it, across all 30 prefixes and
-  // all 4 viewers: the deliberate exception is exactly one field wide.
-  // (`give`/`take` need no such blessing — those name relics the two parties
-  // already hold, which §5.4.3 makes public anyway.)
-  if (state.citizenshipOffer) known.add(state.citizenshipOffer.relicId);
-
-  if (seat === null) return;
-
-  // --- yours alone ---
-  for (const id of state.players[seat].hand) known.add(id); // mid-Search only (§9.4)
-  for (const a of state.players[seat].advisers) known.add(a.id); // incl. your facedown ones
-  // The third visibility class (unit 2 of P4; Law §6.3/§6.4): a relic THIS
-  // seat has peeked, at a site or in the Reliquary, known to them alone.
-  // Always empty in both frozen fixtures (see the structural checks below,
-  // which assert every relic slot's id stays null) — added anyway so this
-  // stays the ONE definition of "legitimately knows" (unit 1's own
-  // instruction), ready for unit 3 to actually grant an entry.
-  for (const id of state.players[seat].peeked) known.add(id);
-}
-
-/** Rebuild the opening position the fixture's seed produces. */
-/**
- * Rebuild a fixture's opening position. Both committed logs are now
- * unit-8-era games whose first actions are §1.23 setup choices, so both
- * rebuild with those choices `'open'`.
- *
- * (D54's other path — a setup record STORED BEFORE unit 8, which lacks the
- * field and reads as `'applied'` — is covered by `setup-choices.test.ts`,
- * which builds a legacy-shaped record by hand. The 3-player fixture used to
- * carry that coverage incidentally, until the §3.2 tie correction of
- * 2026-09-12 forced it to be regenerated.)
- */
-function openingState(f: Fixture, setupChoices: 'open' | 'applied'): OathState {
-  return oath.init({ ...oath.setup(f.players, { seed: f.seed }), setupChoices });
-}
-
-const nameOf = (seat: number | null) => (seat === null ? 'spectator' : `seat ${seat}`);
+import {
+  FIXTURES,
+  CARD_ID_ANYWHERE,
+  idsIn,
+  learn,
+  openingState,
+  nameOf,
+} from './audit-lib.js';
 
 describe.each(FIXTURES)('hidden-information audit over a full game — $name', ({ fixture, setupChoices, endsComplete }) => {
   const VIEWERS: (number | null)[] = [...Array(fixture.players).keys(), null];

@@ -208,6 +208,23 @@ export function buildInbox(gameId: string, seat: number) {
   };
 }
 
+/**
+ * The projected view a `seat` (or a spectator, `seat === null`) may see for
+ * `gameId`, plus the seat names for labelling — the single loader the HTML
+ * board page (P4 unit 10) builds its model from. Redaction is entirely
+ * project()'s job; this only wires it to the store. Returns null if the game
+ * does not exist.
+ */
+export function buildBoard(gameId: string, seat: number | null) {
+  const found = defFor(gameId);
+  if (!found) return null;
+  const { def } = found;
+  const { state, seq } = loadState(def, gameId);
+  const names: string[] = [];
+  for (const { seat: s, name } of playersOf(gameId)) names[s] = name;
+  return { seq, view: def.project(state, seat), names };
+}
+
 /** Legal shape of every id `pending()` mints: `` `${kind-prefix}:${seat}:${anchor}` ``. */
 const DECISION_ID_RE = /^[a-zA-Z]+(?:-[a-zA-Z]+)*:\d+:\d+$/;
 
