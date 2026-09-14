@@ -805,6 +805,16 @@ answered in place.
 - **The client never computes a rule** — `affordances(state, seat)` joins
   `project` and `pending` on `GameDefinition`, and a bidirectional
   conformance test ties rendered forms to it in both directions (D56).
+- **A green suite does not close a client unit — Ben does** (added 09-14).
+  Every unit that adds to or changes the browser-facing client (units
+  8–15) ends with a human browser check: run the app locally, hand Ben the
+  URL, and wait for his confirmation before committing. Prompted by unit
+  8's admin-form token bug, which passed every test yet 403'd in the
+  browser — the test authenticated via the header, not the form field a
+  browser actually submits. Tests cover the paths the author imagined; the
+  browser covers the ones a user hits. Unit 16 is itself the human visual
+  gate; unit 17 already requires a real-device play; server-only units
+  (1–7) and the docs close (18) are exempt.
 
 **Exit criteria.**
 - [ ] a full game playable from a tablet and from a laptop *(two gates: plan
