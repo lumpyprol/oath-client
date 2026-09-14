@@ -7,6 +7,7 @@
 
 import type { OathView } from '../oath/game/project.js';
 import { findById } from '../oath/cards/index.js';
+import { SEAT_COLORS } from '../oath/cards/art.js';
 
 /** A pending decision as the inbox sees it — the engine's fields plus the HTTP layer's `since`/`url`. */
 export interface InboxDecision {
@@ -158,7 +159,10 @@ export interface AdviserModel {
 export interface PlayerAreaModel {
   seat: number;
   name: string;
+  /** Seat colour (wooden pieces + board), e.g. "red". */
+  color: string;
   isYou: boolean;
+  active: boolean;
   citizen: boolean;
   chancellor: boolean;
   pawnSite: string | null; // display name of the site the pawn stands on
@@ -262,14 +266,23 @@ function siteModel(s: OathView['sites'][number]): SiteModel {
 function playerAreaModel(
   p: OathView['players'][number],
   seat: number,
-  meta: { names: string[]; you: number | null; oathkeeper: number; usurper: boolean; siteName: (id: string) => string },
+  meta: {
+    names: string[];
+    you: number | null;
+    oathkeeper: number;
+    usurper: boolean;
+    activeSeat: number;
+    siteName: (id: string) => string;
+  },
 ): PlayerAreaModel {
   const titles: string[] = [];
   if (seat === meta.oathkeeper) titles.push(meta.usurper ? 'Usurper' : 'Oathkeeper');
   return {
     seat,
     name: meta.names[seat] ?? `seat ${seat}`,
+    color: SEAT_COLORS[seat] ?? 'red',
     isYou: seat === meta.you,
+    active: seat === meta.activeSeat,
     citizen: p.citizenship === 'citizen',
     chancellor: p.citizenship === 'chancellor',
     pawnSite: p.pawnSite !== null ? meta.siteName(p.pawnSite) : null,
@@ -309,6 +322,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
       you: meta.seat,
       oathkeeper: view.oathkeeper,
       usurper: view.usurper,
+      activeSeat: view.turn.activeSeat,
       siteName,
     }),
   );

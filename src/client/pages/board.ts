@@ -18,7 +18,19 @@ import type {
   PlayerAreaModel,
   AdviserModel,
 } from '../model.js';
-import { makeArtResolver, type ArtResolver } from '../art.js';
+import { makeArtResolver, artUrl, type ArtResolver } from '../art.js';
+import { DENIZEN_BACK_FILE } from '../../oath/cards/art.js';
+
+const BOARD_COLORS = ['red', 'blue', 'yellow', 'white', 'black'];
+/** The player-board image for a seat's role and colour (purple has none → red). */
+function playerBoardFile(p: PlayerAreaModel): string {
+  if (p.chancellor) return 'player_board_chancellor.png';
+  const color = BOARD_COLORS.includes(p.color) ? p.color : 'red';
+  return `player_board_${color}_${p.citizen ? 'citizen' : 'exile'}.png`;
+}
+/** A wooden warband token in a seat's colour. */
+const warbandTok = (color: string): Raw =>
+  html`<img class="tok-img wb-tok" src="${artUrl(`warband ${color}.png`)}" alt="">`;
 
 /** A single card face: an <img> when its asset is present, else a named placeholder box. */
 function face(f: FaceModel, art: ArtResolver): Raw {
@@ -129,30 +141,49 @@ function siteView(s: SiteModel, art: ArtResolver): Raw {
   </article>`;
 }
 
+/** One adviser beside a player board: its face if known, else the denizen back. */
 function adviser(a: AdviserModel, art: ArtResolver): Raw {
-  const card = a.kind === 'face' && a.face ? face(a.face, art) : back('facedown adviser');
-  return html`<li class="adviser">${card} ${tokens(a.favor, a.secrets)}</li>`;
+  const card =
+    a.kind === 'face' && a.face
+      ? face(a.face, art)
+      : html`<img class="card-back" src="${artUrl(DENIZEN_BACK_FILE)}" alt="Facedown adviser">`;
+  return html`<li class="adviser">${card}${a.favor || a.secrets ? tokens(a.favor, a.secrets) : ''}</li>`;
+}
+
+/** A favor "coin" and a secret token, as compact labelled chips. */
+function favorChip(n: number): Raw {
+  return html`<span class="tok favor" title="Favor"><span class="coin"></span>${n}</span>`;
+}
+function secretChip(ready: number, flipped: number): Raw {
+  return html`<span class="tok secret" title="Secrets ready / flipped"
+    ><img class="tok-img" src="${artUrl('secret.png')}" alt="">${ready}${flipped ? html`<span class="flip">+${flipped}</span>` : ''}</span>`;
 }
 
 function playerArea(p: PlayerAreaModel, art: ArtResolver): Raw {
   const role = p.chancellor ? 'Chancellor' : p.citizen ? 'Citizen' : 'Exile';
-  return html`<article class="player${p.isYou ? ' you' : ''}">
-    <h3>
+  const cls = `pboard${p.isYou ? ' you' : ''}${p.active ? ' active' : ''}`;
+  return html`<article class="${cls}" data-color="${p.color}">
+    <div class="pb-head">
       <span class="pname">${p.name}</span>
-      <span class="pmeta">seat ${p.seat} · ${role}${p.titles.map((t) => html` · ${t}`)}${p.isYou ? raw(' · <strong>you</strong>') : ''}</span>
-    </h3>
-    <dl class="stats">
-      <div><dt>Favor</dt><dd>${p.favor}</dd></div>
-      <div><dt>Secrets</dt><dd>${p.secretsReady} ready / ${p.secretsFlipped} flipped</dd></div>
-      <div><dt>Warbands</dt><dd>${p.warbandsBoard} board / ${p.warbandsBank} bank</dd></div>
-      <div><dt>Supply</dt><dd>${p.supply}</dd></div>
-      <div><dt>Pawn</dt><dd>${p.pawnSite ?? 'unplaced'}</dd></div>
-    </dl>
-    ${p.vision ? html`<div class="vision">Vision: ${face(p.vision, art)}</div>` : ''}
-    ${p.relics.length ? html`<div class="held-relics">Relics: ${p.relics.map((r) => face(r, art))}</div>` : ''}
-    ${p.advisers.length
-      ? html`<ul class="advisers">${p.advisers.map((a) => adviser(a, art))}</ul>`
-      : html`<p class="advisers empty">No advisers.</p>`}
+      <span class="pmeta">seat ${p.seat} · ${role}${p.titles.map((t) => html` · ${t}`)}${p.isYou ? raw(' · <strong>you</strong>') : ''}${p.active ? raw(' · <span class="on-clock">on the clock</span>') : ''}</span>
+      <span class="pb-stats">
+        ${favorChip(p.favor)}
+        ${secretChip(p.secretsReady, p.secretsFlipped)}
+        <span class="tok wb" title="Warbands (bank)">${warbandTok(p.color)}${p.warbandsBank}</span>
+        <span class="tok supply" title="Supply">S ${p.supply}</span>
+        <span class="tok pawn" title="Pawn">⚑ ${p.pawnSite ?? 'unplaced'}</span>
+      </span>
+    </div>
+    <div class="pb-frame">
+      <img class="pb-bg" src="${artUrl(playerBoardFile(p))}" alt="${role} board">
+      ${p.vision ? html`<div class="pb-vision">${face(p.vision, art)}</div>` : ''}
+    </div>
+    <div class="pb-cards">
+      ${p.advisers.length
+        ? html`<ul class="advisers">${p.advisers.map((a) => adviser(a, art))}</ul>`
+        : html`<p class="advisers empty">No advisers.</p>`}
+      ${p.relics.length ? html`<div class="held-relics" title="Relics">${p.relics.map((r) => face(r, art))}</div>` : ''}
+    </div>
   </article>`;
 }
 

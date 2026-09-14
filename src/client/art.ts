@@ -13,6 +13,9 @@
 
 import { ART_MANIFEST, missingAssets, ART_DIR, type ArtManifest } from '../oath/cards/art.js';
 
+/** The served URL for any allowlisted asset, encoding spaces (e.g. "warband red.png"). */
+export const artUrl = (file: string): string => `/art/${encodeURIComponent(file)}`;
+
 export interface ArtRef {
   /** The <img> src, only when the asset is present; its absence means "placeholder". */
   src?: string;

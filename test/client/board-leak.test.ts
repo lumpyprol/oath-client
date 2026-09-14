@@ -110,6 +110,8 @@ describe('board HTML — the placeholder path with no assets', () => {
     const model = boardModel(project(state, 0), { gameId: 'g', seat: 0, names });
     const htmlOut = boardPage(model, { art });
     expect(htmlOut).toContain('class="face placeholder"');
-    expect(htmlOut).not.toContain('<img'); // no asset files present
+    // A card FACE with no asset degrades to a placeholder, never an <img class="face">.
+    // (UI chrome — player boards, tokens — is always imagery and is unrelated.)
+    expect(htmlOut).not.toContain('<img class="face"');
   });
 });

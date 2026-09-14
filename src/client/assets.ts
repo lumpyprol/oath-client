@@ -44,13 +44,36 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
   display: grid; gap: var(--gap);
   grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
 }
-.site, .player {
+.player-grid { grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr)); }
+.site {
   border: 1px solid #8886; border-radius: 6px; padding: 0.5rem;
 }
-.player.you { border-color: currentColor; }
-.site h3, .player h3 { font-size: 0.95rem; margin: 0 0 0.5rem; }
+.site h3 { font-size: 0.95rem; margin: 0 0 0.5rem; }
 .pmeta { display: block; font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 .slots, .advisers { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* ---- player boards (unit 16 batch 1) ---- */
+.pboard { border: 2px solid #8884; border-radius: 8px; padding: 0.4rem; }
+.pboard.you { border-color: #8f8; }
+.pboard.active { box-shadow: 0 0 0 2px #ffd54a, 0 0 16px #ffd54a88; border-color: #ffd54a; }
+.pb-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.6rem; margin-bottom: 0.35rem; }
+.pb-head .pname { font-weight: 700; }
+.on-clock { color: #d9a400; font-weight: 600; }
+.pb-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-left: auto; font-size: 0.85rem; }
+.tok { display: inline-flex; align-items: center; gap: 0.2rem; font-variant-numeric: tabular-nums; }
+.tok-img { height: 1.1em; width: auto; vertical-align: middle; }
+.tok .coin { width: 0.85em; height: 0.85em; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe08a, #d99b1c 70%); border: 1px solid #a5730f; display: inline-block; }
+.tok .flip { color: var(--muted); }
+.pb-frame { position: relative; }
+.pb-bg { width: 100%; display: block; border-radius: 6px; }
+.pb-vision { position: absolute; left: 4%; top: 29%; width: 24%; }
+.pb-vision .face, .pb-vision img.face { width: 100%; height: auto; min-width: 0; min-height: 0; border-radius: 4px; box-shadow: 0 1px 6px #0008; }
+.pb-turn { position: absolute; right: 2%; top: 3%; width: 9%; filter: drop-shadow(0 2px 3px #0009); }
+.pb-cards { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.4rem; align-items: flex-start; }
+.pb-cards .advisers .adviser, .pb-cards .advisers img.face, .pb-cards .advisers .card-back,
+.pb-cards .held-relics img.face { width: 3.4rem; height: auto; min-width: 0; min-height: 0; border-radius: 4px; }
+.card-back { display: block; border-radius: 4px; box-shadow: 0 1px 3px #0007; }
+.held-relics { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .slot.empty { display: none; }
 .face {
   display: inline-flex; align-items: center; justify-content: center; text-align: center;

@@ -93,14 +93,36 @@ const BANNER_FILES: Record<string, string> = {
 };
 
 /**
- * Non-card assets the art route may serve: the board mat, and the site back
- * (`lands3_08.png` — the deck's unused 24th slot, which the mod uses as the
- * facedown-site face). Kept as an explicit allowlist so the route never
- * serves a name it was not told to — the same membership discipline the
- * manifest gives card files.
+ * Non-card assets the art route may serve: the board mat, the site back
+ * (`lands3_08.png` — the deck's unused 24th slot, the facedown-site face),
+ * the player boards, the wooden pieces (warbands, pawns) and the tokens
+ * (vision, turn, secret), and the deck backs. Kept as an explicit allowlist
+ * so the route never serves a name it was not told to — the same membership
+ * discipline the manifest gives card files.
  */
 export const SITE_BACK_FILE = 'lands3_08.png';
-export const UI_ASSETS: readonly string[] = ['full_board.png', SITE_BACK_FILE];
+export const DENIZEN_BACK_FILE = 'denizen card backv2.png';
+
+/** Seat colour by index — the wooden-piece and player-board palette. */
+export const SEAT_COLORS = ['red', 'blue', 'yellow', 'white', 'black', 'purple'] as const;
+/** Colours that actually have a player-board and pawn asset (purple has neither). */
+const BOARD_COLORS = ['red', 'blue', 'yellow', 'white', 'black'] as const;
+
+const PLAYER_BOARDS = [
+  'player_board_chancellor.png',
+  ...BOARD_COLORS.flatMap((c) => [`player_board_${c}_citizen.png`, `player_board_${c}_exile.png`]),
+];
+const PIECES = [
+  ...SEAT_COLORS.map((c) => `warband ${c}.png`),
+  ...BOARD_COLORS.map((c) => `player ${c}.png`),
+  'Vision marker.png',
+  'turn marker.png',
+  'secret.png',
+  DENIZEN_BACK_FILE,
+  'relicBack.png',
+];
+
+export const UI_ASSETS: readonly string[] = ['full_board.png', SITE_BACK_FILE, ...PLAYER_BOARDS, ...PIECES];
 
 /** The filename the sliced TTS asset for a `ttscardid` carries. */
 function ttsFile(ttscardid: string, opts?: { ruin?: boolean }): string {
