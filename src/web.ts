@@ -8,10 +8,13 @@
  */
 
 import express from 'express';
-import { isAdmin } from './routes.js';
+import { isAdmin, buildInbox } from './routes.js';
 import { oath } from './oath/game/index.js';
 import { createGame, playerByToken } from './actionlog.js';
 import { sessionFromRequest, setCookieHeader } from './session.js';
+import { APP_CSS, APP_JS } from './client/assets.js';
+import { inboxModel } from './client/model.js';
+import { inboxPage } from './client/pages/inbox.js';
 
 const page = (title: string, body: string): string =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
@@ -46,7 +49,7 @@ function safeNext(raw: unknown): string {
  * player pages).
  */
 export function signinRedirect(req: express.Request, res: express.Response, next: express.NextFunction): void {
-  const exempt = ['/api', '/join', '/signin', '/admin', '/health'];
+  const exempt = ['/api', '/join', '/signin', '/admin', '/health', '/assets'];
   const wantsHtml = (req.header('accept') ?? '').includes('text/html');
   if (req.method !== 'GET' || !wantsHtml || exempt.some((p) => req.path === p || req.path.startsWith(p + '/'))) {
     return next();
@@ -56,6 +59,17 @@ export function signinRedirect(req: express.Request, res: express.Response, next
 }
 
 export const webRouter = express.Router();
+
+// ---- static assets (the shell's CSS and one PE script) ---------------------
+
+webRouter.get('/assets/app.css', (_req, res) => {
+  res.type('css').setHeader('Cache-Control', 'public, max-age=3600');
+  res.send(APP_CSS);
+});
+webRouter.get('/assets/app.js', (_req, res) => {
+  res.type('js').setHeader('Cache-Control', 'public, max-age=3600');
+  res.send(APP_JS);
+});
 
 // ---- /join/:token — the one-tap sign-in (Q16: token in the URL) ------------
 
@@ -102,16 +116,22 @@ webRouter.post('/signin', (req, res) => {
   res.redirect(303, next);
 });
 
-// ---- / — a placeholder until unit 9's shell -------------------------------
+// ---- / — the inbox, and the landing view (unit 9) -------------------------
 
 webRouter.get('/', (req, res) => {
-  const session = sessionFromRequest(req.header('cookie'))!; // the redirect guarantees one
-  res.type('html').send(
-    page(
-      'Oath',
-      `<p>Signed in to game ${esc(session.gameId)} as seat ${session.seat}. The client arrives in unit 9.</p>`,
-    ),
+  const session = sessionFromRequest(req.header('cookie'));
+  // The redirect middleware covers a browser navigation; this guards a
+  // non-HTML GET (curl, a probe) that slipped past it.
+  if (!session) return res.redirect(302, `/signin?next=${encodeURIComponent('/')}`);
+  const inbox = buildInbox(session.gameId, session.seat);
+  if (!inbox) {
+    return res.status(404).type('html').send(page('Not found', '<p>That game no longer exists.</p>'));
+  }
+  const model = inboxModel(
+    { gameId: session.gameId, waitingOnYou: inbox.waitingOnYou, waitingOnOthers: inbox.waitingOnOthers },
+    Date.now(),
   );
+  res.type('html').send(inboxPage(model, { seat: session.seat, gameId: session.gameId }));
 });
 
 // ---- /admin — create a game and hand out its join links (Q17) --------------

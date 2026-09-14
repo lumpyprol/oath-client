@@ -183,6 +183,31 @@ function urlFor(gameId: string, decisionId: string): string {
   return `/games/${gameId}/decisions/${decisionId}`;
 }
 
+/**
+ * The decision inbox for one seat, split into what is waiting on THEM and
+ * what the game is waiting on from others (so a client can show why nothing
+ * is moving). The single source of this logic — the JSON `/inbox` route and
+ * the HTML inbox page (unit 9) both call it, rather than each computing it.
+ * Returns null if the game does not exist.
+ */
+export function buildInbox(gameId: string, seat: number) {
+  const found = defFor(gameId);
+  if (!found) return null;
+  const { def } = found;
+  const { state, seq } = loadState(def, gameId);
+  const decorate = (d: import('./engine/types.js').PendingDecision) => ({
+    ...d,
+    since: sinceOf(gameId, d.id),
+    url: urlFor(gameId, d.id),
+  });
+  const pending = def.pending(state);
+  return {
+    seq,
+    waitingOnYou: pending.filter((d) => d.seat === seat).map(decorate),
+    waitingOnOthers: pending.filter((d) => d.seat !== seat).map(decorate),
+  };
+}
+
 /** Legal shape of every id `pending()` mints: `` `${kind-prefix}:${seat}:${anchor}` ``. */
 const DECISION_ID_RE = /^[a-zA-Z]+(?:-[a-zA-Z]+)*:\d+:\d+$/;
 
@@ -229,25 +254,15 @@ router.get('/games/:id/decisions/:decisionId', (req, res) => {
  * and what a deep link resolves against.
  */
 router.get('/inbox', (req, res) => {
+  // Header-only auth: this is what a notification worker (P6) polls.
   const token = req.header('x-player-token');
   if (!token) return res.status(401).json({ error: 'missing player token' });
   const p = playerByToken(token);
   if (!p) return res.status(401).json({ error: 'invalid player token' });
 
-  const found = defFor(p.game_id);
-  if (!found) return res.status(404).json({ error: 'no such game' });
-  const { def } = found;
-  const { state, seq } = loadState(def, p.game_id);
-
-  res.json({
-    gameId: p.game_id,
-    seat: p.seat,
-    seq,
-    waitingOnYou: def
-      .pending(state)
-      .filter((d) => d.seat === p.seat)
-      .map((d) => ({ ...d, since: sinceOf(p.game_id, d.id), url: urlFor(p.game_id, d.id) })),
-  });
+  const inbox = buildInbox(p.game_id, p.seat);
+  if (!inbox) return res.status(404).json({ error: 'no such game' });
+  res.json({ gameId: p.game_id, seat: p.seat, seq: inbox.seq, waitingOnYou: inbox.waitingOnYou });
 });
 
 router.get('/games/:id/history', (req, res) => {
