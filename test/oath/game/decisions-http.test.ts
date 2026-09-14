@@ -194,6 +194,7 @@ describe('GET /games/:id/decisions/:decisionId', () => {
 
     const rolled = await api(`/games/${ctx.gameId}/rollback`, {
       method: 'POST',
+      token: ctx.tokens[0], // P4 unit 8: rollback now requires a player in this game
       body: JSON.stringify({ toSeq: beforeOffer }),
     });
     expect(rolled.status).toBe(200);

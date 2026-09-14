@@ -1,5 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
+import { timingSafeEqual } from 'node:crypto';
+import { sessionFromRequest } from './session.js';
 import { oath } from './oath/game/index.js';
 import { IllegalAction, StaleSeq, type GameDefinition } from './engine/types.js';
 import {
@@ -29,13 +31,40 @@ function defFor(gameId: string) {
   return { game, def };
 }
 
-/** Token in a header, not a query string, so it stays out of server logs. */
+/**
+ * Which seat is making this request, for `gameId` — or null.
+ *
+ * Resolution order (P4 unit 8): the `x-player-token` HEADER first, so the
+ * JSON API, the smoke script and P6's worker keep working exactly as
+ * before; then the browser's signed session COOKIE. A cookie is honoured
+ * only for the game it was minted for — a session for game A grants nothing
+ * on game B.
+ */
 function seatOf(req: express.Request, gameId: string): number | null {
   const token = req.header('x-player-token');
-  if (!token) return null;
-  const p = playerByToken(token);
-  if (!p || p.game_id !== gameId) return null;
-  return p.seat;
+  if (token) {
+    const p = playerByToken(token);
+    if (p && p.game_id === gameId) return p.seat;
+    return null; // a header was presented but is wrong — do not fall through
+  }
+  const session = sessionFromRequest(req.header('cookie'));
+  if (session && session.gameId === gameId) return session.seat;
+  return null;
+}
+
+/**
+ * The configured admin secret (P4 unit 8), or null when unset — in which
+ * case admin-only routes are simply unavailable rather than open.
+ */
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN && process.env.ADMIN_TOKEN.length > 0 ? process.env.ADMIN_TOKEN : null;
+
+/** Constant-time check that this request carries the admin secret (header or `?token=`). */
+export function isAdmin(req: express.Request): boolean {
+  if (ADMIN_TOKEN === null) return false;
+  const presented = req.header('x-admin-token') ?? (typeof req.query.token === 'string' ? req.query.token : '');
+  const a = Buffer.from(presented);
+  const b = Buffer.from(ADMIN_TOKEN);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 const CreateBody = z.object({
@@ -217,10 +246,18 @@ router.get('/games/:id/history', (req, res) => {
   res.json({ seq: headSeq(req.params.id), actions: history(req.params.id) });
 });
 
-/** Admin-only in any real deployment. Gate it before this leaves your LAN. */
+/**
+ * Rollback (P4 unit 8 closed the hole): the async group's dispute-
+ * resolution tool. Gated on a seat IN THIS GAME (any player may rewind
+ * their own table) OR the admin token. Until this unit it had NO auth at
+ * all and was reachable on oath-async.fly.dev — the exploit is now a test.
+ */
 router.post('/games/:id/rollback', (req, res) => {
   const found = defFor(req.params.id);
   if (!found) return res.status(404).json({ error: 'no such game' });
+  if (seatOf(req, req.params.id) === null && !isAdmin(req)) {
+    return res.status(401).json({ error: 'rollback requires a player in this game or the admin token' });
+  }
   const toSeq = z.number().int().min(0).parse(req.body?.toSeq);
   rollback(req.params.id, toSeq);
   const { state, seq } = loadState(found.def, req.params.id);

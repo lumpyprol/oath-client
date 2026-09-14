@@ -708,7 +708,7 @@ database is provably untouched.
 
 ---
 
-## Unit 8 — Sessions, join links, and the gate on rollback
+## Unit 8 — Sessions, join links, and the gate on rollback ✅ (completed 2026-09-13)
 
 **Purpose.** Make a browser able to authenticate at all — and close the
 open rollback endpoint, which is on a public URL today with only a comment
