@@ -1138,7 +1138,7 @@ folds, and the six-player measurement is unmoved.
 
 ---
 
-## Unit 15 — Art: an offline pipeline and a gated route
+## Unit 15 — Art: an offline pipeline and a gated route ✅ (completed 2026-09-14; adapted to the TTS per-card corpus)
 
 **Purpose.** The P1 hand-off. The manifest has been complete since 09-08 and
 `ART_DIR` has been empty since 09-08.
@@ -1192,7 +1192,7 @@ degrades gracefully, and the pipeline is documented and runnable.
 
 ---
 
-## Unit 16 — The visual pass (NOT TDD, and it says so)
+## Unit 16 — The visual pass (NOT TDD, and it says so) 🚧 (in progress — batch 1: board + real art on slots + hover-zoom)
 
 **Purpose.** Make it look like Oath. This is craft, and the honest thing to
 do is name it as the one unit whose gate is a person (D65).

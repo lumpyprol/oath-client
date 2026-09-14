@@ -41,6 +41,75 @@ function tokens(favor: number, secrets: number): Raw {
   return bits.length ? html`<span class="tokens">${bits}</span>` : raw('');
 }
 
+/**
+ * Where each region's site slots sit on full_board.png, as the top-left
+ * corner in percent of the board image. Only the position lives here — the
+ * card SIZE is in the CSS (`.bsite`), sized to fully cover the printed slot
+ * (12.3% x 23.6% of the board) while holding the card's real aspect, so the
+ * site card hides the yellow outline and site↔denizen scale stays 1:1 (a
+ * denizen is the same height, its own width). The board has 2 Cradle slots
+ * and 3 each for Provinces and Hinterland — the 2/3/3 the engine lays out.
+ * Measured off the clean board against a percentage grid.
+ */
+const SITE_SLOTS: Record<string, { x: number; y: number }[]> = {
+  cradle: [
+    { x: 0.6, y: 18.4 },
+    { x: 0.6, y: 42.4 },
+  ],
+  provinces: [
+    { x: 33.1, y: 18.9 },
+    { x: 33.1, y: 42.9 },
+    { x: 32.9, y: 66.2 },
+  ],
+  hinterland: [
+    { x: 67.1, y: 18.0 },
+    { x: 67.1, y: 42.4 },
+    { x: 67.1, y: 64.8 },
+  ],
+};
+
+/** One site placed on its board slot: the site card, its denizens beside it, tokens. */
+function boardSite(s: SiteModel, slot: { x: number; y: number }, art: ArtResolver, siteBackUrl?: string): Raw {
+  const cardFace = s.face
+    ? face(s.face, art)
+    : siteBackUrl
+      ? html`<img class="face site-back" src="${siteBackUrl}" alt="Facedown site">`
+      : back('unrevealed site');
+  const denizens = s.cards.filter((c) => c !== null) as Exclude<SiteModel['cards'][number], null>[];
+  const style = `left:${slot.x}%;top:${slot.y}%`;
+  return html`<div class="bsite" style="${raw(style)}">
+    <div class="bsite-card">${cardFace}
+      ${s.face || siteBackUrl ? '' : html`<span class="bsite-name">${s.name}</span>`}
+      ${s.favor || s.secrets ? html`<span class="bsite-tokens">${tokens(s.favor, s.secrets)}</span>` : ''}
+    </div>
+    ${denizens.length || s.relics.length
+      ? html`<div class="bsite-cards">
+          ${denizens.map((c) =>
+            c.kind === 'face'
+              ? html`<span class="bcard">${face(c.face, art)}${c.ruined ? html`<span class="ruined">R</span>` : ''}</span>`
+              : html`<span class="bcard">${back()}</span>`,
+          )}
+          ${s.relics.map((r) => html`<span class="bcard relic">${r.kind === 'face' ? face(r.face, art) : back('facedown relic')}</span>`)}
+        </div>`
+      : ''}
+    ${s.warbands.length
+      ? html`<div class="bsite-warbands">${s.warbands.map((w) => html`<span class="wb wb-${w.seat}">${w.count}</span>`)}</div>`
+      : ''}
+  </div>`;
+}
+
+/** The single board: the map image with every site (and its denizens) placed on it. */
+function boardMap(model: BoardModel, art: ArtResolver, boardImageUrl: string, siteBackUrl?: string): Raw {
+  const sites = model.regions.flatMap((r) => {
+    const slots = SITE_SLOTS[r.region] ?? [];
+    return r.sites.map((s, i) => (slots[i] ? boardSite(s, slots[i], art, siteBackUrl) : raw('')));
+  });
+  return html`<div class="board-map">
+    <img class="board-base" src="${boardImageUrl}" alt="The Oath board">
+    <div class="board-overlay">${sites}</div>
+  </div>`;
+}
+
 function siteView(s: SiteModel, art: ArtResolver): Raw {
   return html`<article class="site${s.facedown ? ' facedown' : ''}">
     <h3>${s.name} ${tokens(s.favor, s.secrets)}</h3>
@@ -87,9 +156,24 @@ function playerArea(p: PlayerAreaModel, art: ArtResolver): Raw {
   </article>`;
 }
 
-export function boardPage(model: BoardModel, opts?: { art?: ArtResolver }): string {
+export function boardPage(
+  model: BoardModel,
+  opts?: { art?: ArtResolver; boardImageUrl?: string; siteBackUrl?: string },
+): string {
   const art = opts?.art ?? makeArtResolver();
   const title = model.spectator ? 'Board (spectator) — Oath' : 'Board — Oath';
+
+  // With the board image, the map IS the board — sites are placed on it. Only
+  // when there is no image do we fall back to the plain region listing, so the
+  // two are never shown at once (no duplicate table).
+  const table = opts?.boardImageUrl
+    ? boardMap(model, art, opts.boardImageUrl, opts.siteBackUrl)
+    : html`<section class="regions">
+        ${model.regions.map(
+          (r) => html`<section class="region"><h2>${r.label}</h2>
+            <div class="site-grid">${r.sites.map((s) => siteView(s, art))}</div></section>`,
+        )}
+      </section>`;
 
   const status = model.complete
     ? html`<p class="status done">Game over — winner: ${model.winner === null ? 'a tie' : `seat ${model.winner}`}.</p>`
@@ -114,6 +198,7 @@ export function boardPage(model: BoardModel, opts?: { art?: ArtResolver }): stri
     title,
     seat: model.spectator ? undefined : (model.seat as number),
     gameId: model.gameId,
+    bodyClass: 'board',
     body: html`
       <h1>The table</h1>
       ${status}
@@ -121,12 +206,7 @@ export function boardPage(model: BoardModel, opts?: { art?: ArtResolver }): stri
       ${campaign}
       ${pending.length ? html`<section class="pending"><h2>Awaiting a decision</h2><ul>${pending}</ul></section>` : ''}
 
-      <section class="regions">
-        ${model.regions.map(
-          (r) => html`<section class="region"><h2>${r.label}</h2>
-            <div class="site-grid">${r.sites.map((s) => siteView(s, art))}</div></section>`,
-        )}
-      </section>
+      ${table}
 
       <section class="players"><h2>Players</h2>
         <div class="player-grid">${model.players.map((p) => playerArea(p, art))}</div>

@@ -12,6 +12,8 @@ export interface LayoutOptions {
   /** The signed-in seat, shown in the header; omitted on pre-auth pages. */
   seat?: number;
   gameId?: string;
+  /** A class on <body>, for pages that need a wider canvas (the board). */
+  bodyClass?: string;
   body: Raw;
 }
 
@@ -20,6 +22,7 @@ export function layout(opts: LayoutOptions): string {
     opts.seat !== undefined
       ? html`<span class="seat">seat ${opts.seat}</span>`
       : raw('');
+  const bodyOpen = opts.bodyClass ? raw(`<body class="${opts.bodyClass}">`) : raw('<body>');
   return (
     '<!doctype html>' +
     html`<html lang="en">
@@ -30,7 +33,7 @@ export function layout(opts: LayoutOptions): string {
 <link rel="stylesheet" href="/assets/app.css">
 <script src="/assets/app.js" defer></script>
 </head>
-<body>
+${bodyOpen}
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="app-header"><span class="app-title">Oath</span>${who}</header>
 <main id="main">${opts.body}</main>

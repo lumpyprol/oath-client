@@ -132,6 +132,8 @@ export type RelicSlot = { kind: 'face'; face: FaceModel } | { kind: 'back' };
 export interface SiteModel {
   name: string; // "(unrevealed)" while facedown
   facedown: boolean;
+  /** The site card's own face, for placing on its board slot; null while facedown. */
+  face: FaceModel | null;
   favor: number;
   secrets: number;
   cards: SiteCard[];
@@ -241,6 +243,7 @@ function siteModel(s: OathView['sites'][number]): SiteModel {
   return {
     name: s.id !== null ? nameOfId(s.id) : '(unrevealed)',
     facedown: s.facedown,
+    face: s.id !== null ? faceOf(s.id) : null,
     favor: s.favor,
     secrets: s.secrets,
     cards: s.cards.map((c): SiteCard => {

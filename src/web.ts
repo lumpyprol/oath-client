@@ -17,6 +17,9 @@ import { inboxModel, boardModel } from './client/model.js';
 import { inboxPage } from './client/pages/inbox.js';
 import { boardPage } from './client/pages/board.js';
 import type { OathView } from './oath/game/project.js';
+import { ART_DIR, servableArtFiles, SITE_BACK_FILE } from './oath/cards/art.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 const page = (title: string, body: string): string =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
@@ -152,7 +155,34 @@ webRouter.get('/games/:id', (req, res) => {
     return res.status(404).type('html').send(page('Not found', '<p>That game no longer exists.</p>'));
   }
   const model = boardModel(board.view as OathView, { gameId: req.params.id, seat, names: board.names });
-  res.type('html').send(boardPage(model));
+  const boardImageUrl = existsSync(join(ART_DIR, 'full_board.png')) ? '/art/full_board.png' : undefined;
+  const siteBackUrl = existsSync(join(ART_DIR, SITE_BACK_FILE)) ? `/art/${SITE_BACK_FILE}` : undefined;
+  res.type('html').send(boardPage(model, { boardImageUrl, siteBackUrl }));
+});
+
+// ---- /art/:file — card & board art, to signed-in players only (unit 15) ----
+
+const SERVABLE_ART = servableArtFiles();
+
+/**
+ * Serves an art asset from ART_DIR to an authenticated seat only. Three
+ * guards, in order: a 401 for anyone without a session (the exit criterion —
+ * art is not public); a 404 for any name not in the allowlist, which is also
+ * the path-traversal defense (membership, not string-sanitising — a `..`
+ * name is simply not a card face); and long immutable caching, since the
+ * filenames are content-stable. A missing-but-allowed file 404s cleanly, and
+ * the client shows its placeholder for that key.
+ */
+webRouter.get('/art/:file', (req, res) => {
+  if (!sessionFromRequest(req.header('cookie'))) {
+    return res.status(401).type('text').send('sign in to view art');
+  }
+  const file = req.params.file;
+  if (!SERVABLE_ART.has(file)) return res.status(404).type('text').send('not found');
+  const path = join(ART_DIR, file);
+  if (!existsSync(path)) return res.status(404).type('text').send('not found');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.sendFile(path);
 });
 
 // ---- /admin — create a game and hand out its join links (Q17) --------------

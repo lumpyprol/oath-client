@@ -12,10 +12,12 @@
  * you change the template and this stays quiet.
  */
 
+import { existsSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { boardModel } from '../../src/client/model.js';
 import { boardPage } from '../../src/client/pages/board.js';
 import { makeArtResolver } from '../../src/client/art.js';
+import { ART_DIR } from '../../src/oath/cards/art.js';
 import { project } from '../../src/oath/game/project.js';
 import { oath } from '../../src/oath/game/index.js';
 import type { GameAction } from '../../src/engine/types.js';
@@ -54,6 +56,43 @@ describe.each(FIXTURES)('board HTML leak sweep — $name', ({ fixture, setupChoi
       sweep(`#${row.seq} ${row.type}`);
     }
     expect(leaks).toEqual([]);
+  });
+});
+
+// With real assets present, faces render as <img src="/art/<file>">. The
+// filenames are deck-slot names (cards_04.png), never colon-ids, so the sweep
+// must still find nothing — this guards that turning art ON did not open the
+// channel. Only runs where the corpus has been placed.
+describe.skipIf(!existsSync(ART_DIR)).each(FIXTURES)('board HTML leak sweep WITH art — $name', ({ fixture, setupChoices }) => {
+  const VIEWERS: (number | null)[] = [...Array(fixture.players).keys(), null];
+  const realArt = makeArtResolver(); // default dir = ART_DIR
+
+  it('renders real <img> art and still leaks no card id', () => {
+    let state = openingState(fixture, setupChoices);
+    const known = new Map<number | null, Set<string>>(VIEWERS.map((v) => [v, new Set<string>()]));
+    const leaks: string[] = [];
+    let sawImg = false;
+
+    const sweep = (after: string) => {
+      for (const seat of VIEWERS) {
+        const seen = known.get(seat)!;
+        learn(state, seat, seen);
+        const htmlOut = boardPage(boardModel(project(state, seat), { gameId: 'g', seat, names }), { art: realArt });
+        if (htmlOut.includes('<img')) sawImg = true;
+        for (const m of htmlOut.matchAll(CARD_ID_ANYWHERE)) {
+          if (!seen.has(m[0])) leaks.push(`${after}: ${nameOf(seat)} saw ${m[0]} in the board HTML`);
+        }
+      }
+    };
+
+    sweep('opening');
+    for (const row of fixture.actions) {
+      if (row.type === 'game.created') continue;
+      state = oath.reduce(structuredClone(state), row as unknown as GameAction);
+      sweep(`#${row.seq} ${row.type}`);
+    }
+    expect(leaks).toEqual([]);
+    expect(sawImg).toBe(true); // the art path was actually exercised
   });
 });
 

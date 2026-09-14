@@ -1,785 +1,785 @@
 {
   "denizen:wrestlers": {
-    "file": "denizen-wrestlers.webp"
+    "file": "cards_01.png"
   },
   "denizen:battle-honors": {
-    "file": "denizen-battle-honors.webp"
+    "file": "cards_02.png"
   },
   "denizen:bear-traps": {
-    "file": "denizen-bear-traps.webp"
+    "file": "cards_03.png"
   },
   "denizen:longbows": {
-    "file": "denizen-longbows.webp"
+    "file": "cards_04.png"
   },
   "denizen:keep": {
-    "file": "denizen-keep.webp"
+    "file": "cards_05.png"
   },
   "denizen:pressgangs": {
-    "file": "denizen-pressgangs.webp"
+    "file": "cards_06.png"
   },
   "denizen:garrison": {
-    "file": "denizen-garrison.webp"
+    "file": "cards_07.png"
   },
   "denizen:scouts": {
-    "file": "denizen-scouts.webp"
+    "file": "cards_08.png"
   },
   "denizen:alchemist": {
-    "file": "denizen-alchemist.webp"
+    "file": "cards_09.png"
   },
   "denizen:martial-culture": {
-    "file": "denizen-martial-culture.webp"
+    "file": "cards_10.png"
   },
   "denizen:errand-boy": {
-    "file": "denizen-errand-boy.webp"
+    "file": "cards_11.png"
   },
   "denizen:mercenaries": {
-    "file": "denizen-mercenaries.webp"
+    "file": "cards_12.png"
   },
   "denizen:tinkers-fair": {
-    "file": "denizen-tinkers-fair.webp"
+    "file": "cards_13.png"
   },
   "denizen:rain-boots": {
-    "file": "denizen-rain-boots.webp"
+    "file": "cards_14.png"
   },
   "denizen:a-small-favor": {
-    "file": "denizen-a-small-favor.webp"
+    "file": "cards_15.png"
   },
   "denizen:second-wind": {
-    "file": "denizen-second-wind.webp"
+    "file": "cards_16.png"
   },
   "denizen:gossip": {
-    "file": "denizen-gossip.webp"
+    "file": "cards_17.png"
   },
   "denizen:key-to-the-city": {
-    "file": "denizen-key-to-the-city.webp"
+    "file": "cards_18.png"
   },
   "denizen:scryer": {
-    "file": "denizen-scryer.webp"
+    "file": "cards_19.png"
   },
   "denizen:disgraced-captain": {
-    "file": "denizen-disgraced-captain.webp"
+    "file": "cards_20.png"
   },
   "denizen:naysayers": {
-    "file": "denizen-naysayers.webp"
+    "file": "cards2_01.png"
   },
   "denizen:book-burning": {
-    "file": "denizen-book-burning.webp"
+    "file": "cards2_02.png"
   },
   "denizen:ancient-binding": {
-    "file": "denizen-ancient-binding.webp"
+    "file": "cards2_03.png"
   },
   "denizen:horse-archers": {
-    "file": "denizen-horse-archers.webp"
+    "file": "cards2_04.png"
   },
   "denizen:warning-signals": {
-    "file": "denizen-warning-signals.webp"
+    "file": "cards2_05.png"
   },
   "denizen:elders": {
-    "file": "denizen-elders.webp"
+    "file": "cards2_06.png"
   },
   "denizen:gathering": {
-    "file": "denizen-gathering.webp"
+    "file": "cards2_07.png"
   },
   "denizen:faithful-friend": {
-    "file": "denizen-faithful-friend.webp"
+    "file": "cards2_08.png"
   },
   "denizen:tents": {
-    "file": "denizen-tents.webp"
+    "file": "cards2_09.png"
   },
   "denizen:great-herd": {
-    "file": "denizen-great-herd.webp"
+    "file": "cards2_10.png"
   },
   "denizen:fire-talkers": {
-    "file": "denizen-fire-talkers.webp"
+    "file": "cards2_11.png"
   },
   "denizen:magicians-code": {
-    "file": "denizen-magicians-code.webp"
+    "file": "cards2_12.png"
   },
   "denizen:spirit-snare": {
-    "file": "denizen-spirit-snare.webp"
+    "file": "cards2_13.png"
   },
   "denizen:wizard-school": {
-    "file": "denizen-wizard-school.webp"
+    "file": "cards2_14.png"
   },
   "denizen:dazzle": {
-    "file": "denizen-dazzle.webp"
+    "file": "cards2_15.png"
   },
   "denizen:acting-troupe": {
-    "file": "denizen-acting-troupe.webp"
+    "file": "cards2_16.png"
   },
   "denizen:taming-charm": {
-    "file": "denizen-taming-charm.webp"
+    "file": "cards2_17.png"
   },
   "denizen:inquisitor": {
-    "file": "denizen-inquisitor.webp"
+    "file": "cards2_18.png"
   },
   "denizen:wolves": {
-    "file": "denizen-wolves.webp"
+    "file": "cards2_19.png"
   },
   "denizen:animal-playmates": {
-    "file": "denizen-animal-playmates.webp"
+    "file": "cards2_20.png"
   },
   "denizen:true-names": {
-    "file": "denizen-true-names.webp"
+    "file": "cards3_01.png"
   },
   "denizen:old-oak": {
-    "file": "denizen-old-oak.webp"
+    "file": "cards3_02.png"
   },
   "denizen:forest-paths": {
-    "file": "denizen-forest-paths.webp"
+    "file": "cards3_03.png"
   },
   "denizen:long-lost-heir": {
-    "file": "denizen-long-lost-heir.webp"
+    "file": "cards3_04.png"
   },
   "denizen:rangers": {
-    "file": "denizen-rangers.webp"
+    "file": "cards3_05.png"
   },
   "denizen:roving-terror": {
-    "file": "denizen-roving-terror.webp"
+    "file": "cards3_06.png"
   },
   "denizen:wayside-inn": {
-    "file": "denizen-wayside-inn.webp"
+    "file": "cards3_07.png"
   },
   "denizen:extra-provisions": {
-    "file": "denizen-extra-provisions.webp"
+    "file": "cards3_08.png"
   },
   "denizen:memory-of-home": {
-    "file": "denizen-memory-of-home.webp"
+    "file": "cards3_09.png"
   },
   "denizen:welcoming-party": {
-    "file": "denizen-welcoming-party.webp"
+    "file": "cards3_10.png"
   },
   "denizen:traveling-doctor": {
-    "file": "denizen-traveling-doctor.webp"
+    "file": "cards3_11.png"
   },
   "denizen:storyteller": {
-    "file": "denizen-storyteller.webp"
+    "file": "cards3_12.png"
   },
   "denizen:armed-mob": {
-    "file": "denizen-armed-mob.webp"
+    "file": "cards3_13.png"
   },
   "denizen:tavern-songs": {
-    "file": "denizen-tavern-songs.webp"
+    "file": "cards3_14.png"
   },
   "denizen:secret-signal": {
-    "file": "denizen-secret-signal.webp"
+    "file": "cards3_15.png"
   },
   "denizen:augury": {
-    "file": "denizen-augury.webp"
+    "file": "cards3_16.png"
   },
   "denizen:rusting-ray": {
-    "file": "denizen-rusting-ray.webp"
+    "file": "cards3_17.png"
   },
   "denizen:portal": {
-    "file": "denizen-portal.webp"
+    "file": "cards3_18.png"
   },
   "denizen:billowing-fog": {
-    "file": "denizen-billowing-fog.webp"
+    "file": "cards3_19.png"
   },
   "denizen:kindred-warriors": {
-    "file": "denizen-kindred-warriors.webp"
+    "file": "cards3_20.png"
   },
   "denizen:terror-spells": {
-    "file": "denizen-terror-spells.webp"
+    "file": "cards4_01.png"
   },
   "denizen:blood-pact": {
-    "file": "denizen-blood-pact.webp"
+    "file": "cards4_02.png"
   },
   "denizen:revelation": {
-    "file": "denizen-revelation.webp"
+    "file": "cards4_03.png"
   },
   "denizen:observatory": {
-    "file": "denizen-observatory.webp"
+    "file": "cards4_04.png"
   },
   "denizen:plague-engines": {
-    "file": "denizen-plague-engines.webp"
+    "file": "cards4_05.png"
   },
   "denizen:gleaming-armor": {
-    "file": "denizen-gleaming-armor.webp"
+    "file": "cards4_06.png"
   },
   "denizen:bewitch": {
-    "file": "denizen-bewitch.webp"
+    "file": "cards4_07.png"
   },
   "denizen:jinx": {
-    "file": "denizen-jinx.webp"
+    "file": "cards4_08.png"
   },
   "denizen:tutor": {
-    "file": "denizen-tutor.webp"
+    "file": "cards4_09.png"
   },
   "denizen:dream-thief": {
-    "file": "denizen-dream-thief.webp"
+    "file": "cards4_10.png"
   },
   "denizen:cracking-ground": {
-    "file": "denizen-cracking-ground.webp"
+    "file": "cards4_11.png"
   },
   "denizen:sealing-ward": {
-    "file": "denizen-sealing-ward.webp"
+    "file": "cards4_12.png"
   },
   "denizen:initiation-rite": {
-    "file": "denizen-initiation-rite.webp"
+    "file": "cards4_13.png"
   },
   "denizen:vow-of-silence": {
-    "file": "denizen-vow-of-silence.webp"
+    "file": "cards4_14.png"
   },
   "denizen:forgotten-vault": {
-    "file": "denizen-forgotten-vault.webp"
+    "file": "cards4_15.png"
   },
   "denizen:map-library": {
-    "file": "denizen-map-library.webp"
+    "file": "cards4_16.png"
   },
   "denizen:witchs-bargain": {
-    "file": "denizen-witchs-bargain.webp"
+    "file": "cards4_17.png"
   },
   "denizen:master-of-disguise": {
-    "file": "denizen-master-of-disguise.webp"
+    "file": "cards4_18.png"
   },
   "denizen:charlatans": {
-    "file": "denizen-charlatans.webp"
+    "file": "cards4_19.png"
   },
   "denizen:assassin": {
-    "file": "denizen-assassin.webp"
+    "file": "cards4_20.png"
   },
   "denizen:downtrodden": {
-    "file": "denizen-downtrodden.webp"
+    "file": "cards5_01.png"
   },
   "denizen:blackmail": {
-    "file": "denizen-blackmail.webp"
+    "file": "cards5_02.png"
   },
   "denizen:cracked-sage": {
-    "file": "denizen-cracked-sage.webp"
+    "file": "cards5_03.png"
   },
   "denizen:dissent": {
-    "file": "denizen-dissent.webp"
+    "file": "cards5_04.png"
   },
   "denizen:false-prophet": {
-    "file": "denizen-false-prophet.webp"
+    "file": "cards5_05.png"
   },
   "denizen:vow-of-renewal": {
-    "file": "denizen-vow-of-renewal.webp"
+    "file": "cards5_06.png"
   },
   "denizen:zealots": {
-    "file": "denizen-zealots.webp"
+    "file": "cards5_07.png"
   },
   "denizen:royal-ambitions": {
-    "file": "denizen-royal-ambitions.webp"
+    "file": "cards5_08.png"
   },
   "denizen:salt-the-earth": {
-    "file": "denizen-salt-the-earth.webp"
+    "file": "cards5_09.png"
   },
   "denizen:beast-tamer": {
-    "file": "denizen-beast-tamer.webp"
+    "file": "cards5_10.png"
   },
   "denizen:riots": {
-    "file": "denizen-riots.webp"
+    "file": "cards5_11.png"
   },
   "denizen:silver-tongue": {
-    "file": "denizen-silver-tongue.webp"
+    "file": "cards5_12.png"
   },
   "denizen:gambling-hall": {
-    "file": "denizen-gambling-hall.webp"
+    "file": "cards5_13.png"
   },
   "denizen:boiling-lake": {
-    "file": "denizen-boiling-lake.webp"
+    "file": "cards5_14.png"
   },
   "denizen:relic-thief": {
-    "file": "denizen-relic-thief.webp"
+    "file": "cards5_15.png"
   },
   "denizen:enchantress": {
-    "file": "denizen-enchantress.webp"
+    "file": "cards5_16.png"
   },
   "denizen:insomnia": {
-    "file": "denizen-insomnia.webp"
+    "file": "cards5_17.png"
   },
   "denizen:sneak-attack": {
-    "file": "denizen-sneak-attack.webp"
+    "file": "cards5_18.png"
   },
   "denizen:sleight-of-hand": {
-    "file": "denizen-sleight-of-hand.webp"
+    "file": "cards5_19.png"
   },
   "denizen:bandit-chief": {
-    "file": "denizen-bandit-chief.webp"
+    "file": "cards5_20.png"
   },
   "denizen:chaos-cult": {
-    "file": "denizen-chaos-cult.webp"
+    "file": "cards6_01.png"
   },
   "denizen:slander": {
-    "file": "denizen-slander.webp"
+    "file": "cards6_02.png"
   },
   "denizen:code-of-honor": {
-    "file": "denizen-code-of-honor.webp"
+    "file": "cards6_03.png"
   },
   "denizen:outriders": {
-    "file": "denizen-outriders.webp"
+    "file": "cards6_04.png"
   },
   "denizen:messenger": {
-    "file": "denizen-messenger.webp"
+    "file": "cards6_05.png"
   },
   "denizen:field-promotion": {
-    "file": "denizen-field-promotion.webp"
+    "file": "cards6_06.png"
   },
   "denizen:palanquin": {
-    "file": "denizen-palanquin.webp"
+    "file": "cards6_07.png"
   },
   "denizen:shield-wall": {
-    "file": "denizen-shield-wall.webp"
+    "file": "cards6_08.png"
   },
   "denizen:military-parade": {
-    "file": "denizen-military-parade.webp"
+    "file": "cards6_09.png"
   },
   "denizen:tome-guardians": {
-    "file": "denizen-tome-guardians.webp"
+    "file": "cards6_10.png"
   },
   "denizen:tyrant": {
-    "file": "denizen-tyrant.webp"
+    "file": "cards6_11.png"
   },
   "denizen:secret-police": {
-    "file": "denizen-secret-police.webp"
+    "file": "cards6_12.png"
   },
   "denizen:forced-labor": {
-    "file": "denizen-forced-labor.webp"
+    "file": "cards6_13.png"
   },
   "denizen:specialist": {
-    "file": "denizen-specialist.webp"
+    "file": "cards6_14.png"
   },
   "denizen:captains": {
-    "file": "denizen-captains.webp"
+    "file": "cards6_15.png"
   },
   "denizen:siege-engines": {
-    "file": "denizen-siege-engines.webp"
+    "file": "cards6_16.png"
   },
   "denizen:royal-tax": {
-    "file": "denizen-royal-tax.webp"
+    "file": "cards6_17.png"
   },
   "denizen:toll-roads": {
-    "file": "denizen-toll-roads.webp"
+    "file": "cards6_18.png"
   },
   "denizen:curfew": {
-    "file": "denizen-curfew.webp"
+    "file": "cards6_19.png"
   },
   "denizen:knights-errant": {
-    "file": "denizen-knights-errant.webp"
+    "file": "cards6_20.png"
   },
   "denizen:vow-of-obedience": {
-    "file": "denizen-vow-of-obedience.webp"
+    "file": "cards7_01.png"
   },
   "denizen:hunting-party": {
-    "file": "denizen-hunting-party.webp"
+    "file": "cards7_02.png"
   },
   "denizen:council-seat": {
-    "file": "denizen-council-seat.webp"
+    "file": "cards7_03.png"
   },
   "denizen:encirclement": {
-    "file": "denizen-encirclement.webp"
+    "file": "cards7_04.png"
   },
   "denizen:peace-envoy": {
-    "file": "denizen-peace-envoy.webp"
+    "file": "cards7_05.png"
   },
   "denizen:relic-hunter": {
-    "file": "denizen-relic-hunter.webp"
+    "file": "cards7_06.png"
   },
   "denizen:homesteaders": {
-    "file": "denizen-homesteaders.webp"
+    "file": "cards7_07.png"
   },
   "denizen:crop-rotation": {
-    "file": "denizen-crop-rotation.webp"
+    "file": "cards7_08.png"
   },
   "denizen:a-round-of-ale": {
-    "file": "denizen-a-round-of-ale.webp"
+    "file": "cards7_09.png"
   },
   "denizen:land-warden": {
-    "file": "denizen-land-warden.webp"
+    "file": "cards7_10.png"
   },
   "denizen:charming-friend": {
-    "file": "denizen-charming-friend.webp"
+    "file": "cards7_11.png"
   },
   "denizen:village-constable": {
-    "file": "denizen-village-constable.webp"
+    "file": "cards7_12.png"
   },
   "denizen:family-heirloom": {
-    "file": "denizen-family-heirloom.webp"
+    "file": "cards7_13.png"
   },
   "denizen:news-from-afar": {
-    "file": "denizen-news-from-afar.webp"
+    "file": "cards7_14.png"
   },
   "denizen:levelers": {
-    "file": "denizen-levelers.webp"
+    "file": "cards7_15.png"
   },
   "denizen:fabled-feast": {
-    "file": "denizen-fabled-feast.webp"
+    "file": "cards7_16.png"
   },
   "denizen:great-levy": {
-    "file": "denizen-great-levy.webp"
+    "file": "cards7_17.png"
   },
   "denizen:hearts-and-minds": {
-    "file": "denizen-hearts-and-minds.webp"
+    "file": "cards7_18.png"
   },
   "denizen:relic-breaker": {
-    "file": "denizen-relic-breaker.webp"
+    "file": "cards7_19.png"
   },
   "denizen:book-binders": {
-    "file": "denizen-book-binders.webp"
+    "file": "cards7_20.png"
   },
   "denizen:ballot-box": {
-    "file": "denizen-ballot-box.webp"
+    "file": "cards8_01.png"
   },
   "denizen:saddle-makers": {
-    "file": "denizen-saddle-makers.webp"
+    "file": "cards8_02.png"
   },
   "denizen:squires": {
-    "file": "denizen-squires.webp"
+    "file": "cards8_03.png"
   },
   "denizen:rowdy-pub": {
-    "file": "denizen-rowdy-pub.webp"
+    "file": "cards8_04.png"
   },
   "denizen:vow-of-peace": {
-    "file": "denizen-vow-of-peace.webp"
+    "file": "cards8_05.png"
   },
   "denizen:deed-writer": {
-    "file": "denizen-deed-writer.webp"
+    "file": "cards8_06.png"
   },
   "denizen:salad-days": {
-    "file": "denizen-salad-days.webp"
+    "file": "cards8_07.png"
   },
   "denizen:marriage": {
-    "file": "denizen-marriage.webp"
+    "file": "cards8_08.png"
   },
   "denizen:hospital": {
-    "file": "denizen-hospital.webp"
+    "file": "cards8_09.png"
   },
   "denizen:awaited-return": {
-    "file": "denizen-awaited-return.webp"
+    "file": "cards8_10.png"
   },
   "denizen:convoys": {
-    "file": "denizen-convoys.webp"
+    "file": "cards8_11.png"
   },
   "denizen:vow-of-kinship": {
-    "file": "denizen-vow-of-kinship.webp"
+    "file": "cards8_12.png"
   },
   "denizen:wild-mounts": {
-    "file": "denizen-wild-mounts.webp"
+    "file": "cards8_13.png"
   },
   "denizen:lancers": {
-    "file": "denizen-lancers.webp"
+    "file": "cards8_14.png"
   },
   "denizen:mountain-giant": {
-    "file": "denizen-mountain-giant.webp"
+    "file": "cards8_15.png"
   },
   "denizen:rival-khan": {
-    "file": "denizen-rival-khan.webp"
+    "file": "cards8_16.png"
   },
   "denizen:lost-tongue": {
-    "file": "denizen-lost-tongue.webp"
+    "file": "cards8_17.png"
   },
   "denizen:special-envoy": {
-    "file": "denizen-special-envoy.webp"
+    "file": "cards8_18.png"
   },
   "denizen:homesick": {
-    "file": "denizen-homesick.webp"
+    "file": "cards8_19.png"
   },
   "denizen:oracle": {
-    "file": "denizen-oracle.webp"
+    "file": "cards8_20.png"
   },
   "denizen:pilgrimage": {
-    "file": "denizen-pilgrimage.webp"
+    "file": "cards9_01.png"
   },
   "denizen:spell-breaker": {
-    "file": "denizen-spell-breaker.webp"
+    "file": "cards9_02.png"
   },
   "denizen:mounted-patrol": {
-    "file": "denizen-mounted-patrol.webp"
+    "file": "cards9_03.png"
   },
   "denizen:great-crusade": {
-    "file": "denizen-great-crusade.webp"
+    "file": "cards9_04.png"
   },
   "denizen:ancient-bloodline": {
-    "file": "denizen-ancient-bloodline.webp"
+    "file": "cards9_05.png"
   },
   "denizen:ancient-pact": {
-    "file": "denizen-ancient-pact.webp"
+    "file": "cards9_06.png"
   },
   "denizen:storm-caller": {
-    "file": "denizen-storm-caller.webp"
+    "file": "cards9_07.png"
   },
   "denizen:family-wagon": {
-    "file": "denizen-family-wagon.webp"
+    "file": "cards9_08.png"
   },
   "denizen:way-station": {
-    "file": "denizen-way-station.webp"
+    "file": "cards9_09.png"
   },
   "denizen:twin-brother": {
-    "file": "denizen-twin-brother.webp"
+    "file": "cards9_10.png"
   },
   "denizen:hospitality": {
-    "file": "denizen-hospitality.webp"
+    "file": "cards9_11.png"
   },
   "denizen:a-fast-steed": {
-    "file": "denizen-a-fast-steed.webp"
+    "file": "cards9_12.png"
   },
   "denizen:relic-worship": {
-    "file": "denizen-relic-worship.webp"
+    "file": "cards9_13.png"
   },
   "denizen:sacred-ground": {
-    "file": "denizen-sacred-ground.webp"
+    "file": "cards9_14.png"
   },
   "denizen:nature-worship": {
-    "file": "denizen-nature-worship.webp"
+    "file": "cards9_15.png"
   },
   "denizen:birdsong": {
-    "file": "denizen-birdsong.webp"
+    "file": "cards9_16.png"
   },
   "denizen:small-friends": {
-    "file": "denizen-small-friends.webp"
+    "file": "cards9_17.png"
   },
   "denizen:grasping-vines": {
-    "file": "denizen-grasping-vines.webp"
+    "file": "cards9_18.png"
   },
   "denizen:threatening-roar": {
-    "file": "denizen-threatening-roar.webp"
+    "file": "cards9_19.png"
   },
   "denizen:fae-merchant": {
-    "file": "denizen-fae-merchant.webp"
+    "file": "cards9_20.png"
   },
   "denizen:second-chance": {
-    "file": "denizen-second-chance.webp"
+    "file": "cards10_01.png"
   },
   "denizen:pied-piper": {
-    "file": "denizen-pied-piper.webp"
+    "file": "cards10_02.png"
   },
   "denizen:mushrooms": {
-    "file": "denizen-mushrooms.webp"
+    "file": "cards10_03.png"
   },
   "denizen:insect-swarm": {
-    "file": "denizen-insect-swarm.webp"
+    "file": "cards10_04.png"
   },
   "denizen:vow-of-union": {
-    "file": "denizen-vow-of-union.webp"
+    "file": "cards10_05.png"
   },
   "denizen:giant-python": {
-    "file": "denizen-giant-python.webp"
+    "file": "cards10_06.png"
   },
   "denizen:war-tortoise": {
-    "file": "denizen-war-tortoise.webp"
+    "file": "cards10_07.png"
   },
   "denizen:new-growth": {
-    "file": "denizen-new-growth.webp"
+    "file": "cards10_08.png"
   },
   "denizen:wild-cry": {
-    "file": "denizen-wild-cry.webp"
+    "file": "cards10_09.png"
   },
   "denizen:animal-host": {
-    "file": "denizen-animal-host.webp"
+    "file": "cards10_10.png"
   },
   "denizen:memory-of-nature": {
-    "file": "denizen-memory-of-nature.webp"
+    "file": "cards10_11.png"
   },
   "denizen:marsh-spirit": {
-    "file": "denizen-marsh-spirit.webp"
+    "file": "cards10_12.png"
   },
   "denizen:vow-of-poverty": {
-    "file": "denizen-vow-of-poverty.webp"
+    "file": "cards10_13.png"
   },
   "denizen:forest-council": {
-    "file": "denizen-forest-council.webp"
+    "file": "cards10_14.png"
   },
   "denizen:walled-garden": {
-    "file": "denizen-walled-garden.webp"
+    "file": "cards10_15.png"
   },
   "denizen:vow-of-beast-kin": {
-    "file": "denizen-vow-of-beast-kin.webp"
+    "file": "cards10_16.png"
   },
   "denizen:bracken": {
-    "file": "denizen-bracken.webp"
+    "file": "cards10_17.png"
   },
   "denizen:wild-allies": {
-    "file": "denizen-wild-allies.webp"
+    "file": "cards10_18.png"
   },
   "site:mine": {
-    "file": "site-mine.webp"
+    "file": "lands1_01.png"
   },
   "site:salt-flats": {
-    "file": "site-salt-flats.webp"
+    "file": "lands1_02.png"
   },
   "site:fertile-valley": {
-    "file": "site-fertile-valley.webp"
+    "file": "lands1_03.png"
   },
   "site:barren-coast": {
-    "file": "site-barren-coast.webp"
+    "file": "lands1_04.png"
   },
   "site:plains": {
-    "file": "site-plains.webp"
+    "file": "lands1_05.png"
   },
   "site:river": {
-    "file": "site-river.webp"
+    "file": "lands1_06.png"
   },
   "site:steppe": {
-    "file": "site-steppe.webp"
+    "file": "lands1_07.png"
   },
   "site:mountain": {
-    "file": "site-mountain.webp"
+    "file": "lands1_08.png"
   },
   "site:lush-coast": {
-    "file": "site-lush-coast.webp"
+    "file": "lands2_01.png"
   },
   "site:marshes": {
-    "file": "site-marshes.webp"
+    "file": "lands2_02.png"
   },
   "site:wastes": {
-    "file": "site-wastes.webp"
+    "file": "lands2_03.png"
   },
   "site:rocky-coast": {
-    "file": "site-rocky-coast.webp"
+    "file": "lands2_04.png"
   },
   "site:narrow-pass": {
-    "file": "site-narrow-pass.webp"
+    "file": "lands2_05.png"
   },
   "site:charming-valley": {
-    "file": "site-charming-valley.webp"
+    "file": "lands2_06.png"
   },
   "site:deep-woods": {
-    "file": "site-deep-woods.webp"
+    "file": "lands2_07.png"
   },
   "site:standing-stones": {
-    "file": "site-standing-stones.webp"
+    "file": "lands2_08.png"
   },
   "site:ancient-city": {
-    "file": "site-ancient-city.webp"
+    "file": "lands3_01.png"
   },
   "site:drowned-city": {
-    "file": "site-drowned-city.webp"
+    "file": "lands3_02.png"
   },
   "site:great-slum": {
-    "file": "site-great-slum.webp"
+    "file": "lands3_03.png"
   },
   "site:buried-giant": {
-    "file": "site-buried-giant.webp"
+    "file": "lands3_04.png"
   },
   "site:tribunal": {
-    "file": "site-tribunal.webp"
+    "file": "lands3_05.png"
   },
   "site:shrouded-wood": {
-    "file": "site-shrouded-wood.webp"
+    "file": "lands3_06.png"
   },
   "site:hidden-place": {
-    "file": "site-hidden-place.webp"
+    "file": "lands3_07.png"
   },
   "relic:sticky-fire": {
-    "file": "relic-sticky-fire.webp"
+    "file": "relics_01.png"
   },
   "relic:cursed-cauldron": {
-    "file": "relic-cursed-cauldron.webp"
+    "file": "relics_02.png"
   },
   "relic:brass-horse": {
-    "file": "relic-brass-horse.webp"
+    "file": "relics_03.png"
   },
   "relic:truthful-harp": {
-    "file": "relic-truthful-harp.webp"
+    "file": "relics_04.png"
   },
   "relic:grand-mask": {
-    "file": "relic-grand-mask.webp"
+    "file": "relics_05.png"
   },
   "relic:horned-mask": {
-    "file": "relic-horned-mask.webp"
+    "file": "relics_06.png"
   },
   "relic:cup-of-plenty": {
-    "file": "relic-cup-of-plenty.webp"
+    "file": "relics_07.png"
   },
   "relic:whistle": {
-    "file": "relic-whistle.webp"
+    "file": "relics_08.png"
   },
   "relic:dowsing-sticks": {
-    "file": "relic-dowsing-sticks.webp"
+    "file": "relics_09.png"
   },
   "relic:cracked-horn": {
-    "file": "relic-cracked-horn.webp"
+    "file": "relics_10.png"
   },
   "relic:bandit-crown": {
-    "file": "relic-bandit-crown.webp"
+    "file": "relics_11.png"
   },
   "relic:ring-of-devotion": {
-    "file": "relic-ring-of-devotion.webp"
+    "file": "relics_12.png"
   },
   "relic:skeleton-key": {
-    "file": "relic-skeleton-key.webp"
+    "file": "relics_13.png"
   },
   "relic:oracular-pig": {
-    "file": "relic-oracular-pig.webp"
+    "file": "relics_14.png"
   },
   "relic:circlet-of-command": {
-    "file": "relic-circlet-of-command.webp"
+    "file": "relics_15.png"
   },
   "relic:ivory-eye": {
-    "file": "relic-ivory-eye.webp"
+    "file": "relics_16.png"
   },
   "relic:map": {
-    "file": "relic-map.webp"
+    "file": "relics_17.png"
   },
   "relic:obsidian-cage": {
-    "file": "relic-obsidian-cage.webp"
+    "file": "relics_18.png"
   },
   "relic:book-of-records": {
-    "file": "relic-book-of-records.webp"
+    "file": "relics_19.png"
   },
   "relic:dragonskin-drum": {
-    "file": "relic-dragonskin-drum.webp"
+    "file": "relics_20.png"
   },
   "vision:sanctuary": {
-    "file": "vision-sanctuary.webp"
+    "file": "visions_01.png"
   },
   "vision:rebellion": {
-    "file": "vision-rebellion.webp"
+    "file": "visions_02.png"
   },
   "vision:conspiracy": {
-    "file": "vision-conspiracy.webp"
+    "file": "visions_03.png"
   },
   "vision:faith": {
-    "file": "vision-faith.webp"
+    "file": "visions_04.png"
   },
   "vision:conquest": {
-    "file": "vision-conquest.webp"
+    "file": "visions_05.png"
   },
   "edifice:sprawling-rampart": {
-    "file": "edifice-sprawling-rampart.webp"
+    "file": "edificeFront_01.png"
   },
   "edifice:sprawling-rampart#ruin": {
-    "file": "edifice-sprawling-rampart-ruin.webp"
+    "file": "edificeBack_01.png"
   },
   "edifice:hall-of-debate": {
-    "file": "edifice-hall-of-debate.webp"
+    "file": "edificeFront_02.png"
   },
   "edifice:hall-of-debate#ruin": {
-    "file": "edifice-hall-of-debate-ruin.webp"
+    "file": "edificeBack_02.png"
   },
   "edifice:forest-temple": {
-    "file": "edifice-forest-temple.webp"
+    "file": "edificeFront_03.png"
   },
   "edifice:forest-temple#ruin": {
-    "file": "edifice-forest-temple-ruin.webp"
+    "file": "edificeBack_03.png"
   },
   "edifice:festival-district": {
-    "file": "edifice-festival-district.webp"
+    "file": "edificeFront_04.png"
   },
   "edifice:festival-district#ruin": {
-    "file": "edifice-festival-district-ruin.webp"
+    "file": "edificeBack_04.png"
   },
   "edifice:great-spire": {
-    "file": "edifice-great-spire.webp"
+    "file": "edificeFront_05.png"
   },
   "edifice:great-spire#ruin": {
-    "file": "edifice-great-spire-ruin.webp"
+    "file": "edificeBack_05.png"
   },
   "edifice:ancient-forge": {
-    "file": "edifice-ancient-forge.webp"
+    "file": "edificeFront_06.png"
   },
   "edifice:ancient-forge#ruin": {
-    "file": "edifice-ancient-forge-ruin.webp"
+    "file": "edificeBack_06.png"
   },
   "banner:darkest-secret": {
-    "file": "banner-darkest-secret.webp"
+    "file": "darkestsecret_front.png"
   },
   "banner:peoples-favor": {
-    "file": "banner-peoples-favor.webp"
+    "file": "peoplesfavor_front.png"
   },
   "banner:peoples-favor#1": {
-    "file": "banner-peoples-favor-1.webp"
+    "file": "peoplesfavor_back.png"
   }
 }
