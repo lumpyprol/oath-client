@@ -277,4 +277,21 @@ describe('the admin page (Q17)', () => {
     expect(r.body).toContain('/join/');
     expect(r.body.toLowerCase()).toContain('privately');
   });
+
+  it('accepts the admin token from the FORM field (how the admin page actually POSTs — no header, no query)', async () => {
+    const r = await raw('POST', '/admin/games', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: `token=admin-secret-for-tests&players=${encodeURIComponent('Alice,Bob,Carol,Dave')}`,
+    });
+    expect(r.status, r.body).toBe(200);
+    expect(r.body).toContain('/join/');
+  });
+
+  it('rejects the form POST when the form field carries the wrong token', async () => {
+    const r = await raw('POST', '/admin/games', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: `token=wrong&players=${encodeURIComponent('Alice,Bob,Carol,Dave')}`,
+    });
+    expect(r.status).toBe(403);
+  });
 });

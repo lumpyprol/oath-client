@@ -116,7 +116,8 @@ webRouter.get('/', (req, res) => {
 
 // ---- /admin — create a game and hand out its join links (Q17) --------------
 
-const ADMIN_UNAVAILABLE = '<p>Admin is not configured (set ADMIN_TOKEN).</p>';
+const ADMIN_UNAVAILABLE =
+  '<p>Admin access denied — set ADMIN_TOKEN and open /admin?token=… (or send the x-admin-token header).</p>';
 
 webRouter.get('/admin', (req, res) => {
   if (!isAdmin(req)) return res.status(403).type('html').send(page('Admin', ADMIN_UNAVAILABLE));

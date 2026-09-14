@@ -58,10 +58,19 @@ function seatOf(req: express.Request, gameId: string): number | null {
  */
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN && process.env.ADMIN_TOKEN.length > 0 ? process.env.ADMIN_TOKEN : null;
 
-/** Constant-time check that this request carries the admin secret (header or `?token=`). */
+/**
+ * Constant-time check that this request carries the admin secret. Accepts
+ * it in the `x-admin-token` header (API), the `?token=` query (the admin
+ * page link), or the `token` form field (the admin page's POST, whose
+ * hidden input carries it forward) — a browser form can set none of the
+ * other two.
+ */
 export function isAdmin(req: express.Request): boolean {
   if (ADMIN_TOKEN === null) return false;
-  const presented = req.header('x-admin-token') ?? (typeof req.query.token === 'string' ? req.query.token : '');
+  const presented =
+    req.header('x-admin-token') ??
+    (typeof req.query.token === 'string' ? req.query.token : undefined) ??
+    (typeof req.body?.token === 'string' ? req.body.token : '');
   const a = Buffer.from(presented);
   const b = Buffer.from(ADMIN_TOKEN);
   return a.length === b.length && timingSafeEqual(a, b);
