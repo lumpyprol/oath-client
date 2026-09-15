@@ -65,14 +65,18 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .tok-img { height: 1.1em; width: auto; vertical-align: middle; }
 .tok .coin { width: 0.85em; height: 0.85em; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe08a, #d99b1c 70%); border: 1px solid #a5730f; display: inline-block; }
 .tok .flip { color: var(--muted); }
-/* Board on the left, advisers as a full-height row to its right — as tall as
-   the board's vertical ADVISERS bar, not shrunk. */
-.pb-main { display: flex; align-items: stretch; gap: 0.5rem; }
-.pb-frame { position: relative; flex: 0 1 42rem; min-width: 0; align-self: flex-start; }
+/* Board on the left; advisers tuck to its right at the exact height of the
+   board's ADVISERS bar (~17%–80% of the board), not the full board height. */
+.pb-main { display: flex; align-items: flex-start; }
+.pb-frame { position: relative; flex: 0 1 42rem; min-width: 0; }
 .pb-bg { width: 100%; height: auto; display: block; border-radius: 6px; }
 .pb-vision { position: absolute; left: 4%; top: 29%; width: 24%; }
 .pb-vision .face, .pb-vision img.face { width: 100%; height: auto; min-width: 0; min-height: 0; border-radius: 4px; box-shadow: 0 1px 6px #0008; }
-.pb-side-advisers { flex: 1 1 auto; min-width: 0; align-self: stretch; display: flex; flex-direction: row; gap: 0.3rem; overflow-x: auto; list-style: none; margin: 0; padding: 0; }
+.pb-side-advisers {
+  position: absolute; left: 100%; top: 17%; height: 63%; margin-left: 0.4rem;
+  display: flex; flex-direction: row; gap: 0.3rem; list-style: none; padding: 0;
+  max-width: 55vw; overflow-x: auto;
+}
 .pb-side-advisers:empty { display: none; }
 .pb-side-advisers .adviser { flex: 0 0 auto; height: 100%; display: flex; }
 .pb-side-advisers img.face, .pb-side-advisers .card-back { height: 100%; width: auto; min-width: 0; min-height: 0; border-radius: 4px; }

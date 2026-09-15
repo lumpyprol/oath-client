@@ -183,10 +183,10 @@ function playerArea(p: PlayerAreaModel, art: ArtResolver): Raw {
       <div class="pb-frame">
         <img class="pb-bg" src="${artUrl(playerBoardFile(p))}" alt="${role} board">
         ${p.vision ? html`<div class="pb-vision">${face(p.vision, art)}</div>` : ''}
+        <ul class="advisers pb-side-advisers" title="Advisers">
+          ${p.advisers.map((a) => adviser(a, art))}
+        </ul>
       </div>
-      <ul class="advisers pb-side-advisers" title="Advisers">
-        ${p.advisers.map((a) => adviser(a, art))}
-      </ul>
     </div>
     ${p.relics.length ? html`<div class="held-relics" title="Relics">${p.relics.map((r) => face(r, art))}</div>` : ''}
   </article>`;
