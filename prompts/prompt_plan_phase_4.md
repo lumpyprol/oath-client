@@ -1138,6 +1138,17 @@ folds, and the six-player measurement is unmoved.
 
 ---
 
+> **Execution order, revised 2026-09-15.** Units 15 and 16 were pulled
+> forward — done straight after unit 10 — at Ben's request to get a usable,
+> good-looking visual client in hand early. So the real order is **9 → 10 →
+> 15 → 16 (in progress) → 11 → 12 → 13 → 14 → 17 → 18**. Units 11–14 (the
+> composer, the decision page, history+rollback, conditional standing) are
+> still pending and unblocked; unit 17's acceptance game will exercise them.
+> Unit 15 also changed shape: the corpus Ben supplied is the Tabletop
+> Simulator per-card render set (named by deck+slot), so the manifest now
+> derives real filenames from `cards.lua`'s `ttscardid` instead of running an
+> offline resize pipeline — see the unit's note below.
+
 ## Unit 15 — Art: an offline pipeline and a gated route ✅ (completed 2026-09-14; adapted to the TTS per-card corpus)
 
 **Purpose.** The P1 hand-off. The manifest has been complete since 09-08 and
@@ -1192,12 +1203,86 @@ degrades gracefully, and the pipeline is documented and runnable.
 
 ---
 
-## Unit 16 — The visual pass (NOT TDD, and it says so) 🚧 (in progress — batch 1: board + real art on slots + hover-zoom)
+## Unit 16 — The visual pass (NOT TDD, and it says so) 🚧 (in progress — batches 1–3 done)
 
 **Purpose.** Make it look like Oath. This is craft, and the honest thing to
 do is name it as the one unit whose gate is a person (D65).
 
-**Depends on.** Units 9–13, 15.
+**Depends on.** Units 9, 10, 15. (Runs before 11–14 per the reorder banner above.)
+
+### Batches
+
+Big enough to run in committed batches, each ending with Ben's browser check
+(the client-verify gate). Status as of 2026-09-15:
+
+- **Batch 1 ✅ — the board.** The map image is the board; site cards drop onto
+  their printed slots at true board scale (measured off the clean mat),
+  denizens beside each site at 1:1 scale, facedown sites show the real site
+  back (`lands3_08`), hover-to-enlarge on any card art. *(Map §2.1, Sites
+  §2.8, Denizens §2.6, Edifices §2.9.)*
+- **Batch 2 ✅ — player boards.** Per-seat board by colour and role; favor,
+  secrets, warband-bank, supply and pawn as stat chips; vision in the board's
+  box; active-seat glow + "on the clock". *(Player's Board §2.2, Oathkeeper
+  indicator §2.11 as text.)*
+- **Batch 3 ✅ — on-map pieces & advisers.** Pawns and warband tokens on the
+  site illustration (seat colours, counts); facedown denizens as the denizen
+  back; favor/secret tokens on sites and denizens; advisers moved to a
+  full-height row beside the board's ADVISERS bar, one player board per row.
+  *(warbands §2.2.1/§2.2.3, pawns, advisers §2.2.2, favor/secrets.)*
+- **Batch 4 — trackers.** Round marker on the round wheel §2.1.4; Visions-Drawn
+  marker §2.1.6/§2.7.1; supply markers on the player supply tracks §4.2; favor
+  on the six favor banks §2.1.3; shared-bank favor/secrets §2.1.7.
+- **Batch 5 — decks & piles.** World-deck back §2.1.5 (size stays hidden);
+  Relic-deck back + count; per-region discard-pile backs + counts §2.1.2;
+  dispossessed.
+- **Batch 6 — reliquary, banners, title, scepter.** Imperial Reliquary board +
+  the four modifier spaces §2.3; the two banner placards with their sides and
+  token counts §2.5; Oathkeeper/Usurper title §2.11; Grand Scepter §2.4; any
+  open Citizenship offer / warband request.
+- **Batch 7 — campaign & dice.** Attack/defense dice faces during a live
+  Campaign §2.8.3/§5.5; the casualty-allocation view.
+- **Batch 8 — aids & the final visual pass.** Goal Reference §2.10 and the
+  Chronicle aid; then the checklist/proxies below, at both viewports.
+
+### Component coverage (§2 Key Components → art asset → batch → engine)
+
+Every §2 component maps to an art asset (in a batch) and to a field the engine
+already models. Verified against the Law's §2 (Buried Giant p1) on 2026-09-15.
+
+| Component (§) | Art asset(s) | Batch | Engine (state → view) |
+| --- | --- | --- | --- |
+| Map / regions (2.1.1) | `full_board.png` | 1 ✅ | `sites[].region` → grouped |
+| Discard piles (2.1.2) | `denizen card backv2.png` | 5 | `discards[region]` (count) → `discards` |
+| Favor banks (2.1.3) | on-map + coin glyph | 4 | `favorBanks` → `favorBanks` |
+| Round track / wheel (2.1.4) | `turn marker.png` | 4 | `turn.round` → `turn` |
+| World deck (2.1.5) | `denizen card backv2.png` | 5 | size **hidden** → `worldDeck {}` |
+| Visions Drawn track (2.1.6) | `Vision marker.png` | 4 | `visionsDrawn` → `visionsDrawn` |
+| Shared bank (2.1.7) | coin glyph + `secret.png` | 4 | `sharedBank` → `sharedBank` |
+| Player's board (2.2) | `player_board_<color>_<role>.png`, `_chancellor` | 2 ✅ | per-seat `PlayerView` |
+| Advisers (2.2.2) | denizen face / `denizen card backv2.png` | 3 ✅ | `players[].advisers` |
+| Warbands (2.2.1/2.2.3) | `warband <color>.png` | 2 ✅ bank · 3 ✅ site | `players[].warbands{bank,board}`, `sites[].warbands` |
+| Supply track/marker (2.2/4.2) | `supply <color>.png` (only purple present) | 4 | `players[].supply` |
+| Imperial Reliquary (2.3) | `Imperial Reliquary_front.png` + `reliquary-{brutal,decadent,careless,greedy}.png` | 6 | `reliquary[]` → `reliquary` |
+| Relics (2.4) | `relics_NN.png`; relic backs | 1 ✅ faces · 5 deck back | `players[].relics`, `sites[].relics`, `reliquary`, `relicDeck` |
+| Grand Scepter (2.4) | `The Grand Scepter.png` / `grandScepterBack.png` | 6 | `grandScepter` |
+| Banners (2.5) | `peoplesfavor_{front,back}.png`, `darkestsecret_{front,back}.png` | 1 ✅ faces · 6 placards+tokens | `banners[]` |
+| Denizens (2.6) | `cards*.png` | 1 ✅ | `sites[].cards`, advisers |
+| Visions (2.7) | `visions_NN.png`; vision back | 1 ✅ | `players[].vision`, world deck |
+| Sites (2.8) | `lands1/2/3_NN.png`; back `lands3_08.png` | 1 ✅ | `sites[]` |
+| Edifices (2.9) | `edificeFront_NN.png` / `edificeBack_NN.png` | 1 ✅ | edifice cards (`ruined`) |
+| Goal Reference (2.10) | `chronicle_aid.jpg` (aid) | 8 | static aid (not state) |
+| Oathkeeper title (2.11) | `oathkeeperfront.png` / `oathkeeperback.png` | 6 (2 ✅ as text) | `oathkeeper`, `usurper` |
+| Dice — attack/defense (2.8.3, 5.5) | `dice attack N.png` / `dice defence N.png` | 7 | `campaign.{attackDice,defenseDice}` + faces |
+| Favor tokens (2.1.3, …) | **no asset** — gold coin glyph | 3 ✅ | favor counts throughout |
+| Secret tokens (4.3.2) | `secret.png` / `secret back.png` | 3 ✅ | secrets counts throughout |
+| Pawns (1.23) | `player <color>.png` (no purple) | 3 ✅ | `players[].pawnSite` |
+
+**Known asset gaps** (render with a fallback, note for a later art fetch):
+favor has no token art (gold coin glyph stands in); `supply <color>.png` exists
+only for purple (other colours use a coloured marker); `player <color>.png`
+(pawn) and the player boards have no purple, so a 6th seat falls back.
+
+**Depends on.** Units 9, 10, 15.
 
 ```
 Unit 16 of Phase 4: make it look like the game.

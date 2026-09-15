@@ -712,6 +712,25 @@ architecture (the leak sweep, the third visibility class, `affordances`, the
 dry run); units 8–13 are the client itself; 14–16 finish policy, art and the
 visual pass; 17 is the acceptance game and 18 the close.
 
+**Execution reorder (09-15).** Units 15 (art) and 16 (visual pass) were pulled
+forward — run straight after unit 10 — at Ben's request for a usable,
+good-looking client early. Real order: 9 → 10 → 15 → 16 (in progress) → 11 →
+14 → 17 → 18. Two consequences worth recording:
+- **The art corpus is the TTS render set, not source renders.** Ben supplied
+  the Tabletop Simulator per-card images, named by deck+slot (`cards_04.png`).
+  So unit 15's "offline resize pipeline" became a *manifest deriver*:
+  `generateArtManifest` maps each card to its real filename via `cards.lua`'s
+  `ttscardid`, joined by `saveId` (slot-stable, immune to name reconciliation);
+  the two banners are hand-mapped. The gated `/art/:file` route serves ART_DIR
+  to signed-in seats only, allowlist-checked (that *is* the traversal defense).
+- **Unit 16 runs in committed batches with a §2-component audit.** Every Key
+  Component in the Law's §2 maps to an art asset (in a batch) and to a field
+  the engine already models; the mapping table lives in the unit's section of
+  the prompt plan. Batches 1–3 (board, player boards, on-map pieces/advisers)
+  are done; 4–8 (trackers, decks/piles, reliquary/banners/title/scepter,
+  campaign dice, aids) remain. Known asset gaps: favor has no token art (gold
+  coin glyph), and purple (6th seat) has no board/pawn/supply asset.
+
 **Scope.**
 - Board: sites in play with denizens, relics, warbands; hand; advisers;
   banks; supply; oath and oathkeeper; visions held
