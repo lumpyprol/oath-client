@@ -44,7 +44,8 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
   display: grid; gap: var(--gap);
   grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
 }
-.player-grid { grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr)); }
+/* One player board (and its advisers) per full-width row. */
+.player-grid { display: flex; flex-direction: column; grid-template-columns: none; }
 .site {
   border: 1px solid #8886; border-radius: 6px; padding: 0.5rem;
 }
@@ -64,16 +65,20 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .tok-img { height: 1.1em; width: auto; vertical-align: middle; }
 .tok .coin { width: 0.85em; height: 0.85em; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe08a, #d99b1c 70%); border: 1px solid #a5730f; display: inline-block; }
 .tok .flip { color: var(--muted); }
-.pb-frame { position: relative; }
-.pb-bg { width: 100%; display: block; border-radius: 6px; }
+/* Board on the left, advisers as a full-height row to its right — as tall as
+   the board's vertical ADVISERS bar, not shrunk. */
+.pb-main { display: flex; align-items: stretch; gap: 0.5rem; }
+.pb-frame { position: relative; flex: 0 1 42rem; min-width: 0; align-self: flex-start; }
+.pb-bg { width: 100%; height: auto; display: block; border-radius: 6px; }
 .pb-vision { position: absolute; left: 4%; top: 29%; width: 24%; }
 .pb-vision .face, .pb-vision img.face { width: 100%; height: auto; min-width: 0; min-height: 0; border-radius: 4px; box-shadow: 0 1px 6px #0008; }
-.pb-turn { position: absolute; right: 2%; top: 3%; width: 9%; filter: drop-shadow(0 2px 3px #0009); }
-.pb-cards { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.4rem; align-items: flex-start; }
-.pb-cards .advisers .adviser, .pb-cards .advisers img.face, .pb-cards .advisers .card-back,
-.pb-cards .held-relics img.face { width: 3.4rem; height: auto; min-width: 0; min-height: 0; border-radius: 4px; }
+.pb-side-advisers { flex: 1 1 auto; min-width: 0; align-self: stretch; display: flex; flex-direction: row; gap: 0.3rem; overflow-x: auto; list-style: none; margin: 0; padding: 0; }
+.pb-side-advisers:empty { display: none; }
+.pb-side-advisers .adviser { flex: 0 0 auto; height: 100%; display: flex; }
+.pb-side-advisers img.face, .pb-side-advisers .card-back { height: 100%; width: auto; min-width: 0; min-height: 0; border-radius: 4px; }
 .card-back { display: block; border-radius: 4px; box-shadow: 0 1px 3px #0007; }
-.held-relics { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.held-relics { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+.held-relics img.face { width: 3rem; height: auto; min-width: 0; min-height: 0; border-radius: 4px; }
 .slot.empty { display: none; }
 .face {
   display: inline-flex; align-items: center; justify-content: center; text-align: center;
@@ -92,7 +97,7 @@ img.face { width: 5rem; min-width: 5rem; height: auto; min-height: 0; padding: 0
    own aspect, so the site↔denizen scale is exactly 1:1 — nothing is resized
    relative to anything else. */
 body.board { max-width: 96rem; }
-.board-map { position: relative; margin: 0 0 var(--gap); }
+.board-map { position: relative; margin: 0 0 var(--gap); container-type: inline-size; }
 .board-base { width: 100%; display: block; border-radius: 8px; }
 .board-overlay { position: absolute; inset: 0; }
 .bsite { position: absolute; width: 12.3%; height: 23.6%; }
@@ -122,8 +127,13 @@ body.board { max-width: 96rem; }
 }
 .board-map .bsite-cards .face.back { width: 64%; aspect-ratio: 325 / 508; }
 .bsite-cards .bcard .ruined { position: absolute; top: 0; right: 0; font-size: 0.55rem; background: #b00; color: #fff; border-radius: 2px; padding: 0 1px; }
-.bsite-warbands { position: absolute; left: 3px; top: 3px; display: flex; gap: 2px; }
-.bsite-warbands .wb { font-size: 0.6rem; background: #222c; color: #fff; border-radius: 3px; padding: 0 3px; }
+.bcard-tok { position: absolute; left: 1px; bottom: 1px; font-size: 0.55rem; background: #000b; color: #fff; border-radius: 3px; padding: 0 2px; }
+/* Pawns and warbands stand ON the site, in the illustration above the title bar. */
+.bsite-pieces { position: absolute; left: 5%; right: 5%; bottom: 25%; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.4cqw; z-index: 2; }
+.pawn-tok { height: 3.2cqw; width: auto; filter: drop-shadow(0 1px 2px #000c); }
+.wb-at { display: inline-flex; align-items: center; gap: 0.1cqw; }
+.wb-at .wb-tok { height: 2.3cqw; width: auto; filter: drop-shadow(0 1px 2px #000c); }
+.wb-at .wb-n { font-size: 1.5cqw; font-weight: 700; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000; }
 /* A facedown site reads as a solid card back that fully covers its slot. */
 .board-map .bsite-card .face.back {
   aspect-ratio: auto;

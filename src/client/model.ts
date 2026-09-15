@@ -139,8 +139,10 @@ export interface SiteModel {
   secrets: number;
   cards: SiteCard[];
   relics: RelicSlot[];
-  /** Warbands present, by seat, only where non-zero. */
-  warbands: { seat: number; count: number }[];
+  /** Warbands present, by seat (with colour), only where non-zero. */
+  warbands: { seat: number; color: string; count: number }[];
+  /** Pawns standing at this site, by seat. */
+  pawns: { seat: number; color: string }[];
 }
 
 export interface RegionModel {
@@ -243,7 +245,7 @@ function faceOf(id: string, artKey = id): FaceModel {
   return { artKey, name: nameOfId(id) };
 }
 
-function siteModel(s: OathView['sites'][number]): SiteModel {
+function siteModel(s: OathView['sites'][number], pawns: { seat: number; color: string }[]): SiteModel {
   return {
     name: s.id !== null ? nameOfId(s.id) : '(unrevealed)',
     facedown: s.facedown,
@@ -258,8 +260,9 @@ function siteModel(s: OathView['sites'][number]): SiteModel {
     }),
     relics: s.relics.map((r): RelicSlot => (r.id !== null ? { kind: 'face', face: faceOf(r.id) } : { kind: 'back' })),
     warbands: s.warbands
-      .map((count, seat) => ({ seat, count }))
+      .map((count, seat) => ({ seat, color: SEAT_COLORS[seat] ?? 'red', count }))
       .filter((w) => w.count > 0),
+    pawns,
   };
 }
 
@@ -310,9 +313,20 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   for (const s of view.sites) if (s.id !== null) siteNameById.set(s.id, nameOfId(s.id));
   const siteName = (id: string) => siteNameById.get(id) ?? '(unrevealed)';
 
+  // Which seats' pawns stand at each site (pawnSite is a site id, public).
+  const pawnsBySite = new Map<string, { seat: number; color: string }[]>();
+  view.players.forEach((p, seat) => {
+    if (p.pawnSite === null) return;
+    const list = pawnsBySite.get(p.pawnSite) ?? [];
+    list.push({ seat, color: SEAT_COLORS[seat] ?? 'red' });
+    pawnsBySite.set(p.pawnSite, list);
+  });
+
   const byRegion: RegionModel[] = [];
   for (const region of ['cradle', 'provinces', 'hinterland']) {
-    const sites = view.sites.filter((s) => s.region === region).map(siteModel);
+    const sites = view.sites
+      .filter((s) => s.region === region)
+      .map((s) => siteModel(s, s.id !== null ? (pawnsBySite.get(s.id) ?? []) : []));
     byRegion.push({ region, label: cap(region), sites });
   }
 

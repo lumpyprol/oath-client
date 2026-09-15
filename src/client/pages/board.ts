@@ -98,14 +98,19 @@ function boardSite(s: SiteModel, slot: { x: number; y: number }, art: ArtResolve
       ? html`<div class="bsite-cards">
           ${denizens.map((c) =>
             c.kind === 'face'
-              ? html`<span class="bcard">${face(c.face, art)}${c.ruined ? html`<span class="ruined">R</span>` : ''}</span>`
-              : html`<span class="bcard">${back()}</span>`,
+              ? html`<span class="bcard">${face(c.face, art)}${c.ruined ? html`<span class="ruined">R</span>` : ''}${c.favor || c.secrets ? html`<span class="bcard-tok">${tokens(c.favor, c.secrets)}</span>` : ''}</span>`
+              : html`<span class="bcard"><img class="face card-back" src="${artUrl(DENIZEN_BACK_FILE)}" alt="Facedown denizen">${c.favor || c.secrets ? html`<span class="bcard-tok">${tokens(c.favor, c.secrets)}</span>` : ''}</span>`,
           )}
           ${s.relics.map((r) => html`<span class="bcard relic">${r.kind === 'face' ? face(r.face, art) : back('facedown relic')}</span>`)}
         </div>`
       : ''}
-    ${s.warbands.length
-      ? html`<div class="bsite-warbands">${s.warbands.map((w) => html`<span class="wb wb-${w.seat}">${w.count}</span>`)}</div>`
+    ${s.pawns.length || s.warbands.length
+      ? html`<div class="bsite-pieces">
+          ${s.pawns.map((p) => html`<img class="pawn-tok" src="${artUrl(`player ${p.color}.png`)}" alt="seat ${p.seat} pawn">`)}
+          ${s.warbands.map(
+            (w) => html`<span class="wb-at" title="seat ${w.seat}">${warbandTok(w.color)}<span class="wb-n">${w.count}</span></span>`,
+          )}
+        </div>`
       : ''}
   </div>`;
 }
@@ -174,16 +179,16 @@ function playerArea(p: PlayerAreaModel, art: ArtResolver): Raw {
         <span class="tok pawn" title="Pawn">⚑ ${p.pawnSite ?? 'unplaced'}</span>
       </span>
     </div>
-    <div class="pb-frame">
-      <img class="pb-bg" src="${artUrl(playerBoardFile(p))}" alt="${role} board">
-      ${p.vision ? html`<div class="pb-vision">${face(p.vision, art)}</div>` : ''}
+    <div class="pb-main">
+      <div class="pb-frame">
+        <img class="pb-bg" src="${artUrl(playerBoardFile(p))}" alt="${role} board">
+        ${p.vision ? html`<div class="pb-vision">${face(p.vision, art)}</div>` : ''}
+      </div>
+      <ul class="advisers pb-side-advisers" title="Advisers">
+        ${p.advisers.map((a) => adviser(a, art))}
+      </ul>
     </div>
-    <div class="pb-cards">
-      ${p.advisers.length
-        ? html`<ul class="advisers">${p.advisers.map((a) => adviser(a, art))}</ul>`
-        : html`<p class="advisers empty">No advisers.</p>`}
-      ${p.relics.length ? html`<div class="held-relics" title="Relics">${p.relics.map((r) => face(r, art))}</div>` : ''}
-    </div>
+    ${p.relics.length ? html`<div class="held-relics" title="Relics">${p.relics.map((r) => face(r, art))}</div>` : ''}
   </article>`;
 }
 
