@@ -70,6 +70,7 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .pb-main { display: flex; align-items: flex-start; }
 .pb-frame { position: relative; flex: 0 1 42rem; min-width: 0; }
 .pb-bg { width: 100%; height: auto; display: block; border-radius: 6px; }
+.pb-supply-marker { position: absolute; top: 90%; transform: translate(-50%, -50%); height: 9%; width: auto; filter: drop-shadow(0 1px 2px #000a); pointer-events: none; }
 .pb-vision { position: absolute; left: 4%; top: 29%; width: 24%; }
 .pb-vision .face, .pb-vision img.face { width: 100%; height: auto; min-width: 0; min-height: 0; border-radius: 4px; box-shadow: 0 1px 6px #0008; }
 .pb-side-advisers {
@@ -138,6 +139,19 @@ body.board { max-width: 96rem; }
 .wb-at { display: inline-flex; align-items: center; gap: 0.1cqw; }
 .wb-at .wb-tok { height: 2.3cqw; width: auto; filter: drop-shadow(0 1px 2px #000c); }
 .wb-at .wb-n { font-size: 1.5cqw; font-weight: 700; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000; }
+/* Map furniture (unit 16 batch 4): favor on the banks, the round wheel, visions drawn. */
+/* The favor count sits centred inside the bank's printed coin circle. */
+.bank-fav {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 2.5cqw; height: 2.5cqw; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: #000d; border: 0.18cqw solid #e8b53a; color: #ffd98a;
+  font-size: 1.5cqw; font-weight: 800; line-height: 1;
+  box-shadow: 0 0 0.5cqw #000a; pointer-events: none;
+}
+/* The round marker is the wooden turn token, sitting in its wheel slice. */
+.round-marker { position: absolute; transform: translate(-50%, -50%); height: 2.2cqw; width: auto; filter: drop-shadow(0 0.12cqw 0.25cqw #000b); }
+.vision-marker { position: absolute; transform: translate(-50%, -50%); height: 2.2cqw; width: auto; filter: drop-shadow(0 0.1cqw 0.2cqw #000b); }
 /* A facedown site reads as a solid card back that fully covers its slot. */
 .board-map .bsite-card .face.back {
   aspect-ratio: auto;

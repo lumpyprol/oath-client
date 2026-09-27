@@ -32,6 +32,17 @@ function playerBoardFile(p: PlayerAreaModel): string {
 const warbandTok = (color: string): Raw =>
   html`<img class="tok-img wb-tok" src="${artUrl(`warband ${color}.png`)}" alt="">`;
 
+/** The pawn art for a seat colour — the Chancellor (purple) has its own piece. */
+const pawnFile = (color: string): string => (color === 'purple' ? 'chancellor.png' : `player ${color}.png`);
+
+/**
+ * Where the supply marker sits on the board's supply track, as % from the
+ * board's left. Approximate: the numbered cells run along the lower-left, high
+ * supply toward the left; the exact per-board cell ranges differ, so this is a
+ * best-effort placement (the "S n" chip carries the precise number).
+ */
+const supplyMarkerX = (supply: number): number => 36 - (Math.min(Math.max(supply, 0), 13) / 13) * 26;
+
 /** A single card face: an <img> when its asset is present, else a named placeholder box. */
 function face(f: FaceModel, art: ArtResolver): Raw {
   const ref = art(f.artKey, f.name);
@@ -48,8 +59,15 @@ function dims(w?: number, h?: number): Raw {
 /** A facedown card back — carries NO identity, by construction. */
 const back = (label = 'facedown'): Raw => html`<span class="face back" aria-label="${label}"></span>`;
 
+/** The gold favor coin, and the secret token — the real component art. */
+const favorTok = raw(`<img class="tok-img favor-coin" src="${artUrl('favour.png')}" alt="favor">`);
+const secretTok = raw(`<img class="tok-img secret-tok" src="${artUrl('secret.png')}" alt="secret">`);
+
 function tokens(favor: number, secrets: number): Raw {
-  const bits = [favor > 0 ? html`<span class="favor">${favor}⚑</span>` : null, secrets > 0 ? html`<span class="secrets">${secrets}◆</span>` : null].filter(Boolean);
+  const bits = [
+    favor > 0 ? html`<span class="favor">${favorTok}${favor}</span>` : null,
+    secrets > 0 ? html`<span class="secrets">${secretTok}${secrets}</span>` : null,
+  ].filter(Boolean);
   return bits.length ? html`<span class="tokens">${bits}</span>` : raw('');
 }
 
@@ -106,13 +124,65 @@ function boardSite(s: SiteModel, slot: { x: number; y: number }, art: ArtResolve
       : ''}
     ${s.pawns.length || s.warbands.length
       ? html`<div class="bsite-pieces">
-          ${s.pawns.map((p) => html`<img class="pawn-tok" src="${artUrl(`player ${p.color}.png`)}" alt="seat ${p.seat} pawn">`)}
+          ${s.pawns.map((p) => html`<img class="pawn-tok" src="${artUrl(pawnFile(p.color))}" alt="seat ${p.seat} pawn">`)}
           ${s.warbands.map(
             (w) => html`<span class="wb-at" title="seat ${w.seat}">${warbandTok(w.color)}<span class="wb-n">${w.count}</span></span>`,
           )}
         </div>`
       : ''}
   </div>`;
+}
+
+/**
+ * Board furniture positions, in percent of the board image (measured off the
+ * clean mat). The favor banks are keyed by suit because the map's order
+ * (Discord, Arcane, Order, Hearth, Beast, Nomad) is not the engine's.
+ */
+const BANK_POS: Record<string, { x: number; y: number }> = {
+  discord: { x: 42.3, y: 93.0 },
+  arcane: { x: 49.2, y: 93.0 },
+  order: { x: 56.1, y: 93.0 },
+  hearth: { x: 63.0, y: 93.0 },
+  beast: { x: 69.9, y: 93.0 },
+  nomad: { x: 76.8, y: 93.0 },
+};
+
+/**
+ * The round wheel, bottom-left. Eight slices; the marker advances clockwise
+ * one space a round (Law §4). Geometry measured off the clean mat: the
+ * dotted dividers fall on multiples of 45° from 12 o'clock, so slice CENTRES
+ * are at 22.5° + k·45°, and round 1 is the slice the printed star token sits
+ * in. The three Stable-Regime dice sit ON the dividers after slices 5, 6 and
+ * 7 — exactly the ends of rounds 5/6/7 that Law §3.3 makes you roll for,
+ * which is what pins this mapping.
+ */
+const WHEEL = { cx: 6.88, cy: 82.72, rx: 5.12, ry: 12.7, at: 0.62 };
+function roundPos(round: number): { x: number; y: number } {
+  const th = ((22.5 + ((round - 1) % 8) * 45) * Math.PI) / 180;
+  return {
+    x: WHEEL.cx + Math.sin(th) * WHEEL.rx * WHEEL.at,
+    y: WHEEL.cy - Math.cos(th) * WHEEL.ry * WHEEL.at,
+  };
+}
+
+/** Centres of the six Visions-Drawn boxes (0..5), measured off the clean mat. */
+const VISION_BOX_X = [15.16, 18.51, 20.54, 23.56, 25.61, 27.66];
+const VISION_BOX_Y = 76.2;
+
+/** Trackers laid on the map: favor on the banks, the round wheel, visions drawn. */
+function boardFurniture(m: BoardModel): Raw {
+  const banks = m.favorBanks.map((b) => {
+    const p = BANK_POS[b.suit];
+    return p
+      ? html`<div class="bank-fav" style="left:${p.x}%;top:${p.y}%" title="${b.label} bank: ${b.favor} favor">${b.favor}</div>`
+      : raw('');
+  });
+  const rp = roundPos(m.round);
+  const round = html`<img class="round-marker" src="${artUrl('turn marker.png')}"
+    style="left:${rp.x}%;top:${rp.y}%" alt="Round ${m.round}" title="Round ${m.round}">`;
+  const vx = VISION_BOX_X[Math.min(Math.max(m.visionsDrawn, 0), 5)] ?? VISION_BOX_X[0];
+  const visions = html`<img class="vision-marker" src="${artUrl('Vision marker.png')}" style="left:${vx}%;top:${VISION_BOX_Y}%" alt="Visions drawn: ${m.visionsDrawn}">`;
+  return html`${banks}${round}${visions}`;
 }
 
 /** The single board: the map image with every site (and its denizens) placed on it. */
@@ -123,7 +193,7 @@ function boardMap(model: BoardModel, art: ArtResolver, boardImageUrl: string, si
   });
   return html`<div class="board-map">
     <img class="board-base" src="${boardImageUrl}" alt="The Oath board">
-    <div class="board-overlay">${sites}</div>
+    <div class="board-overlay">${sites}${boardFurniture(model)}</div>
   </div>`;
 }
 
@@ -155,13 +225,13 @@ function adviser(a: AdviserModel, art: ArtResolver): Raw {
   return html`<li class="adviser">${card}${a.favor || a.secrets ? tokens(a.favor, a.secrets) : ''}</li>`;
 }
 
-/** A favor "coin" and a secret token, as compact labelled chips. */
+/** A favor coin and a secret token, as compact labelled chips. */
 function favorChip(n: number): Raw {
-  return html`<span class="tok favor" title="Favor"><span class="coin"></span>${n}</span>`;
+  return html`<span class="tok favor" title="Favor">${favorTok}${n}</span>`;
 }
 function secretChip(ready: number, flipped: number): Raw {
   return html`<span class="tok secret" title="Secrets ready / flipped"
-    ><img class="tok-img" src="${artUrl('secret.png')}" alt="">${ready}${flipped ? html`<span class="flip">+${flipped}</span>` : ''}</span>`;
+    >${secretTok}${ready}${flipped ? html`<span class="flip">+${flipped}</span>` : ''}</span>`;
 }
 
 function playerArea(p: PlayerAreaModel, art: ArtResolver): Raw {
@@ -183,6 +253,8 @@ function playerArea(p: PlayerAreaModel, art: ArtResolver): Raw {
       <div class="pb-frame">
         <img class="pb-bg" src="${artUrl(playerBoardFile(p))}" alt="${role} board">
         ${p.vision ? html`<div class="pb-vision">${face(p.vision, art)}</div>` : ''}
+        <img class="pb-supply-marker" src="${artUrl(`supply ${p.color} shadow.png`)}"
+          style="left:${supplyMarkerX(p.supply)}%" alt="Supply ${p.supply}" title="Supply ${p.supply}">
         <ul class="advisers pb-side-advisers" title="Advisers">
           ${p.advisers.map((a) => adviser(a, art))}
         </ul>

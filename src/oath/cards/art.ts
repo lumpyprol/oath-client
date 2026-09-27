@@ -103,18 +103,21 @@ const BANNER_FILES: Record<string, string> = {
 export const SITE_BACK_FILE = 'lands3_08.png';
 export const DENIZEN_BACK_FILE = 'denizen card backv2.png';
 
-/** Seat colour by index — the wooden-piece and player-board palette. */
+/** Every wooden-piece colour. Purple is the Chancellor; the rest are Exiles. */
 export const SEAT_COLORS = ['red', 'blue', 'yellow', 'white', 'black', 'purple'] as const;
-/** Colours that actually have a player-board and pawn asset (purple has neither). */
-const BOARD_COLORS = ['red', 'blue', 'yellow', 'white', 'black'] as const;
+/** The five Exile colours, assigned to non-Chancellor seats in order. */
+export const EXILE_COLORS = ['red', 'blue', 'yellow', 'white', 'black'] as const;
 
 const PLAYER_BOARDS = [
   'player_board_chancellor.png',
-  ...BOARD_COLORS.flatMap((c) => [`player_board_${c}_citizen.png`, `player_board_${c}_exile.png`]),
+  ...EXILE_COLORS.flatMap((c) => [`player_board_${c}_citizen.png`, `player_board_${c}_exile.png`]),
 ];
 const PIECES = [
   ...SEAT_COLORS.map((c) => `warband ${c}.png`),
-  ...BOARD_COLORS.map((c) => `player ${c}.png`),
+  ...EXILE_COLORS.map((c) => `player ${c}.png`),
+  'chancellor.png', // the Chancellor's (purple) pawn
+  ...SEAT_COLORS.map((c) => `supply ${c} shadow.png`), // supply markers
+  'favour.png', // the gold favor coin
   'Vision marker.png',
   'turn marker.png',
   'secret.png',

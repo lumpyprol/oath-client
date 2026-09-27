@@ -7,7 +7,17 @@
 
 import type { OathView } from '../oath/game/project.js';
 import { findById } from '../oath/cards/index.js';
-import { SEAT_COLORS } from '../oath/cards/art.js';
+import { EXILE_COLORS } from '../oath/cards/art.js';
+
+/**
+ * Seat → wooden-piece colour. The Chancellor is purple; every other seat
+ * (Exile or Citizen) takes an Exile colour in seat order — a Citizen keeps
+ * the colour it had as an Exile, so this stays stable as roles change.
+ */
+function seatColors(players: { citizenship: string }[]): string[] {
+  let ex = 0;
+  return players.map((p) => (p.citizenship === 'chancellor' ? 'purple' : EXILE_COLORS[ex++] ?? 'red'));
+}
 
 /** A pending decision as the inbox sees it — the engine's fields plus the HTTP layer's `since`/`url`. */
 export interface InboxDecision {
@@ -245,7 +255,11 @@ function faceOf(id: string, artKey = id): FaceModel {
   return { artKey, name: nameOfId(id) };
 }
 
-function siteModel(s: OathView['sites'][number], pawns: { seat: number; color: string }[]): SiteModel {
+function siteModel(
+  s: OathView['sites'][number],
+  pawns: { seat: number; color: string }[],
+  colors: string[],
+): SiteModel {
   return {
     name: s.id !== null ? nameOfId(s.id) : '(unrevealed)',
     facedown: s.facedown,
@@ -260,7 +274,7 @@ function siteModel(s: OathView['sites'][number], pawns: { seat: number; color: s
     }),
     relics: s.relics.map((r): RelicSlot => (r.id !== null ? { kind: 'face', face: faceOf(r.id) } : { kind: 'back' })),
     warbands: s.warbands
-      .map((count, seat) => ({ seat, color: SEAT_COLORS[seat] ?? 'red', count }))
+      .map((count, seat) => ({ seat, color: colors[seat] ?? 'red', count }))
       .filter((w) => w.count > 0),
     pawns,
   };
@@ -275,6 +289,7 @@ function playerAreaModel(
     oathkeeper: number;
     usurper: boolean;
     activeSeat: number;
+    color: string;
     siteName: (id: string) => string;
   },
 ): PlayerAreaModel {
@@ -283,7 +298,7 @@ function playerAreaModel(
   return {
     seat,
     name: meta.names[seat] ?? `seat ${seat}`,
-    color: SEAT_COLORS[seat] ?? 'red',
+    color: meta.color,
     isYou: seat === meta.you,
     active: seat === meta.activeSeat,
     citizen: p.citizenship === 'citizen',
@@ -312,13 +327,14 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   const siteNameById = new Map<string, string>();
   for (const s of view.sites) if (s.id !== null) siteNameById.set(s.id, nameOfId(s.id));
   const siteName = (id: string) => siteNameById.get(id) ?? '(unrevealed)';
+  const colors = seatColors(view.players);
 
   // Which seats' pawns stand at each site (pawnSite is a site id, public).
   const pawnsBySite = new Map<string, { seat: number; color: string }[]>();
   view.players.forEach((p, seat) => {
     if (p.pawnSite === null) return;
     const list = pawnsBySite.get(p.pawnSite) ?? [];
-    list.push({ seat, color: SEAT_COLORS[seat] ?? 'red' });
+    list.push({ seat, color: colors[seat] ?? 'red' });
     pawnsBySite.set(p.pawnSite, list);
   });
 
@@ -326,7 +342,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   for (const region of ['cradle', 'provinces', 'hinterland']) {
     const sites = view.sites
       .filter((s) => s.region === region)
-      .map((s) => siteModel(s, s.id !== null ? (pawnsBySite.get(s.id) ?? []) : []));
+      .map((s) => siteModel(s, s.id !== null ? (pawnsBySite.get(s.id) ?? []) : [], colors));
     byRegion.push({ region, label: cap(region), sites });
   }
 
@@ -337,6 +353,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
       oathkeeper: view.oathkeeper,
       usurper: view.usurper,
       activeSeat: view.turn.activeSeat,
+      color: colors[seat] ?? 'red',
       siteName,
     }),
   );
