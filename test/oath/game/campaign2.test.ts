@@ -420,8 +420,7 @@ describe('P3 unit 4 — the campaign costs two attacker visits (D50 + D51)', () 
 
     const c = rolled.campaign!;
     const swords =
-      c.attackFaces!.filter((f) => f === 'sword').length +
-      Math.floor(c.attackFaces!.filter((f) => f === 'hollowSword').length / 2);
+      attackTotal(c.attackFaces!).swords; // the engine's own §5.5.5 arithmetic (skulls add 2)
     const base = c.defenseFaces!.reduce((s, f) => s + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0), 0);
     const defense = base * 2 ** c.defenseFaces!.filter((f) => f === 'shieldX2').length; // + 0 board
     const needed = Math.max(0, defense - swords + 1);
@@ -466,8 +465,7 @@ describe('P3 unit 4 — the campaign costs two attacker visits (D50 + D51)', () 
 
     const c = declared.campaign!;
     const swords =
-      c.attackFaces!.filter((f) => f === 'sword').length +
-      Math.floor(c.attackFaces!.filter((f) => f === 'hollowSword').length / 2);
+      attackTotal(c.attackFaces!).swords; // the engine's own §5.5.5 arithmetic (skulls add 2)
     const base = c.defenseFaces!.reduce((s, f) => s + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0), 0);
     const defense = base * 2 ** c.defenseFaces!.filter((f) => f === 'shieldX2').length + 1; // +1 bandit
     const needed = Math.max(0, defense - swords + 1);

@@ -33,6 +33,7 @@ import type { Server } from 'node:http';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { checkInvariants, type OathState } from '../../../src/oath/game/state.js';
 import { computeVisitMetrics, summarize } from './metrics.js';
+import { attackTotal } from '../../../src/oath/game/actions/campaign.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-sixplayer-')), 'test.db');
 
@@ -151,8 +152,7 @@ function planResolve(s: OathState, boardBonus = defendingForceTotal(s)) {
   const attack = c.attackFaces!;
   const defense = c.defenseFaces!;
   const swords =
-    attack.filter((f) => f === 'sword').length +
-    Math.floor(attack.filter((f) => f === 'hollowSword').length / 2);
+    attackTotal(attack).swords; // the engine's own §5.5.5 arithmetic (skulls add 2)
   const base = defense.reduce((t, f) => t + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0), 0);
   const total = base * 2 ** defense.filter((f) => f === 'shieldX2').length + boardBonus;
   const needed = Math.max(0, total - swords + 1);

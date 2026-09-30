@@ -8,6 +8,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { checkInvariants, type OathState } from '../../../src/oath/game/state.js';
 import { restrictionKnown } from '../../../src/oath/game/restrictions.js';
 import { setupChoices } from './helpers.js';
+import { attackTotal } from '../../../src/oath/game/actions/campaign.js';
+import type { AttackFace } from '../../../src/oath/game/state.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-fullgame-')), 'test.db');
 
@@ -99,11 +101,10 @@ async function act(ctx: Ctx, seat: number, type: string, payload: unknown = {}) 
  * end-to-end test uses.
  */
 function sacrificeFor(campaign: any, defenseBonus: number, boardWarbands: number): number {
-  const attack = campaign.attackFaces as string[];
+  const attack = campaign.attackFaces as AttackFace[];
   const defense = campaign.defenseFaces as string[];
   const swords =
-    attack.filter((f) => f === 'sword').length +
-    Math.floor(attack.filter((f) => f === 'hollowSword').length / 2);
+    attackTotal(attack).swords; // the engine's own §5.5.5 arithmetic (skulls add 2)
   const base = defense.reduce(
     (sum, f) => sum + (f === 'shield' ? 1 : f === 'doubleShield' ? 2 : 0),
     0,
