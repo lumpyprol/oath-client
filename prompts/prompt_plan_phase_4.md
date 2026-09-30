@@ -1203,7 +1203,7 @@ degrades gracefully, and the pipeline is documented and runnable.
 
 ---
 
-## Unit 16 — The visual pass (NOT TDD, and it says so) 🚧 (in progress — batches 1–3 done)
+## Unit 16 — The visual pass (NOT TDD, and it says so) 🚧 (in progress — batches 1–7 done)
 
 **Purpose.** Make it look like Oath. This is craft, and the honest thing to
 do is name it as the one unit whose gate is a person (D65).
@@ -1229,17 +1229,17 @@ Big enough to run in committed batches, each ending with Ben's browser check
   back; favor/secret tokens on sites and denizens; advisers moved to a
   full-height row beside the board's ADVISERS bar, one player board per row.
   *(warbands §2.2.1/§2.2.3, pawns, advisers §2.2.2, favor/secrets.)*
-- **Batch 4 — trackers.** Round marker on the round wheel §2.1.4; Visions-Drawn
+- **Batch 4 ✅ — trackers.** Round marker on the round wheel §2.1.4; Visions-Drawn
   marker §2.1.6/§2.7.1; supply markers on the player supply tracks §4.2; favor
   on the six favor banks §2.1.3; shared-bank favor/secrets §2.1.7.
-- **Batch 5 — decks & piles.** World-deck back §2.1.5 (size stays hidden);
+- **Batch 5 ✅ — decks & piles.** World-deck back §2.1.5 (size stays hidden);
   Relic-deck back + count; per-region discard-pile backs + counts §2.1.2;
   dispossessed.
-- **Batch 6 — reliquary, banners, title, scepter.** Imperial Reliquary board +
+- **Batch 6 ✅ — reliquary, banners, title, scepter.** Imperial Reliquary board +
   the four modifier spaces §2.3; the two banner placards with their sides and
   token counts §2.5; Oathkeeper/Usurper title §2.11; Grand Scepter §2.4; any
   open Citizenship offer / warband request.
-- **Batch 7 — campaign & dice.** Attack/defense dice faces during a live
+- **Batch 7 ✅ — campaign & dice.** Attack/defense dice faces during a live
   Campaign §2.8.3/§5.5; the casualty-allocation view.
 - **Batch 8 — aids & the final visual pass.** Goal Reference §2.10 and the
   Chronicle aid; then the checklist/proxies below, at both viewports.

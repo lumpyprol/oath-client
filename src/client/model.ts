@@ -8,6 +8,21 @@
 import type { OathView } from '../oath/game/project.js';
 import { findById } from '../oath/cards/index.js';
 import { EXILE_COLORS } from '../oath/cards/art.js';
+import { attackTotal } from '../oath/game/actions/campaign.js';
+import type { DefenseFace } from '../oath/game/state.js';
+
+/**
+ * The shield half of Law §5.5.4's defense total: shields, doubleShields
+ * counting 2, then doubled once per shieldX2. Deliberately NOT the whole
+ * total — that also adds the defending force, which is server state the view
+ * does not carry.
+ */
+function shieldTotal(faces: readonly DefenseFace[]): number {
+  const shields = faces.filter((f) => f === 'shield').length;
+  const doubles = faces.filter((f) => f === 'doubleShield').length;
+  const doublings = faces.filter((f) => f === 'shieldX2').length;
+  return (shields + doubles * 2) * 2 ** doublings;
+}
 
 /**
  * Seat → wooden-piece colour. The Chancellor is purple; every other seat
@@ -204,6 +219,24 @@ export interface CampaignModel {
   targets: string[]; // human target descriptions, no hidden ids
   attackDice: number;
   defenseDice: number;
+  /** Which window the campaign is in (Law §5.5): join, permit, respond, rolled, casualties. */
+  phase: string;
+  /**
+   * Rolled faces, present only once the campaign reaches 'rolled'. Entirely
+   * public — Law §9.4 lists nothing about a declared Campaign as private, and
+   * the faces are dice sitting on the table for everyone to see.
+   */
+  attackFaces: string[];
+  defenseFaces: string[];
+  /**
+   * What the faces alone say (§5.5.5/§5.5.4), or null before the roll. The
+   * DEFENSE total also adds the defending force, which lives in server state
+   * the view does not carry — so this reports the shield contribution only,
+   * and never pretends to be the final number.
+   */
+  totals: { swords: number; skulls: number; shields: number } | null;
+  /** A pending §5.5.6 casualty allocation: how many warbands must be killed. */
+  casualtyQuota: number | null;
 }
 
 export interface BoardModel {
@@ -384,6 +417,16 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
         }),
         attackDice: view.campaign.attackDice,
         defenseDice: view.campaign.defenseDice,
+        phase: view.campaign.phase,
+        attackFaces: [...(view.campaign.attackFaces ?? [])],
+        defenseFaces: [...(view.campaign.defenseFaces ?? [])],
+        totals: view.campaign.attackFaces && view.campaign.defenseFaces
+          ? {
+              ...attackTotal(view.campaign.attackFaces),
+              shields: shieldTotal(view.campaign.defenseFaces),
+            }
+          : null,
+        casualtyQuota: view.campaign.casualties?.quota ?? null,
       }
     : null;
 

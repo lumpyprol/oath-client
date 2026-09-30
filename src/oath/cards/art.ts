@@ -131,6 +131,13 @@ const PIECES = [
   'oathkeeperback.png',
   'The Grand Scepter.png',
   'grandScepterBack.png',
+  // Die faces (Law §5.5.4/§5.5.5). 'blank' has no file — it is a blank side.
+  'sword.png',
+  'swordx05.png',
+  'swordx2.png',
+  'shield.png',
+  'shield2.png',
+  'shieldx2.png',
 ];
 
 export const UI_ASSETS: readonly string[] = ['full_board.png', SITE_BACK_FILE, ...PLAYER_BOARDS, ...PIECES];

@@ -32,6 +32,38 @@ function playerBoardFile(p: PlayerAreaModel): string {
 const warbandTok = (color: string): Raw =>
   html`<img class="tok-img wb-tok" src="${artUrl(`warband ${color}.png`)}" alt="">`;
 
+/**
+ * Die faces (Law §5.5.4/§5.5.5, Playbook "Dice Faces" p.15) to their art.
+ * The attack die's 'skull' face is the one that also shows a sword — it
+ * counts a sword AND kills one of the attacker's own warbands.
+ */
+const DIE_FACE_ART: Record<string, string> = {
+  sword: 'sword.png',
+  hollowSword: 'swordx05.png',
+  skull: 'swordx2.png',
+  shield: 'shield.png',
+  doubleShield: 'shield2.png',
+  shieldX2: 'shieldx2.png',
+};
+const DIE_FACE_LABEL: Record<string, string> = {
+  sword: 'sword',
+  hollowSword: 'hollow sword (two count as one)',
+  skull: 'skull (a sword, and kills one of your own warbands)',
+  shield: 'shield',
+  doubleShield: 'two shields',
+  shieldX2: 'shields doubled',
+  blank: 'blank',
+};
+
+/** One rolled die. A blank defense face has no art — it is a blank side. */
+function die(faceName: string): Raw {
+  const file = DIE_FACE_ART[faceName];
+  const label = DIE_FACE_LABEL[faceName] ?? faceName;
+  return file
+    ? html`<img class="die" src="${artUrl(file)}" alt="${label}" title="${label}">`
+    : html`<span class="die blank" role="img" aria-label="${label}" title="${label}"></span>`;
+}
+
 /** The pawn art for a seat colour — the Chancellor (purple) has its own piece. */
 const pawnFile = (color: string): string => (color === 'purple' ? 'chancellor.png' : `player ${color}.png`);
 
@@ -423,10 +455,29 @@ export function boardPage(
     ? html`<p class="status done">Game over — winner: ${model.winner === null ? 'a tie' : `seat ${model.winner}`}.</p>`
     : html`<p class="status">Round ${model.round} · seat ${model.activeSeat} to act · ${model.oathLabel} · Visions drawn: ${model.visionsDrawn}</p>`;
 
-  const campaign = model.campaign
+  const c = model.campaign;
+  const campaign = c
     ? html`<section class="campaign"><h2>Campaign in progress</h2>
-        <p>seat ${model.campaign.attacker} attacks ${model.campaign.defender} — ${model.campaign.attackDice} attack / ${model.campaign.defenseDice} defense dice.</p>
-        <p>Targets: ${model.campaign.targets.join(', ')}</p></section>`
+        <p>seat ${c.attacker} attacks ${c.defender} — ${c.attackDice} attack / ${c.defenseDice} defense dice. <span class="phase">(${c.phase})</span></p>
+        <p>Targets: ${c.targets.join(', ')}</p>
+        ${c.attackFaces.length || c.defenseFaces.length
+          ? html`<div class="dice-rows">
+              <div class="dice-row"><span class="dice-label">Attack</span>
+                <span class="dice">${c.attackFaces.map((f) => die(f))}</span>
+                ${c.totals
+                  ? html`<span class="dice-total">${c.totals.swords} sword${c.totals.swords === 1 ? '' : 's'}${c.totals.skulls ? html` · ${c.totals.skulls} skull${c.totals.skulls === 1 ? '' : 's'}` : ''}</span>`
+                  : ''}
+              </div>
+              <div class="dice-row"><span class="dice-label">Defense</span>
+                <span class="dice">${c.defenseFaces.map((f) => die(f))}</span>
+                ${c.totals ? html`<span class="dice-total">${c.totals.shields} from shields (+ the defending force)</span>` : ''}
+              </div>
+            </div>`
+          : html`<p class="muted">Dice are not rolled yet.</p>`}
+        ${c.casualtyQuota !== null
+          ? html`<p class="casualties">Casualties to allocate: <strong>${c.casualtyQuota}</strong> warband${c.casualtyQuota === 1 ? '' : 's'} (Law §5.5.6).</p>`
+          : ''}
+      </section>`
     : raw('');
 
   const pending = [

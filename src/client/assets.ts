@@ -223,6 +223,16 @@ body.board { max-width: 96rem; }
 .banks, .banners, .reliquary { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; }
 .banks li, .banners li, .reliquary li { padding: 0.15rem 0; }
 .campaign, .pending { border: 1px solid #b008; border-radius: 6px; padding: 0.5rem; margin: var(--gap) 0; }
+.campaign .phase { color: var(--muted); }
+.dice-rows { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.5rem 0; }
+.dice-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.dice-label { min-width: 4.5rem; color: var(--muted); font-size: 0.85rem; }
+.dice { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.die { width: 2rem; height: 2rem; border-radius: 4px; display: block; box-shadow: 0 1px 3px #0007; }
+.die.blank { background: #1f7fd0; border: 1px solid #0006; }
+.dice-total { font-size: 0.85rem; font-weight: 700; }
+.casualties { color: #d9a400; }
+.muted { color: var(--muted); }
 
 /* Hover-to-enlarge preview (progressive enhancement; JS builds #card-zoom). */
 #card-zoom { position: fixed; display: none; z-index: 1000; pointer-events: none; }
