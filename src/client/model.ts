@@ -225,6 +225,9 @@ export interface BoardModel {
   reliquary: ReliquaryModel[];
   banners: { name: string; holder: number | null; tokens: number; mob: boolean }[];
   relicDeckCount: number;
+  /** Facedown discard pile sizes by region — public (Law §9.4), identities are not. */
+  discardCounts: { region: string; label: string; count: number }[];
+  dispossessedCount: number;
   campaign: CampaignModel | null;
   citizenshipOffer: { scepterSeat: number; exile: number } | null;
   warbandRequest: { seat: number; approver: number; direction: string; count: number } | null;
@@ -405,6 +408,12 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
     })),
     banners: view.banners.map((b) => ({ name: nameOfId(b.id), holder: b.holder, tokens: b.tokens, mob: !!b.mob })),
     relicDeckCount: view.relicDeck.count,
+    discardCounts: ['cradle', 'provinces', 'hinterland'].map((region) => ({
+      region,
+      label: cap(region),
+      count: view.discards[region as keyof typeof view.discards]?.count ?? 0,
+    })),
+    dispossessedCount: view.dispossessed.count,
     campaign,
     citizenshipOffer: view.citizenshipOffer
       ? { scepterSeat: view.citizenshipOffer.scepterSeat, exile: view.citizenshipOffer.exile }

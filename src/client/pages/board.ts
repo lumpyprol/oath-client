@@ -169,6 +169,35 @@ function roundPos(round: number): { x: number; y: number } {
 const VISION_BOX_X = [15.16, 18.51, 20.54, 23.56, 25.61, 27.66];
 const VISION_BOX_Y = 76.2;
 
+/**
+ * The two deck spaces and the three regional discard piles, in board %.
+ * Measured off the clean mat by finding each box's printed rules: every
+ * discard box is 8.96% of the board wide — within a whisker of a denizen card
+ * laid on its side (9.06%) — which is why the discards render rotated, at
+ * true card scale, rather than upright.
+ */
+const RELIC_DECK_POS = { x: 18.98, y: 90.53 };
+const WORLD_DECK_POS = { x: 24.7, y: 90.51 }; // left of the box's printed draw-cost legend
+const DISCARD_POS: Record<string, { x: number; y: number }> = {
+  cradle: { x: 21.97, y: 11.33 },
+  provinces: { x: 54.98, y: 10.84 },
+  hinterland: { x: 88.32, y: 10.84 },
+};
+
+/** A facedown pile on the map: a card back, with its size where the Law makes it public. */
+function pile(
+  pos: { x: number; y: number },
+  file: string,
+  label: string,
+  count: number | null,
+  cls: string,
+): Raw {
+  return html`<div class="map-pile ${cls}" style="left:${pos.x}%;top:${pos.y}%" title="${label}">
+    <img src="${artUrl(file)}" alt="${label}">
+    ${count === null ? '' : html`<span class="pile-n">${count}</span>`}
+  </div>`;
+}
+
 /** Trackers laid on the map: favor on the banks, the round wheel, visions drawn. */
 function boardFurniture(m: BoardModel): Raw {
   const banks = m.favorBanks.map((b) => {
@@ -182,7 +211,19 @@ function boardFurniture(m: BoardModel): Raw {
     style="left:${rp.x}%;top:${rp.y}%" alt="Round ${m.round}" title="Round ${m.round}">`;
   const vx = VISION_BOX_X[Math.min(Math.max(m.visionsDrawn, 0), 5)] ?? VISION_BOX_X[0];
   const visions = html`<img class="vision-marker" src="${artUrl('Vision marker.png')}" style="left:${vx}%;top:${VISION_BOX_Y}%" alt="Visions drawn: ${m.visionsDrawn}">`;
-  return html`${banks}${round}${visions}`;
+
+  // The world deck shows a back and NO size: Law §9.4 makes the number of
+  // cards in it private, and it is the one zone whose count never appears
+  // (project() omits it entirely). Every other pile's size is public.
+  const worldDeck = pile(WORLD_DECK_POS, DENIZEN_BACK_FILE, 'World deck', null, 'world-deck');
+  const relicDeck = pile(RELIC_DECK_POS, 'relicBack.png', `Relic deck: ${m.relicDeckCount}`, m.relicDeckCount, 'relic-deck');
+  const discards = m.discardCounts.map((dc) => {
+    const p = DISCARD_POS[dc.region];
+    return p && dc.count > 0
+      ? pile(p, DENIZEN_BACK_FILE, `${dc.label} discard: ${dc.count}`, dc.count, 'discard')
+      : raw('');
+  });
+  return html`${banks}${round}${visions}${worldDeck}${relicDeck}${discards}`;
 }
 
 /** The single board: the map image with every site (and its denizens) placed on it. */
@@ -325,6 +366,8 @@ export function boardPage(
           ${model.favorBanks.map((b) => html`<li>${b.label}: ${b.favor}⚑</li>`)}
           <li>Shared bank: ${model.sharedBank.favor}⚑ / ${model.sharedBank.secrets}◆</li>
           <li>Relic deck: ${model.relicDeckCount}</li>
+          <li>Discards: ${model.discardCounts.map((d) => `${d.label} ${d.count}`).join(' · ')}</li>
+          <li>Dispossessed: ${model.dispossessedCount}</li>
         </ul>
         <h3>Banners</h3>
         <ul class="banners">

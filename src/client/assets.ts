@@ -152,6 +152,26 @@ body.board { max-width: 96rem; }
 /* The round marker is the wooden turn token, sitting in its wheel slice. */
 .round-marker { position: absolute; transform: translate(-50%, -50%); height: 2.2cqw; width: auto; filter: drop-shadow(0 0.12cqw 0.25cqw #000b); }
 .vision-marker { position: absolute; transform: translate(-50%, -50%); height: 2.2cqw; width: auto; filter: drop-shadow(0 0.1cqw 0.2cqw #000b); }
+/* Facedown piles on the map: the deck spaces and the regional discards.
+   Sizes are the card's true fraction of the board (board aspect 5610:2260,
+   so 1% of board height = 0.403cqw). The decks stand upright, scaled to
+   their printed box; the discards lie on their side, because that is the
+   shape the board prints beside each region name. */
+.map-pile { position: absolute; transform: translate(-50%, -50%); }
+.map-pile img { height: 6.77cqw; width: auto; display: block; border-radius: 0.3cqw; box-shadow: 0 0.15cqw 0.35cqw #000b; }
+.map-pile.discard { width: 9.06cqw; height: 5.81cqw; }
+.map-pile.discard img {
+  position: absolute; left: 50%; top: 50%;
+  height: 9.06cqw; /* becomes the WIDTH once rotated */
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+.pile-n {
+  position: absolute; right: -0.7cqw; bottom: -0.5cqw;
+  min-width: 2.1cqw; height: 2.1cqw; padding: 0 0.3cqw; border-radius: 1.05cqw;
+  display: flex; align-items: center; justify-content: center;
+  background: #000d; border: 0.14cqw solid #e8b53a; color: #ffd98a;
+  font-size: 1.3cqw; font-weight: 800; line-height: 1;
+}
 /* A facedown site reads as a solid card back that fully covers its slot. */
 .board-map .bsite-card .face.back {
   aspect-ratio: auto;

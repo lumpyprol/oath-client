@@ -115,3 +115,48 @@ describe('board HTML — the placeholder path with no assets', () => {
     expect(htmlOut).not.toContain('<img class="face"');
   });
 });
+
+/**
+ * Law §9.4 makes the NUMBER of cards in the world deck private — it is the one
+ * zone whose size never appears, which is why `project()` gives `worldDeck` no
+ * key at all. Unit 16 batch 5 draws a world-deck back ON the map, so the
+ * board is now a place that rule could be broken; every other pile's size is
+ * public and must still show.
+ */
+describe('board HTML — the world deck shows a back but never a size', () => {
+  const three = FIXTURES.find((f) => f.name === '3-player')!;
+
+  function foldedModel(n: number, seat: number | null) {
+    let state = openingState(three.fixture, three.setupChoices);
+    let i = 0;
+    for (const row of three.fixture.actions) {
+      if (row.type === 'game.created') continue;
+      if (i++ >= n) break;
+      state = oath.reduce(structuredClone(state), row as unknown as GameAction);
+    }
+    return { model: boardModel(project(state, seat), { gameId: 'g', seat, names }), state };
+  }
+
+  it('never renders a count on the world-deck pile, for any viewer', () => {
+    for (const seat of [0, 1, 2, null]) {
+      const { model } = foldedModel(20, seat);
+      const out = boardPage(model, { art: makeArtResolver(), boardImageUrl: '/art/full_board.png' });
+      const worldDeck = /<div class="map-pile world-deck"[\s\S]*?<\/div>/.exec(out);
+      expect(worldDeck, `seat ${seat}: world deck pile missing`).not.toBeNull();
+      expect(worldDeck![0]).not.toContain('pile-n');
+      // The model carries no world-deck size to render in the first place.
+      expect(Object.keys(model)).not.toContain('worldDeckCount');
+    }
+  });
+
+  it('still shows the public pile sizes (relic deck, discards)', () => {
+    const { model, state } = foldedModel(20, 0);
+    const out = boardPage(model, { art: makeArtResolver(), boardImageUrl: '/art/full_board.png' });
+    expect(model.relicDeckCount).toBe(state.relicDeck.length);
+    const relic = /<div class="map-pile relic-deck"[\s\S]*?<\/div>/.exec(out)!;
+    expect(relic[0]).toContain('pile-n');
+    for (const dc of model.discardCounts) {
+      expect(dc.count).toBe(state.discards[dc.region as 'cradle'].length);
+    }
+  });
+});
