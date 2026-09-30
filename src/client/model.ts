@@ -223,7 +223,10 @@ export interface BoardModel {
   favorBanks: { suit: string; label: string; favor: number }[];
   sharedBank: { favor: number; secrets: number };
   reliquary: ReliquaryModel[];
-  banners: { name: string; holder: number | null; tokens: number; mob: boolean }[];
+  /** The two banner placards (Law §2.5): which face is up, who holds it, how many tokens. */
+  banners: { name: string; face: FaceModel; holder: number | null; tokens: number; mob: boolean }[];
+  /** Seat holding the Grand Scepter (Law §2.4) — always a seat, never unheld. */
+  grandScepter: number;
   relicDeckCount: number;
   /** Facedown discard pile sizes by region — public (Law §9.4), identities are not. */
   discardCounts: { region: string; label: string; count: number }[];
@@ -406,7 +409,16 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
       covered: sp.covered,
       relic: sp.id !== null ? faceOf(sp.id) : null,
     })),
-    banners: view.banners.map((b) => ({ name: nameOfId(b.id), holder: b.holder, tokens: b.tokens, mob: !!b.mob })),
+    // A two-faced banner shows face #1 when flipped (the People's Favor's Mob
+    // side, Law §2.5.3); the art manifest keys that as `${id}#1`.
+    banners: view.banners.map((b) => ({
+      name: nameOfId(b.id),
+      face: faceOf(b.id, b.mob ? `${b.id}#1` : b.id),
+      holder: b.holder,
+      tokens: b.tokens,
+      mob: !!b.mob,
+    })),
+    grandScepter: view.grandScepter,
     relicDeckCount: view.relicDeck.count,
     discardCounts: ['cradle', 'provinces', 'hinterland'].map((region) => ({
       region,

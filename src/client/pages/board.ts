@@ -275,7 +275,97 @@ function secretChip(ready: number, flipped: number): Raw {
     >${secretTok}${ready}${flipped ? html`<span class="flip">+${flipped}</span>` : ''}</span>`;
 }
 
-function playerArea(p: PlayerAreaModel, art: ArtResolver): Raw {
+/**
+ * The Imperial Reliquary placard (Law §2.3), rendered under the Chancellor's
+ * board because it is theirs. Its four named spaces are printed in a 2x2 grid
+ * — positions are percentages of the placard art, and a relic is square
+ * (326x326), exactly the size of a space. A covered space shows a relic back
+ * (or the relic's face to a seat that has peeked it, Law §6.4); an uncovered
+ * one shows its modifier, which is the Chancellor's to use (§6.6.2).
+ */
+const RELIQUARY_SPACE_POS = [
+  { x: 25.5, y: 29.5 }, // brutal
+  { x: 74.5, y: 29.5 }, // decadent
+  { x: 25.5, y: 67.5 }, // careless
+  { x: 74.5, y: 67.5 }, // greedy
+];
+
+function reliquaryBoard(model: BoardModel, art: ArtResolver): Raw {
+  return html`<div class="reliquary-board" title="Imperial Reliquary">
+    <img class="rq-bg" src="${artUrl('Imperial Reliquary_front.png')}" alt="Imperial Reliquary">
+    ${model.reliquary.map((sp, i) => {
+      const pos = RELIQUARY_SPACE_POS[i];
+      if (!pos) return raw('');
+      const style = `left:${pos.x}%;top:${pos.y}%`;
+      if (sp.relic) {
+        return html`<div class="rq-slot" style="${raw(style)}" title="${sp.label}: ${sp.relic.name}">${face(sp.relic, art)}</div>`;
+      }
+      if (sp.covered) {
+        return html`<div class="rq-slot" style="${raw(style)}" title="${sp.label}: a facedown relic"><img src="${artUrl('relicBack.png')}" alt="Facedown relic"></div>`;
+      }
+      return html`<div class="rq-slot open" style="${raw(style)}" title="${sp.label}: uncovered — the Chancellor may use this modifier"></div>`;
+    })}
+  </div>`;
+}
+
+/**
+ * Placards are rendered at TRUE scale against the player board, so a banner
+ * beside a board is the size it would be on the table. Widths are the art's
+ * own pixels over the player board's 1011px width.
+ */
+const PLACARD_W = {
+  banner: (652 / 1011) * 100,
+  title: (542 / 1011) * 100,
+  scepter: (326 / 1011) * 100,
+};
+
+/** One banner placard, with the favor/secrets sitting on it (Law §2.5). */
+function bannerPlacard(b: BoardModel['banners'][number], art: ArtResolver): Raw {
+  return html`<figure class="placard" style="width:${PLACARD_W.banner}%">
+    <div class="tf-art">${face(b.face, art)}
+      <span class="tf-count" title="tokens on this banner">${b.tokens}</span>
+    </div>
+    <figcaption>${b.name}${b.mob ? ' (Mob side)' : ''}</figcaption>
+  </figure>`;
+}
+
+/**
+ * What this seat holds on the table beside their board: any banners, the
+ * Oathkeeper/Usurper title, and the Grand Scepter. Rendered under their own
+ * board rather than in a shared pile, because that is where they sit in play.
+ */
+function ownedPlacards(m: BoardModel, seat: number, art: ArtResolver): Raw {
+  const mine = m.banners.filter((b) => b.holder === seat);
+  const isKeeper = m.oathkeeper === seat;
+  const hasScepter = m.grandScepter === seat;
+  if (!mine.length && !isKeeper && !hasScepter) return raw('');
+  return html`<div class="pb-placards">
+    ${mine.map((b) => bannerPlacard(b, art))}
+    ${isKeeper
+      ? html`<figure class="placard" style="width:${PLACARD_W.title}%">
+          <div class="tf-art"><img src="${artUrl(m.usurper ? 'oathkeeperback.png' : 'oathkeeperfront.png')}" alt="${m.usurper ? 'Usurper' : 'Oathkeeper'} title"></div>
+          <figcaption>${m.usurper ? 'Usurper' : 'Oathkeeper'}</figcaption>
+        </figure>`
+      : ''}
+    ${hasScepter
+      ? html`<figure class="placard" style="width:${PLACARD_W.scepter}%">
+          <div class="tf-art"><img src="${artUrl('The Grand Scepter.png')}" alt="The Grand Scepter"></div>
+          <figcaption>Grand Scepter</figcaption>
+        </figure>`
+      : ''}
+  </div>`;
+}
+
+/** Banners nobody holds — they sit by the shared bank until someone takes one. */
+function tableFurniture(m: BoardModel, art: ArtResolver): Raw {
+  const unheld = m.banners.filter((b) => b.holder === null);
+  if (!unheld.length) return raw('');
+  return html`<section class="table-furniture"><h2>Unclaimed banners</h2>
+    <div class="tf-row">${unheld.map((b) => bannerPlacard(b, art))}</div>
+  </section>`;
+}
+
+function playerArea(p: PlayerAreaModel, art: ArtResolver, model?: BoardModel): Raw {
   const role = p.chancellor ? 'Chancellor' : p.citizen ? 'Citizen' : 'Exile';
   const cls = `pboard${p.isYou ? ' you' : ''}${p.active ? ' active' : ''}`;
   return html`<article class="${cls}" data-color="${p.color}">
@@ -301,6 +391,11 @@ function playerArea(p: PlayerAreaModel, art: ArtResolver): Raw {
         </ul>
       </div>
     </div>
+    ${/* The Chancellor's Reliquary sits directly under their board; their
+         banners and title go below it. Every other seat's placards follow
+         their board immediately, since only the Chancellor has a Reliquary. */ ''}
+    ${p.chancellor && model ? reliquaryBoard(model, art) : ''}
+    ${model ? ownedPlacards(model, p.seat, art) : ''}
     ${p.relics.length ? html`<div class="held-relics" title="Relics">${p.relics.map((r) => face(r, art))}</div>` : ''}
   </article>`;
 }
@@ -358,30 +453,18 @@ export function boardPage(
       ${table}
 
       <section class="players"><h2>Players</h2>
-        <div class="player-grid">${model.players.map((p) => playerArea(p, art))}</div>
+        <div class="player-grid">${model.players.map((p) => playerArea(p, art, model))}</div>
       </section>
+
+      ${tableFurniture(model, art)}
 
       <section class="supply"><h2>Banks & supply</h2>
         <ul class="banks">
-          ${model.favorBanks.map((b) => html`<li>${b.label}: ${b.favor}⚑</li>`)}
-          <li>Shared bank: ${model.sharedBank.favor}⚑ / ${model.sharedBank.secrets}◆</li>
+          ${model.favorBanks.map((b) => html`<li>${b.label}: ${b.favor}${favorTok}</li>`)}
+          <li>Shared bank: ${model.sharedBank.favor}${favorTok} / ${model.sharedBank.secrets}${secretTok}</li>
           <li>Relic deck: ${model.relicDeckCount}</li>
           <li>Discards: ${model.discardCounts.map((d) => `${d.label} ${d.count}`).join(' · ')}</li>
           <li>Dispossessed: ${model.dispossessedCount}</li>
-        </ul>
-        <h3>Banners</h3>
-        <ul class="banners">
-          ${model.banners.map(
-            (b) =>
-              html`<li>${b.name}: ${b.holder === null ? 'unheld' : `seat ${b.holder}`} · ${b.tokens} tokens${b.mob ? ' · Mob side' : ''}</li>`,
-          )}
-        </ul>
-        <h3>Reliquary</h3>
-        <ul class="reliquary">
-          ${model.reliquary.map(
-            (sp) =>
-              html`<li>${sp.label}: ${sp.relic ? face(sp.relic, art) : sp.covered ? back('facedown relic') : 'empty'}</li>`,
-          )}
         </ul>
       </section>
 

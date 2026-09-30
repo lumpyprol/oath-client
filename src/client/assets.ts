@@ -82,6 +82,39 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .pb-side-advisers .adviser { flex: 0 0 auto; height: 100%; display: flex; }
 .pb-side-advisers img.face, .pb-side-advisers .card-back { height: 100%; width: auto; min-width: 0; min-height: 0; border-radius: 4px; }
 .card-back { display: block; border-radius: 4px; box-shadow: 0 1px 3px #0007; }
+
+/* The Imperial Reliquary sits under the Chancellor's board, same width. */
+.reliquary-board { position: relative; width: 100%; max-width: 42rem; margin-top: 0.5rem; }
+.rq-bg { width: 100%; display: block; border-radius: 6px; }
+.rq-slot { position: absolute; transform: translate(-50%, -50%); width: 45%; aspect-ratio: 1 / 1; }
+.rq-slot img, .rq-slot .face {
+  width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: fill;
+  border: none; border-radius: 4px; box-shadow: 0 1px 5px #000a;
+}
+.rq-slot.open { border: 0.2rem dashed #ffd54a88; border-radius: 8px; }
+
+/* Banner placards, the Oathkeeper title and the Grand Scepter — drawn at
+   their TRUE size against the player board (widths are set inline, as the
+   art's own pixels over the board's 1011px width), so a banner under a board
+   is as big as it would be on the table. */
+.pb-placards, .tf-row {
+  display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: flex-start;
+  width: 100%; max-width: 42rem; margin-top: 0.5rem;
+}
+.placard { margin: 0; }
+.tf-art { position: relative; }
+.tf-art img, .tf-art .face {
+  width: 100%; height: auto; min-width: 0; min-height: 0;
+  border: none; border-radius: 4px; box-shadow: 0 1px 5px #0009; display: block;
+}
+.tf-count {
+  position: absolute; right: -0.4rem; bottom: -0.4rem;
+  min-width: 1.5rem; height: 1.5rem; padding: 0 0.3rem; border-radius: 0.75rem;
+  display: flex; align-items: center; justify-content: center;
+  background: #000d; border: 1px solid #e8b53a; color: #ffd98a;
+  font-size: 0.85rem; font-weight: 800;
+}
+.placard figcaption { font-size: 0.8rem; margin-top: 0.3rem; line-height: 1.3; color: var(--muted); }
 .held-relics { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
 .held-relics img.face { width: 3rem; height: auto; min-width: 0; min-height: 0; border-radius: 4px; }
 .slot.empty { display: none; }

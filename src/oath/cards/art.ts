@@ -123,6 +123,14 @@ const PIECES = [
   'secret.png',
   DENIZEN_BACK_FILE,
   'relicBack.png',
+  // Placards: the Imperial Reliquary (§2.3), the Oathkeeper title (§2.11)
+  // and the Grand Scepter (§2.4). The banner placards are card faces and
+  // come from the manifest, not here.
+  'Imperial Reliquary_front.png',
+  'oathkeeperfront.png',
+  'oathkeeperback.png',
+  'The Grand Scepter.png',
+  'grandScepterBack.png',
 ];
 
 export const UI_ASSETS: readonly string[] = ['full_board.png', SITE_BACK_FILE, ...PLAYER_BOARDS, ...PIECES];
