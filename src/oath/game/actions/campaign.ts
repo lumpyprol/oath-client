@@ -174,8 +174,9 @@
  * per-site recover cost was before its P1 follow-up):
  *   Attack die (6 faces):  3x hollowSword, 2x sword, 1x skull. A sword
  *     counts 1; two hollowSwords count as 1 (a lone one counts 0) — Law
- *     §5.5.5. A skull kills one of the attacker's own board warbands,
- *     immediately, regardless of the campaign's outcome.
+ *     §5.5.5. The skull face is printed with TWO SWORDS beside the skull,
+ *     so it adds 2 to the attack AND kills one of the attacker's own board
+ *     warbands, immediately, regardless of the campaign's outcome.
  *   Defense die (6 faces): 2x blank, 2x shield (1 shield), 1x
  *     doubleShield (2 shields, not a multiplier), 1x shieldX2 (doubles
  *     the running shield total — Law §5.5.4: "each roll doubles the
@@ -763,12 +764,24 @@ function storeFaces(c: CampaignState, payload: unknown, actionName: string): voi
 
 // ---- resolution (unit 13) -------------------------------------------------
 
-/** Law §5.5.5: a sword counts 1; two hollowSwords count as 1 (a lone one, 0). */
+/**
+ * Law §5.5.5: the attacker adds the swords they ROLLED; a sword counts 1,
+ * two hollowSwords count as 1 (a lone one, 0).
+ *
+ * The skull face is not a blank: the printed die shows TWO swords beside the
+ * skull, so it adds 2 AND kills one of the attacker's own warbands. Corrected
+ * 2026-09-30 on Ben's catch — this counted the skull as zero swords, which
+ * silently under-counted every attack that rolled one. The component art is
+ * the authority here for the same reason the Playbook is: the Law says which
+ * symbols do what, not which symbols are printed on each face.
+ */
+export const SKULL_SWORDS = 2;
+
 export function attackTotal(faces: AttackFace[]): { swords: number; skulls: number } {
   const swords = faces.filter((f) => f === 'sword').length;
   const hollow = faces.filter((f) => f === 'hollowSword').length;
   const skulls = faces.filter((f) => f === 'skull').length;
-  return { swords: swords + Math.floor(hollow / 2), skulls };
+  return { swords: swords + Math.floor(hollow / 2) + skulls * SKULL_SWORDS, skulls };
 }
 
 /**

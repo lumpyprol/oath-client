@@ -7,6 +7,7 @@ import {
   PEOPLES_FAVOR_ID,
   type OathState,
 } from '../../../src/oath/game/state.js';
+import { attackTotal } from '../../../src/oath/game/actions/campaign.js';
 import { oath } from '../../../src/oath/game/index.js';
 import { cards } from '../../../src/oath/cards/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
@@ -117,9 +118,32 @@ describe('campaign.resolve — attack/defense arithmetic (Law §5.5.4-5.5.5)', (
   });
 
   it('skulls kill the attacker\'s own board warbands immediately, win or lose', () => {
-    const s = rolled(['sword', 'sword', 'skull'], ['blank', 'blank'], 0); // still wins: 2 swords > 0
+    const s = rolled(['sword', 'sword', 'skull'], ['blank', 'blank'], 0); // wins: 2 swords + 2 from the skull
     const out = resolveAction(s, 1, { sacrifice: 0 });
     expect(out.campaign).toBeNull(); // victorious despite the skull
+    expect(out.players[1].warbands.board).toBe(2); // 3 - 1 skull
+    checkInvariants(out);
+  });
+
+  /**
+   * The skull face is NOT a blank that only costs you a warband: the printed
+   * die shows two swords beside the skull, so it attacks for 2 as well.
+   * Corrected 2026-09-30 after Ben spotted it in the component art; the
+   * engine had been counting it as zero swords, silently under-counting
+   * every attack that rolled one.
+   */
+  it('a skull adds two swords to the attack as well as killing a warband', () => {
+    expect(attackTotal(['skull'])).toEqual({ swords: 2, skulls: 1 });
+    expect(attackTotal(['skull', 'skull'])).toEqual({ swords: 4, skulls: 2 });
+    expect(attackTotal(['skull', 'sword', 'hollowSword', 'hollowSword'])).toEqual({ swords: 4, skulls: 1 });
+    // ...and a lone hollow sword still adds nothing (§5.5.5).
+    expect(attackTotal(['hollowSword'])).toEqual({ swords: 0, skulls: 0 });
+
+    // Behaviourally: one skull alone beats a single shield, which it could
+    // not do when the face counted zero.
+    const s = rolled(['skull'], ['shield', 'blank'], 0); // attack 2 > defense 1
+    const out = resolveAction(s, 1, { sacrifice: 0 });
+    expect(out.campaign).toBeNull();
     expect(out.players[1].warbands.board).toBe(2); // 3 - 1 skull
     checkInvariants(out);
   });
@@ -225,10 +249,13 @@ describe('campaign.resolve — mandatory victory effects: relics and banners (La
     const declared = declare(s, 1, {
       defender: 2,
       targets: [{ kind: 'pawnFavor' }, { kind: 'relic', relicId: heldRelicId }, { kind: 'banner', bannerId: 'peoples-favor' }],
-      attackDice: 2,
+      attackDice: 1,
     });
     // defenseDice = 2 (pawnFavor) + 3 (relic) + 1 (banner tokens) = 6
-    const r = respond(declared, 2, { attackFaces: ['skull', 'skull'], defenseFaces: Array(6).fill('blank') });
+    // A LONE hollow sword adds nothing (§5.5.5), so the attack really is 0.
+    // (This used to roll two skulls; that is not a zero attack — the skull
+    // face is printed with two swords, so two of them attack for 4.)
+    const r = respond(declared, 2, { attackFaces: ['hollowSword'], defenseFaces: Array(6).fill('blank') });
     const out = resolveAction(r, 1, { sacrifice: 0 }); // attack 0 <= defense 0 -> loss
 
     expect(out.campaign).toBeNull();
