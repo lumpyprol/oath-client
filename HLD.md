@@ -16,7 +16,7 @@ unit of work; update the decision log whenever a decision is made or reversed.
 
 A private, async-first server for playing *Oath: Chronicles of Empire and
 Exile* with a fixed group of friends over weeks and months. Games are taken one
-turn at a time, mostly from a tablet or laptop. The Chronicle — Oath's persistence of one game's
+turn at a time, from a desktop or laptop browser. The Chronicle — Oath's persistence of one game's
 outcome into the next — is a first-class feature, not an afterthought.
 
 This is not a product. It is for a handful of people who own the game.
@@ -24,7 +24,7 @@ This is not a product. It is for a handful of people who own the game.
 ### Goals
 
 - A group of 2–6 can finish a game of Oath asynchronously, taking turns from
-  tablets and laptops, without the game dying of "whose turn is it."
+  desktop and laptop browsers, without the game dying of "whose turn is it."
 - Chronicles persist across games and interoperate with the existing
   TTS/Vassal seed format, so campaigns can move between platforms.
 - Any player can rewind the game to any prior point. Disputes are resolved by
@@ -74,10 +74,10 @@ Investigated and rejected before P0:
   multi-round-trip decisions between two players. Unmitigated, this makes a
   six-player async game take months of wall clock.
 - **Single writer.** SQLite. One server process, one machine, ever.
-- **Tablet and laptop are the primary surfaces.** Most turns will be taken
-  on a tablet or laptop with a full view of the table. Phones are secondary:
-  they should be able to show the decision inbox and take simple decisions,
-  but the board is not designed for them.
+- **Desktop only, for v1.** Every turn is taken in a desktop or laptop
+  browser with a full view of the table. Phones and tablets are out of scope
+  for v1 (D66, superseding D29): the board is laid out at true card scale on a
+  wide map, and nothing is designed or tested for narrow or touch screens.
 - **One maintainer.** Everything should be understandable in one sitting a
   year from now.
 
@@ -129,7 +129,7 @@ pixel-hunting a page render.
                      ┌──────────────────────────────────────────────┐
                      │  Server (Node 22 / TypeScript, one process)  │
                      │                                              │
-  tablet ──HTTPS──▶  │  routes ──▶ actionlog ──▶ GameDefinition     │
+ browser ──HTTPS──▶ │  routes ──▶ actionlog ──▶ GameDefinition     │
    (client, P4)      │               │   ▲            (oath, P2/3)  │
                      │               ▼   │                          │
                      │           node:sqlite ◀── cards data (P1)    │
@@ -152,7 +152,7 @@ pixel-hunting a page render.
 | `oath/cards` | P1 | Validated card database, ids, aliases, text overlay |
 | `oath/game` | P2 | The `GameDefinition` for Oath: state, actions, reducer, projection |
 | `oath/interrupts` | P3 | Pending-decision design: batching, standing responses |
-| `client` | P4 | Web UI for tablet/laptop: board, hand, decision inbox; inbox usable on phone |
+| `client` | P4 | Desktop web UI: board, hand, decision inbox |
 | `oath/chronicle` | P5 | Chronicle phase, seed import/export, lineage |
 | `notifier` | P6 | Discord webhook, deep links, stalled-turn nudges |
 
@@ -702,9 +702,9 @@ card text and the campaign window is the only reactive window there is.
 
 ### P4 — Client — `planned`
 
-**Goal.** A web client for tablets and laptops that renders the full table
-from a projected view, shows the decision inbox, and submits actions with
-`prevSeq`. The inbox and simple decisions also work on a phone.
+**Goal.** A desktop web client that renders the full table from a projected
+view, shows the decision inbox, and submits actions with `prevSeq`. Desktop
+and laptop browsers only for v1 (D66) — no phone or tablet layout.
 
 **Prompt plan.** `prompt_plan_phase_4.md` — 18 TDD units (09-13), plus one
 cuttable stretch unit. Units 1–7 are server-side and carry the phase's
@@ -758,15 +758,14 @@ good-looking client early. Real order: 9 → 10 → 15 → 16 (in progress) → 
   short-circuit contract changes. Worth doing because P3's own measurement
   says so — the six-player max of 7 visits/turn is entirely "nobody set a
   policy", so making policies easy to set IS the remaining win
-- Cards and sites render with real art from the P1 manifest; card text
-  overlay available as a tap-through for legibility on small screens
+- Cards and sites render with real art from the P1 manifest, drawn at true
+  table scale; a hover-to-enlarge preview makes any card's text readable
 - Board art: the table layout, site backgrounds, banks, and player areas
   styled after the physical game
 - Assets served only to requests carrying a valid player token
-- Designed for landscape tablet (~1024px) and laptop; art sized for those,
-  with smaller variants for the phone inbox view
-- On a phone (~380px): the inbox, simple yes/no and pick-one decisions, and
-  a read-only board. Composing a full turn on a phone is not a target
+- Designed for desktop and laptop browsers, minimum ~1280px wide. Narrow
+  and touch screens are not a v1 target (D66); nothing is laid out or
+  tested for them, and a phone or tablet getting a usable page is luck
 - **NEW at planning (09-13) — `affordances(state, seat)`, the option space.**
   The single architectural decision the rest of the phase hangs off. A
   composer has to know which sites this pawn can reach and at what Supply
@@ -836,13 +835,12 @@ answered in place.
   (1–7) and the docs close (18) are exempt.
 
 **Exit criteria.**
-- [ ] a full game playable from a tablet and from a laptop *(two gates: plan
+- [ ] a full game playable from a desktop browser *(two gates: plan
       unit 17's browserless driver plays a 3-player game to a win through the
-      HTML surface and freezes its log; and a real game taken on a real
-      device, recorded here with date and device — P0's precedent)*
-- [ ] on a phone, the inbox loads and a pending yes/no decision can be answered
+      HTML surface and freezes its log; and a real game taken in a real
+      desktop browser, recorded here with date and browser — P0's precedent)*
 - [ ] a stale-state conflict is handled without the user seeing an error page
-- [ ] decision deep link opens the right prompt with one tap
+- [ ] decision deep link opens the right prompt with one click
 - [ ] every card and site shows its art; an unauthenticated asset request is
       refused
 - [ ] **the client never computes a rule** — every legal choice it offers
@@ -1120,7 +1118,7 @@ with `reversed by`.
 | D26 | 09-07 | One machine, ever | SQLite single writer; concurrency check assumes one process | active |
 | D27 | 09-08 | Card art and board art are in scope; assets private, token-gated, outside git | Ben's call: the real table matters to the group; private use among owners keeps exposure bounded | active |
 | D28 | 09-08 | Powers declared by default but enforceable per card via a registry; declared and enforced powers share one `effects` representation | Keeps v1 small without foreclosing enforcement; adding a card never changes the log or reducer shape | active |
-| D29 | 09-08 | Tablet and laptop are the primary client surfaces; phone supports the inbox and simple decisions only | That's how the group will actually play; a full Oath table doesn't fit a phone and designing for it would compromise the real target | active |
+| D29 | 09-08 | Tablet and laptop are the primary client surfaces; phone supports the inbox and simple decisions only | That's how the group will actually play; a full Oath table doesn't fit a phone and designing for it would compromise the real target | superseded by D66 (09-30) |
 | D30 | 09-08 | Oath setup is seed-shaped: `setup()` consumes a `SetupSpec` matching the parsed-seed shape; the standard first game is a built-in constant spec | One setup path serves first games, imported seeds, and P5's chronicle output; P5 becomes a spec producer | active |
 | D31 | 09-08 | `GameDefinition.setup` accepts optional creation options, opaque to the store, threaded from the create body | The mechanism by which a seed string (or a pinned test setup) reaches a game's setup without the engine knowing what it means | active |
 | D32 | 09-08 | Game state is plain TS types plus a `checkInvariants` checker run in every test; no runtime schema on the fold path | Snapshots are disposable so runtime validation buys little; conservation-law checks catch real reducer bugs where it matters | active |
@@ -1157,7 +1155,8 @@ with `reversed by`.
 | D62 | 09-13 | P4: **conditional standing responses keep the scalar as the base case.** A channel is either today's scalar or `{ default, unless: {...} }`, normalized by `consultStanding`, which grows a context argument (who is asking, what is targeted). Every pre-P4 `standing.set` payload folds unchanged and the short-circuit contract is untouched. Extends D52 | P3 deliberately shipped global-only and its own measurement says why this matters: the six-player max of 7 visits/turn is entirely "nobody set a policy", so the remaining win is making policies easy to author — which needs a client, which is why it waited. Normalizing rather than migrating keeps D53/D61's freeze honest | active |
 | D63 | 09-13 | P4 art pipeline: an **offline script** on Ben's machine produces two sizes per face (board and thumb, by filename convention) and fills `width`/`height` into the committed manifest; the server only serves bytes from `ART_DIR`, token-gated, immutable-cached, path-traversal guarded. A manifest key whose file is absent renders a placeholder, never a broken image | Keeps every image library out of the runtime image, the same call as D15. `ArtEntry` already reserved optional `width`/`height`, so the manifest was built for this. The placeholder path is what lets the phase close before ~261 faces have been collected — see Q15 | active |
 | D64 | 09-13 | P4: **a dry-run submit.** `POST /api/games/:id/actions?dryRun=1` runs `prepare` + `reduce` inside a transaction that is always rolled back, returning the would-be view/pending/affordances or the exact error. No log entry, no `seq` bump. Dice rolled in a dry run are explicitly flagged speculative and are NOT the ones the real submit will produce | v1's bargain is that card powers are declared, so the composer's hardest job is telling a player their effects are infeasible before it costs a log entry. The store already runs `reduce` inside a transaction, so this is a flag, not a mechanism. It must return byte-identical errors to the real path, which is why D59's leak sweep is unit 1 and this is unit 7 | active |
-| D65 | 09-13 | P4 acceptance evidence: the phase has **one unit that is not TDD and says so** (the visual pass). Its gate is human judgement, backed by two mechanical proxies — a class-name conformance test between templates and stylesheet, and a scripted viewport check (`scrollWidth <= clientWidth` at 1024x768 and 380x800) driven by the browser tools outside `npm test`. The "playable from a tablet" criterion is ticked with a date and a device, as P0's deployment criterion was | Pretending a CSS pass is test-driven would make the phase's green suite mean less, not more. Naming the one place tests do not reach is cheaper than discovering later that a tick was decoration | active |
+| D65 | 09-13 | P4 acceptance evidence: the phase has **one unit that is not TDD and says so** (the visual pass). Its gate is human judgement, backed by two mechanical proxies — a class-name conformance test between templates and stylesheet, and a scripted viewport check (`scrollWidth <= clientWidth` at 1280x800 and 1920x1080 — desktop only since D66) driven by the browser tools outside `npm test`. The "playable from a desktop browser" criterion is ticked with a date and a browser, as P0's deployment criterion was | Pretending a CSS pass is test-driven would make the phase's green suite mean less, not more. Naming the one place tests do not reach is cheaper than discovering later that a tick was decoration | active |
+| D66 | 09-30 | **v1 is desktop only.** The client targets desktop and laptop browsers (minimum ~1280px wide); phones and tablets are out of scope — nothing is laid out, sized or tested for narrow or touch screens. Supersedes D29 (tablet/laptop primary, phone inbox) and reverses Q11's in-P4 phone support. The visual pass's viewport proxy checks 1280x800 and 1920x1080 instead of 1024x768 and 380x800 | Ben's call once the real board existed: it is laid out at true card scale on a wide map with full-size player boards, placards and advisers, and shrinking that to a phone would mean a second layout for a group that plays at desks anyway. Dropping it removes the phase's one piece of responsive work and a whole class of verify steps. Server-rendered pages (D57) keep the door open: a phone layout later is a stylesheet, not a second client | active |
 
 ---
 
@@ -1201,7 +1200,7 @@ with `reversed by`.
 | Q8 | ~~Where do art assets live?~~ **Resolved 09-08:** Fly volume beside the db; only the manifest is committed (see P1 addendum) | — | — |
 | Q9 | ~~Art source?~~ **Resolved 09-08:** composite — Buried Giant card search for faces, Dev Kit for frames, Vassal module for boards (see P1 addendum); filling `ART_DIR` is P4 work | — | — |
 | Q10 | ~~Initial effect vocabulary~~ **Resolved 09-08 in principle (D33):** minimal zone-addressed movers, growth only on need; concrete set designed in P2 unit 3 | — | — |
-| Q11 | ~~Is any phone support required for v1, or is inbox-on-phone a P6 nicety?~~ **Resolved 09-13:** in P4, at exactly the level the exit criterion states — the inbox loads and a pending yes/no or pick-one decision can be answered, plus a read-only board. Composing a full turn on a phone stays a non-target. It is cheap here because D57's pages are server-rendered HTML: the phone gets the same documents at a narrower breakpoint, not a second client | — | — |
+| Q11 | ~~Is any phone support required for v1, or is inbox-on-phone a P6 nicety?~~ **Resolved 09-13, then reversed 09-30:** first resolved as in-P4 inbox-and-simple-decisions support; reversed by D66 — v1 is desktop only, no phone or tablet support at all | — | — |
 | Q13 | ~~Standing-response starter set: `defense: close/ask`, `ally: pass/ask`, `warbands: allow/deny/ask` — veto or extend? Conditional (per-site/per-opponent) variants are explicitly P4~~ **Resolved 09-12:** proposed set stands unchanged | — | — |
 | Q14 | ~~Are the smoke games on the Fly volume disposable? D53's drain rule assumes yes; if any must survive, P3 unit 4 grows a fold-compat shim for the old campaign shapes~~ **Resolved 09-12:** yes, disposable — unit 4 regenerates the fixture and drains them, no shim | — | — |
 | Q12 | ~~Restriction banners (Law §7.2): transcribe a `restriction` field, or leave self-policed until v2?~~ **Resolved 09-12 (D46):** neither wholesale — scoped into unit 19. The 09-12 CDN sweep showed the data is in no machine-readable source, so a full transcription means icon-reading ~204 card faces; unit 19 transcribes only the cards its acceptance game plays, and asserts the script never leans on an unread one | — | — |

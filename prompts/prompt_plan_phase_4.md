@@ -3,10 +3,16 @@
 Phase 4 is where a person other than a test finally plays this game. P0–P3
 built a server that is correct, rewindable, leak-audited and measured; none
 of it has ever been touched by a human hand except through `curl`. The HLD's
-goal for this phase is short — "a web client for tablets and laptops that
-renders the full table from a projected view, shows the decision inbox, and
-submits actions with `prevSeq`" — and the phase's real risk is hidden in the
-word *renders*.
+goal for this phase is short — "a desktop web client that renders the full
+table from a projected view, shows the decision inbox, and submits actions
+with `prevSeq`" — and the phase's real risk is hidden in the word *renders*.
+
+> **Desktop only (D66, 2026-09-30).** v1 targets desktop and laptop browsers
+> (minimum ~1280px wide). Phone and tablet support is dropped entirely — it
+> was originally an exit criterion (the inbox and simple decisions on a phone,
+> D29/Q11), and unit 9 was built phone-first against it. Every forward-looking
+> unit below is written for desktop; completed units keep their original text
+> as the record, annotated where D66 changed what they committed to.
 
 **A client that decides anything is a second implementation of the Law.**
 Which sites can this pawn reach and at what Supply cost; which denizens can
@@ -784,7 +790,9 @@ internet.
 ## Unit 9 — The HTML shell, and the inbox ✅ (completed 2026-09-14)
 
 **Purpose.** The smallest end-to-end page, and the one the phone criterion
-hangs off. Establishes the render pattern every later page follows: a pure
+hangs off. *(D66, 09-30: the phone criterion is dropped — v1 is desktop only.
+The inbox shipped phone-first and still works at desktop width; nothing more
+is owed to narrow screens.)* Establishes the render pattern every later page follows: a pure
 model, a dumb template, and assertions on the model.
 
 **Depends on.** Unit 8.
@@ -1298,15 +1306,16 @@ honestly available, plus the checklist the eye is working from.
    typo'd class and a stylesheet full of dead rules.
 
 2. Proxy two — scripts/viewport-check.mjs, run with the browser tools,
-   NOT in npm test: load each page at 1024x768 (landscape tablet) and
-   380x800 (phone) and assert
+   NOT in npm test: load each page at 1280x800 (the smallest desktop we
+   support, D66) and 1920x1080 and assert
    document.documentElement.scrollWidth <= clientWidth. A board that
-   scrolls sideways on the target device is the one visual failure that
-   is objectively a bug rather than a taste.
+   scrolls sideways on a supported desktop is the one visual failure that
+   is objectively a bug rather than a taste. Narrower widths are not
+   checked: phones and tablets are out of scope for v1.
 
 3. The checklist the human is working from:
-   - the whole table visible at 1024px landscape without scrolling
-     sideways; sites in region order, top to bottom, as on the map
+   - the whole table visible at 1280px without scrolling sideways;
+     sites in region order, top to bottom, as on the map
    - a site reads as a card: art, name, capacity, its denizens in their
      slots, relic slots as facedown backs, warbands by colour
    - a player area reads as a player board: supply track, banks,
@@ -1314,9 +1323,7 @@ honestly available, plus the checklist the eye is working from.
    - the active seat and the pending decision are findable in under a
      second on any page
    - facedown means facedown: a back, not a blank
-   - the phone shows the inbox and a yes/no decision comfortably, and
-     the board read-only without a horizontal scrollbar
-   - it works with the enhancement script deleted, at every breakpoint
+   - it works with the enhancement script deleted, at both viewports
 
 4. Capture a screenshot of each page at both viewports and keep them
    with the commit so the next visual change has a before.
@@ -1374,9 +1381,9 @@ Unit 17 of Phase 4: play the whole game through the client.
    composer forcing extra submits, and it belongs in the plan's risks
    table, not in a shrug.
 
-5. The manual half, which no test can do: play a real game on a real
-   tablet and on a real phone. Record the date and the devices in the
-   HLD beside the criterion, as P0 did for its Fly deployment.
+5. The manual half, which no test can do: play a real game in a real
+   desktop browser. Record the date and the browser in the HLD beside
+   the criterion, as P0 did for its Fly deployment. (Desktop only, D66.)
 
 Commit: "A full game, played through the client"
 ```
@@ -1522,10 +1529,10 @@ Record it as a reversed decision, not a silent retreat.
 
 | Exit criterion | Unit(s) |
 | --- | --- |
-| A full game playable from a tablet and a laptop | 17 (driver + manual, recorded with date/device) |
-| On a phone, the inbox loads and a yes/no decision can be answered | 9 (phone-first), 12, 16 |
+| A full game playable from a desktop browser | 17 (driver + manual, recorded with date/browser) |
+| ~~On a phone, the inbox loads and a yes/no decision can be answered~~ | dropped by D66 (09-30) — desktop only |
 | A stale-state conflict is handled without an error page | 11 §4 (409 re-render; the JSON API's 409 stays) |
-| Decision deep link opens the right prompt with one tap | 12 (form present in the first response), 8 (sign-in preserves the destination) |
+| Decision deep link opens the right prompt with one click | 12 (form present in the first response), 8 (sign-in preserves the destination) |
 | Every card and site shows its art; unauthenticated asset request refused | 15 (the 401 written as an exploit first), 10 (the `<img>` tags) |
 | The client never computes a rule | 4–6 (affordances ↔ reduce), 11 §2 (forms ↔ affordances) |
 | Nothing leaks past the view | 1 (payloads + errors), 4 §5 (affordances), 10 §3 (HTML), 13 §2 (describer) |

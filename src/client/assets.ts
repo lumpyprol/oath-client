@@ -2,7 +2,8 @@
  * The client's stylesheet and progressive-enhancement script, as strings
  * served by `web.ts` (P4 unit 9). Kept as TS so `tsc` ships them to `dist/`
  * with no bundler and no build-copy step (D57: no toolchain in the runtime
- * image). Phone-first: designed at ~380px, allowed to look plain at 1024px.
+ * image). Desktop only (D66): laid out for desktop and laptop browsers,
+ * minimum ~1280px wide; narrow and touch screens are not a v1 target.
  */
 
 export const APP_CSS = `
@@ -36,7 +37,7 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .others ul { color: var(--muted); }
 .page-nav { display: flex; gap: 1rem; margin-top: 1.5rem; }
 
-/* ---- the board (unit 10) — phone-first, plain until unit 16's visual pass ---- */
+/* ---- the board (unit 10) — desktop layout (D66) ---- */
 .status { color: var(--muted); margin: 0 0 var(--gap); }
 .status.done { color: inherit; font-weight: 700; }
 .spectator-note { font-style: italic; color: var(--muted); }

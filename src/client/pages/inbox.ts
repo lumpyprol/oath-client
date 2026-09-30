@@ -1,6 +1,6 @@
 /**
- * The inbox page (P4 unit 9) — the landing view and the one page the phone
- * exit criterion names. A dumb template over `InboxModel`: what is waiting
+ * The inbox page (P4 unit 9) — the landing view. (Built phone-first against
+ * an exit criterion D66 later dropped; v1 is desktop only.) A dumb template over `InboxModel`: what is waiting
  * on ME (oldest first, each linking to its decision), then what the game is
  * waiting on from others (so a player sees why nothing is moving), then
  * links to the board and history.
