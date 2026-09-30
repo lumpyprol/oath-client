@@ -388,6 +388,40 @@ function ownedPlacards(m: BoardModel, seat: number, art: ArtResolver): Raw {
   </div>`;
 }
 
+/**
+ * The reference aids that sit on the table (Law §2.10). The Goal Reference
+ * is live — it is the card for THIS game's oath, showing the Oathkeeper and
+ * Successor goals — so it is always shown, at true scale against the player
+ * board (332px over the board's 1011px). The Card and Site reference sheets
+ * are static rules aids, so they fold away.
+ *
+ * The TTS corpus's Chronicle Summary (`chronicle_aid.jpg`) is deliberately
+ * NOT used: a previous owner scrawled "Do this / the rest is automated" over
+ * it, which describes TTS, not this app. The Chronicle is P5 anyway.
+ */
+const GOAL_REFERENCE: Record<string, string> = {
+  supremacy: 'oathsupremacy.png',
+  people: 'oathpeople.png',
+  devotion: 'oathdevotion.png',
+  protection: 'oathprotection.png',
+};
+
+function referenceAids(m: BoardModel): Raw {
+  const goal = GOAL_REFERENCE[m.oath];
+  return html`<section class="reference-aids"><h2>Reference</h2>
+    ${goal
+      ? html`<figure class="placard goal-ref" style="width:${(332 / 1011) * 100}%">
+          <div class="tf-art"><img src="${artUrl(goal)}" alt="Goal Reference: ${m.oathLabel}"></div>
+          <figcaption>Goal Reference — ${m.oathLabel}</figcaption>
+        </figure>`
+      : ''}
+    <details class="ref-sheet"><summary>Card reference</summary>
+      <img src="${artUrl('reference_front.jpg')}" alt="Card reference: suits, restrictions, power costs, rules of use"></details>
+    <details class="ref-sheet"><summary>Site reference &amp; campaign summary</summary>
+      <img src="${artUrl('site_reference.jpg')}" alt="Site reference and campaign summary"></details>
+  </section>`;
+}
+
 /** Banners nobody holds — they sit by the shared bank until someone takes one. */
 function tableFurniture(m: BoardModel, art: ArtResolver): Raw {
   const unheld = m.banners.filter((b) => b.holder === null);
@@ -508,6 +542,8 @@ export function boardPage(
       </section>
 
       ${tableFurniture(model, art)}
+
+      ${referenceAids(model)}
 
       <section class="supply"><h2>Banks & supply</h2>
         <ul class="banks">

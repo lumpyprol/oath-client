@@ -726,10 +726,13 @@ good-looking client early. Real order: 9 → 10 → 15 → 16 (in progress) → 
 - **Unit 16 runs in committed batches with a §2-component audit.** Every Key
   Component in the Law's §2 maps to an art asset (in a batch) and to a field
   the engine already models; the mapping table lives in the unit's section of
-  the prompt plan. Batches 1–3 (board, player boards, on-map pieces/advisers)
-  are done; 4–8 (trackers, decks/piles, reliquary/banners/title/scepter,
-  campaign dice, aids) remain. Known asset gaps: favor has no token art (gold
-  coin glyph), and purple (6th seat) has no board/pawn/supply asset.
+  the prompt plan. All eight batches are built — board, player boards,
+  on-map pieces and advisers, trackers, decks and piles, reliquary/banners/
+  title/scepter, campaign dice, reference aids — with no asset gaps (the three
+  once listed were misreadings; purple is the Chancellor, not a sixth Exile).
+  The gate's two proxies are a class-conformance test and a desktop viewport
+  script (D65 as amended by D66). Building batch 7 surfaced a rules bug: the
+  skull die face attacks for two swords, not zero (RULINGS.md, 09-30).
 
 **Scope.**
 - Board: sites in play with denizens, relics, warbands; hand; advisers;

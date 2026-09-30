@@ -1211,7 +1211,7 @@ degrades gracefully, and the pipeline is documented and runnable.
 
 ---
 
-## Unit 16 — The visual pass (NOT TDD, and it says so) 🚧 (in progress — batches 1–7 done)
+## Unit 16 — The visual pass (NOT TDD, and it says so) ✅ (completed 2026-09-30; eight batches, desktop only per D66)
 
 **Purpose.** Make it look like Oath. This is craft, and the honest thing to
 do is name it as the one unit whose gate is a person (D65).
@@ -1249,8 +1249,13 @@ Big enough to run in committed batches, each ending with Ben's browser check
   open Citizenship offer / warband request.
 - **Batch 7 ✅ — campaign & dice.** Attack/defense dice faces during a live
   Campaign §2.8.3/§5.5; the casualty-allocation view.
-- **Batch 8 — aids & the final visual pass.** Goal Reference §2.10 and the
-  Chronicle aid; then the checklist/proxies below, at both viewports.
+- **Batch 8 ✅ — aids & the final visual pass.** The Goal Reference §2.10 for
+  the game's own oath, always shown; the Card and Site reference sheets,
+  folded. The TTS Chronicle Summary is deliberately not used (a previous owner
+  scrawled "the rest is automated" over it — true of TTS, not of this app).
+  Then the gate: proxy one as `test/client/css-conformance.test.ts`, proxy two
+  as `scripts/viewport-check.mjs` (desktop viewports, D66, plus a no-JS pass),
+  screenshots in `docs/visual-pass/2026-09-30/`.
 
 ### Component coverage (§2 Key Components → art asset → batch → engine)
 
@@ -1260,35 +1265,36 @@ already models. Verified against the Law's §2 (Buried Giant p1) on 2026-09-15.
 | Component (§) | Art asset(s) | Batch | Engine (state → view) |
 | --- | --- | --- | --- |
 | Map / regions (2.1.1) | `full_board.png` | 1 ✅ | `sites[].region` → grouped |
-| Discard piles (2.1.2) | `denizen card backv2.png` | 5 | `discards[region]` (count) → `discards` |
-| Favor banks (2.1.3) | on-map + coin glyph | 4 | `favorBanks` → `favorBanks` |
-| Round track / wheel (2.1.4) | `turn marker.png` | 4 | `turn.round` → `turn` |
-| World deck (2.1.5) | `denizen card backv2.png` | 5 | size **hidden** → `worldDeck {}` |
-| Visions Drawn track (2.1.6) | `Vision marker.png` | 4 | `visionsDrawn` → `visionsDrawn` |
-| Shared bank (2.1.7) | coin glyph + `secret.png` | 4 | `sharedBank` → `sharedBank` |
+| Discard piles (2.1.2) | `denizen card backv2.png` | 5 ✅ | `discards[region]` (count) → `discards` |
+| Favor banks (2.1.3) | on-map + coin glyph | 4 ✅ | `favorBanks` → `favorBanks` |
+| Round track / wheel (2.1.4) | `turn marker.png` | 4 ✅ | `turn.round` → `turn` |
+| World deck (2.1.5) | `denizen card backv2.png` | 5 ✅ | size **hidden** → `worldDeck {}` |
+| Visions Drawn track (2.1.6) | `Vision marker.png` | 4 ✅ | `visionsDrawn` → `visionsDrawn` |
+| Shared bank (2.1.7) | coin glyph + `secret.png` | 4 ✅ | `sharedBank` → `sharedBank` |
 | Player's board (2.2) | `player_board_<color>_<role>.png`, `_chancellor` | 2 ✅ | per-seat `PlayerView` |
 | Advisers (2.2.2) | denizen face / `denizen card backv2.png` | 3 ✅ | `players[].advisers` |
 | Warbands (2.2.1/2.2.3) | `warband <color>.png` | 2 ✅ bank · 3 ✅ site | `players[].warbands{bank,board}`, `sites[].warbands` |
-| Supply track/marker (2.2/4.2) | `supply <color>.png` (only purple present) | 4 | `players[].supply` |
-| Imperial Reliquary (2.3) | `Imperial Reliquary_front.png` + `reliquary-{brutal,decadent,careless,greedy}.png` | 6 | `reliquary[]` → `reliquary` |
-| Relics (2.4) | `relics_NN.png`; relic backs | 1 ✅ faces · 5 deck back | `players[].relics`, `sites[].relics`, `reliquary`, `relicDeck` |
-| Grand Scepter (2.4) | `The Grand Scepter.png` / `grandScepterBack.png` | 6 | `grandScepter` |
-| Banners (2.5) | `peoplesfavor_{front,back}.png`, `darkestsecret_{front,back}.png` | 1 ✅ faces · 6 placards+tokens | `banners[]` |
+| Supply track/marker (2.2/4.2) | `supply <color> shadow.png` (every colour) | 4 ✅ | `players[].supply` |
+| Imperial Reliquary (2.3) | `Imperial Reliquary_front.png` + `reliquary-{brutal,decadent,careless,greedy}.png` | 6 ✅ | `reliquary[]` → `reliquary` |
+| Relics (2.4) | `relics_NN.png`; relic backs | 1 ✅ faces · 5 ✅ deck back | `players[].relics`, `sites[].relics`, `reliquary`, `relicDeck` |
+| Grand Scepter (2.4) | `The Grand Scepter.png` / `grandScepterBack.png` | 6 ✅ | `grandScepter` |
+| Banners (2.5) | `peoplesfavor_{front,back}.png`, `darkestsecret_{front,back}.png` | 1 ✅ faces · 6 ✅ placards+tokens | `banners[]` |
 | Denizens (2.6) | `cards*.png` | 1 ✅ | `sites[].cards`, advisers |
 | Visions (2.7) | `visions_NN.png`; vision back | 1 ✅ | `players[].vision`, world deck |
 | Sites (2.8) | `lands1/2/3_NN.png`; back `lands3_08.png` | 1 ✅ | `sites[]` |
 | Edifices (2.9) | `edificeFront_NN.png` / `edificeBack_NN.png` | 1 ✅ | edifice cards (`ruined`) |
-| Goal Reference (2.10) | `chronicle_aid.jpg` (aid) | 8 | static aid (not state) |
-| Oathkeeper title (2.11) | `oathkeeperfront.png` / `oathkeeperback.png` | 6 (2 ✅ as text) | `oathkeeper`, `usurper` |
-| Dice — attack/defense (2.8.3, 5.5) | `dice attack N.png` / `dice defence N.png` | 7 | `campaign.{attackDice,defenseDice}` + faces |
-| Favor tokens (2.1.3, …) | **no asset** — gold coin glyph | 3 ✅ | favor counts throughout |
+| Goal Reference (2.10) | `oath{supremacy,people,devotion,protection}.png` — the game's own oath | 8 ✅ | `oath` → `oath` |
+| Oathkeeper title (2.11) | `oathkeeperfront.png` / `oathkeeperback.png` | 6 ✅ | `oathkeeper`, `usurper` |
+| Dice — attack/defense (2.8.3, 5.5) | `dice attack N.png` / `dice defence N.png` | 7 ✅ | `campaign.{attackDice,defenseDice}` + faces (skull = 2 swords, §5.5.5) |
+| Favor tokens (2.1.3, …) | `favour.png` | 3 ✅ / 4 ✅ | favor counts throughout |
 | Secret tokens (4.3.2) | `secret.png` / `secret back.png` | 3 ✅ | secrets counts throughout |
-| Pawns (1.23) | `player <color>.png` (no purple) | 3 ✅ | `players[].pawnSite` |
+| Pawns (1.23) | `player <color>.png`; the Chancellor's is `chancellor.png` | 3 ✅ | `players[].pawnSite` |
 
-**Known asset gaps** (render with a fallback, note for a later art fetch):
-favor has no token art (gold coin glyph stands in); `supply <color>.png` exists
-only for purple (other colours use a coloured marker); `player <color>.png`
-(pawn) and the player boards have no purple, so a 6th seat falls back.
+**Asset gaps: none.** (Corrected on Ben's review during batch 4 — an earlier draft of
+this table listed three that were really misreadings: the favor coin is
+`favour.png`, British spelling; purple is not a sixth Exile colour but the
+Chancellor, with its own board and `chancellor.png` pawn; and every colour's
+supply marker exists as `supply <colour> shadow.png`.)
 
 **Depends on.** Units 9, 10, 15.
 

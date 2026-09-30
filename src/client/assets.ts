@@ -64,7 +64,6 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .pb-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-left: auto; font-size: 0.85rem; }
 .tok { display: inline-flex; align-items: center; gap: 0.2rem; font-variant-numeric: tabular-nums; }
 .tok-img { height: 1.1em; width: auto; vertical-align: middle; }
-.tok .coin { width: 0.85em; height: 0.85em; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe08a, #d99b1c 70%); border: 1px solid #a5730f; display: inline-block; }
 .tok .flip { color: var(--muted); }
 /* Board on the left; advisers tuck to its right at the exact height of the
    board's ADVISERS bar (~17%–80% of the board), not the full board height. */
@@ -115,6 +114,10 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
   background: #000d; border: 1px solid #e8b53a; color: #ffd98a;
   font-size: 0.85rem; font-weight: 800;
 }
+.reference-aids .goal-ref { margin-bottom: 0.6rem; }
+.ref-sheet { margin: 0.4rem 0; max-width: 42rem; }
+.ref-sheet summary { cursor: pointer; color: var(--muted); }
+.ref-sheet img { width: 100%; height: auto; display: block; margin-top: 0.4rem; border-radius: 6px; }
 .placard figcaption { font-size: 0.8rem; margin-top: 0.3rem; line-height: 1.3; color: var(--muted); }
 .held-relics { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
 .held-relics img.face { width: 3rem; height: auto; min-width: 0; min-height: 0; border-radius: 4px; }
@@ -214,15 +217,12 @@ body.board { max-width: 96rem; }
 }
 .board-map .bsite-card img.site-back { width: 100%; height: 100%; object-fit: fill; border-radius: 4px; box-shadow: 0 1px 4px #0008; }
 .tokens { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+.tokens .favor, .tokens .secrets { display: inline-flex; align-items: center; gap: 0.1em; }
 .tokens .favor { margin-right: 0.3rem; }
 .ruined { font-size: 0.7rem; color: #b00; }
-.relics, .warbands, .vision, .held-relics { font-size: 0.8rem; margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
-.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 0.75rem; margin: 0 0 0.5rem; font-size: 0.85rem; }
-.stats div { display: flex; justify-content: space-between; gap: 0.5rem; }
-.stats dt { color: var(--muted); margin: 0; }
-.stats dd { margin: 0; font-variant-numeric: tabular-nums; }
-.banks, .banners, .reliquary { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; }
-.banks li, .banners li, .reliquary li { padding: 0.15rem 0; }
+.relics, .warbands, .held-relics { font-size: 0.8rem; margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.banks { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; }
+.banks li { padding: 0.15rem 0; }
 .campaign, .pending { border: 1px solid #b008; border-radius: 6px; padding: 0.5rem; margin: var(--gap) 0; }
 .campaign .phase { color: var(--muted); }
 .dice-rows { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.5rem 0; }

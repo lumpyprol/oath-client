@@ -245,6 +245,8 @@ export interface BoardModel {
   spectator: boolean;
   round: number;
   activeSeat: number;
+  /** The oath this game is played under (Law §2.10's Goal Reference shows its goals). */
+  oath: string;
   oathLabel: string;
   oathkeeper: number;
   usurper: boolean;
@@ -436,6 +438,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
     spectator: meta.seat === null,
     round: view.turn.round,
     activeSeat: view.turn.activeSeat,
+    oath: view.oath,
     oathLabel: OATH_LABEL[view.oath] ?? view.oath,
     oathkeeper: view.oathkeeper,
     usurper: view.usurper,

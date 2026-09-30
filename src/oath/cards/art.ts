@@ -131,6 +131,14 @@ const PIECES = [
   'oathkeeperback.png',
   'The Grand Scepter.png',
   'grandScepterBack.png',
+  // Reference aids (Law §2.10): the four Goal Reference cards, one per oath,
+  // and the two static rules sheets.
+  'oathsupremacy.png',
+  'oathpeople.png',
+  'oathdevotion.png',
+  'oathprotection.png',
+  'reference_front.jpg',
+  'site_reference.jpg',
   // Die faces (Law §5.5.4/§5.5.5). 'blank' has no file — it is a blank side.
   'sword.png',
   'swordx05.png',
