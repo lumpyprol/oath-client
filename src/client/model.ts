@@ -302,7 +302,7 @@ function faceOf(id: string, artKey = id): FaceModel {
 function siteModel(
   s: OathView['sites'][number],
   pawns: { seat: number; color: string; title: string }[],
-  colors: string[],
+  warbandColors: string[],
   titles: string[],
 ): SiteModel {
   return {
@@ -319,7 +319,9 @@ function siteModel(
     }),
     relics: s.relics.map((r): RelicSlot => (r.id !== null ? { kind: 'face', face: faceOf(r.id) } : { kind: 'back' })),
     warbands: s.warbands
-      .map((count, seat) => ({ seat, color: colors[seat] ?? 'red', title: titles[seat] ?? `seat ${seat}`, count }))
+      // A seat's WARBANDS are purple once it is Imperial (Law §6.6.2), even
+      // though its pawn keeps the seat's own colour (Ben, 2026-10-02).
+      .map((count, seat) => ({ seat, color: warbandColors[seat] ?? 'red', title: titles[seat] ?? `seat ${seat}`, count }))
       .filter((w) => w.count > 0),
     pawns,
   };
@@ -376,6 +378,8 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   const siteName = (id: string) => siteNameById.get(id) ?? '(unrevealed)';
   const colors = seatColors(view.players);
   const titles = view.players.map((_, seat) => seatTitle(view.players, seat));
+  // Warbands: purple for every Imperial seat (Chancellor and Citizens), the seat's own colour for an Exile.
+  const warbandColors = view.players.map((p, seat) => (p.citizenship === 'exile' ? colors[seat] : 'purple'));
 
   // Which seats' pawns stand at each site (pawnSite is a site id, public).
   const pawnsBySite = new Map<string, { seat: number; color: string; title: string }[]>();
@@ -390,7 +394,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   for (const region of ['cradle', 'provinces', 'hinterland']) {
     const sites = view.sites
       .filter((s) => s.region === region)
-      .map((s) => siteModel(s, s.id !== null ? (pawnsBySite.get(s.id) ?? []) : [], colors, titles));
+      .map((s) => siteModel(s, s.id !== null ? (pawnsBySite.get(s.id) ?? []) : [], warbandColors, titles));
     byRegion.push({ region, label: cap(region), sites });
   }
 

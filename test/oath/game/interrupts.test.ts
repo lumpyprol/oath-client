@@ -341,8 +341,16 @@ describe('every emitted decision is catalogued, and every catalogued kind is emi
 
     // Sanity: every vanish event followed applying one of the decision's own
     // resolving actions (the engine's contract, not just this test's hope).
+    // Logged games may resolve with an action that a newer one now stands
+    // for: citizenship.respond (P4 unit 11) answers what accept/decline did.
+    const STANDS_FOR: Record<string, string> = {
+      'citizenship.accept': 'citizenship.respond',
+      'citizenship.decline': 'citizenship.respond',
+      'warbands.allow': 'warbands.respond',
+      'warbands.deny': 'warbands.respond',
+    };
     for (const v of fixtureVanished) {
-      expect(v.resolves).toContain(v.resolvedBy);
+      expect(v.resolves).toContain(v.resolves.includes(v.resolvedBy) ? v.resolvedBy : STANDS_FOR[v.resolvedBy]);
     }
 
     const resolvedKinds = new Set(allVanished.map((v) => v.kind));

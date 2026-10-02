@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { byId } from '../../cards/index.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
+import { chancellorSeatOf } from '../rule.js';
 import type { OathState } from '../state.js';
 import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
@@ -75,11 +76,17 @@ function muster(state: OathState, action: GameAction): OathState {
       amount: 1,
     },
   ];
-  const warbands = Math.min(MUSTER_WARBANDS, player.warbands.bank);
+  // §5.2.2: a Citizen "gains purple warbands instead of warbands of your
+  // own color". The purple not in play sits in the Chancellor's bank (Law
+  // §1.8; Glossary "Kill" returns purple there), so that is where a
+  // Citizen's come from. A Citizen's own bank never holds any (Ben,
+  // 2026-10-02: Bob mustered and got nothing).
+  const source = player.citizenship === 'citizen' ? chancellorSeatOf(state) : seat;
+  const warbands = Math.min(MUSTER_WARBANDS, state.players[source].warbands.bank);
   if (warbands > 0) {
     effects.push({
       kind: 'warbands',
-      from: { kind: 'seatWarbandBank', seat },
+      from: { kind: 'seatWarbandBank', seat: source },
       to: { kind: 'seatWarbandBoard', seat },
       amount: warbands,
     });

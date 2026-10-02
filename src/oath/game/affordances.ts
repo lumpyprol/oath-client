@@ -942,13 +942,26 @@ function describeCitizenshipOffer(state: OathState, seat: number): Affordance[] 
   ];
 }
 
-function describeCitizenshipAccept(state: OathState, seat: number): Affordance[] {
+// One form, accept or decline (Ben). `citizenship.accept`/`.decline` remain
+// engine actions (logged games, the JSON API) but are offered through this.
+function describeCitizenshipRespond(state: OathState, seat: number): Affordance[] {
   if (!state.citizenshipOffer || state.citizenshipOffer.exile !== seat) return [];
-  return [{ type: 'citizenship.accept', fields: [], note: 'Accept the Citizenship offer (Law §6.6.2).' }];
-}
-function describeCitizenshipDecline(state: OathState, seat: number): Affordance[] {
-  if (!state.citizenshipOffer || state.citizenshipOffer.exile !== seat) return [];
-  return [{ type: 'citizenship.decline', fields: [], note: 'Decline the Citizenship offer.' }];
+  return [
+    {
+      type: 'citizenship.respond',
+      fields: [
+        {
+          name: 'answer',
+          label: 'your answer',
+          kind: 'choose-one',
+          options: [
+            { value: 'accept', label: 'Accept: become a Citizen (Law §6.6.2)' },
+            { value: 'decline', label: 'Decline: stay an Exile' },
+          ],
+        },
+      ],
+    },
+  ];
 }
 
 function describeCitizenshipExile(state: OathState, seat: number): Affordance[] {
@@ -997,13 +1010,26 @@ function describeCitizenshipSelfExile(state: OathState, seat: number): Affordanc
 }
 
 // § Warband permission (Law §6.5) — the approver's answer.
-function describeWarbandsAllow(state: OathState, seat: number): Affordance[] {
+// One form, allow or deny (Ben). `warbands.allow`/`.deny` remain engine
+// actions (logged games, the JSON API) but are offered through this.
+function describeWarbandsRespond(state: OathState, seat: number): Affordance[] {
   if (!state.warbandRequest || state.warbandRequest.approver !== seat) return [];
-  return [{ type: 'warbands.allow', fields: [], note: 'Allow the warband move (Law §6.5).' }];
-}
-function describeWarbandsDeny(state: OathState, seat: number): Affordance[] {
-  if (!state.warbandRequest || state.warbandRequest.approver !== seat) return [];
-  return [{ type: 'warbands.deny', fields: [], note: 'Deny the warband move (Law §6.5).' }];
+  return [
+    {
+      type: 'warbands.respond',
+      fields: [
+        {
+          name: 'answer',
+          label: 'your answer',
+          kind: 'choose-one',
+          options: [
+            { value: 'allow', label: 'Allow the move (Law §6.5)' },
+            { value: 'deny', label: 'Deny it' },
+          ],
+        },
+      ],
+    },
+  ];
 }
 
 // § Oathkeeper title (Law §2.11) — the losing holder chooses the heir.
@@ -1046,12 +1072,14 @@ const DESCRIBERS: Record<string, Describer> = {
   'campaign.resolve': describeCampaignResolve,
   'campaign.casualties': describeCampaignCasualties,
   'citizenship.offer': describeCitizenshipOffer,
-  'citizenship.accept': describeCitizenshipAccept,
-  'citizenship.decline': describeCitizenshipDecline,
+  'citizenship.respond': describeCitizenshipRespond,
+  'citizenship.accept': () => [], // offered as citizenship.respond
+  'citizenship.decline': () => [], // offered as citizenship.respond
   'citizenship.exile': describeCitizenshipExile,
   'citizenship.selfExile': describeCitizenshipSelfExile,
-  'warbands.allow': describeWarbandsAllow,
-  'warbands.deny': describeWarbandsDeny,
+  'warbands.respond': describeWarbandsRespond,
+  'warbands.allow': () => [], // offered as warbands.respond
+  'warbands.deny': () => [], // offered as warbands.respond
   'oathkeeper.grant': describeOathkeeperGrant,
 };
 

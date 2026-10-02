@@ -235,8 +235,22 @@ function deny(state: OathState, action: GameAction): OathState {
   return working;
 }
 
+/**
+ * One answer to a warband request (P4 unit 11, Ben: one form):
+ * `{ answer: 'allow' | 'deny' }`, which is exactly `warbands.allow` or
+ * `warbands.deny`. Those two stay, so every logged game replays and the
+ * JSON API keeps them.
+ */
+const RespondPayloadSchema = z.object({ answer: z.enum(['allow', 'deny']) });
+function respond(state: OathState, action: GameAction): OathState {
+  const parsed = RespondPayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('warbands.respond: answer must be "allow" or "deny"');
+  return parsed.data.answer === 'allow' ? allow(state, action) : deny(state, action);
+}
+
 export const WARBAND_HANDLERS: Record<string, Handler> = {
   'warbands.move': move,
   'warbands.allow': allow,
   'warbands.deny': deny,
+  'warbands.respond': respond,
 };

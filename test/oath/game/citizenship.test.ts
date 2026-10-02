@@ -59,7 +59,7 @@ describe('citizenship.offer (Law §6.6.1)', () => {
       seat: 1,
       kind: 'citizenshipOffer',
       prompt: expect.stringContaining('offered you Citizenship'),
-      resolves: ['citizenship.accept', 'citizenship.decline'],
+      resolves: ['citizenship.respond'],
     });
   });
 
@@ -106,6 +106,18 @@ describe('citizenship.offer (Law §6.6.1)', () => {
   });
 });
 
+describe('citizenship.respond — one answer, accept or decline (Ben: one form)', () => {
+  it('is exactly citizenship.accept or citizenship.decline', () => {
+    const base = offerState();
+    const s = offer(base, 0, { exile: 1, relicId: base.reliquary[0].relicId! });
+    const c = () => structuredClone(s); // this file's act() folds in place
+    expect(act(c(), 'citizenship.respond', 1, { answer: 'accept' })).toEqual(accept(c(), 1));
+    expect(act(c(), 'citizenship.respond', 1, { answer: 'decline' })).toEqual(decline(c(), 1));
+    expect(() => act(c(), 'citizenship.respond', 1, { answer: 'maybe' })).toThrow(/accept" or "decline/);
+    expect(() => act(c(), 'citizenship.respond', 2, { answer: 'accept' })).toThrow(IllegalAction);
+  });
+});
+
 describe('citizenship.decline (Law §6.6.1)', () => {
   it('clears the pending offer with no other consequence', () => {
     const s = offerState();
@@ -138,24 +150,44 @@ describe('citizenship.decline (Law §6.6.1)', () => {
 });
 
 describe('citizenship.accept (Law §6.6.2) — the common case: no spare purple capacity', () => {
-  it('flips to Citizen, zeroes ALL prior warband holdings (bank+board+sites), and keeps every conservation invariant', () => {
+  it('flips to Citizen and REPLACES board and map warbands with purple from the Chancellor\'s bank (corrected 2026-10-02)', () => {
     const s = offerState();
     const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
     const totalBefore = offered.players[1].warbands.bank + offered.players[1].warbands.board
       + offered.sites.reduce((sum, site) => sum + site.warbands[1], 0);
     expect(totalBefore).toBe(EXILE_WARBANDS); // sanity: the fixture is invariant-valid
+    const board = offered.players[1].warbands.board;
+    const atSites = offered.sites.map((site) => site.warbands[1]);
+    const chancellorBank = offered.players[0].warbands.bank;
+    const moved = board + atSites.reduce((a, b) => a + b, 0);
+    expect(chancellorBank).toBeGreaterThanOrEqual(moved); // enough spare purple here
 
     const out = accept(offered, 1);
     checkInvariants(out);
 
     expect(out.players[1].citizenship).toBe('citizen');
+    // Same counts, now purple: board and every site keep their warbands...
+    expect(out.players[1].warbands.board).toBe(board);
+    out.sites.forEach((site, i) => expect(site.warbands[1]).toBe(atSites[i]));
+    // ...the own-colour bank is gone, and the purple came out of the Chancellor's bank.
     expect(out.players[1].warbands.bank).toBe(0);
-    expect(out.players[1].warbands.board).toBe(0);
-    for (const site of out.sites) expect(site.warbands[1]).toBe(0);
-    // the purple total (Chancellor + Citizens) is unchanged — no spare
-    // capacity existed for the new Citizen to consume (see file header).
+    expect(out.players[0].warbands.bank).toBe(chancellorBank - moved);
     const purple = out.players.reduce((sum, p, i) => (p.citizenship === 'exile' ? sum : sum + p.warbands.bank + p.warbands.board + out.sites.reduce((s2, site) => s2 + site.warbands[i], 0)), 0);
     expect(purple).toBe(CHANCELLOR_WARBANDS);
+  });
+
+  it('replaces only as many as the Chancellor\'s bank holds: board first, then sites', () => {
+    const s = offerState();
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
+    // Leave only 1 spare purple: move the rest of the bank onto the Chancellor's board.
+    const spare = offered.players[0].warbands.bank;
+    offered.players[0].warbands.board += spare - 1;
+    offered.players[0].warbands.bank = 1;
+    const out = accept(offered, 1);
+    checkInvariants(out);
+    expect(out.players[0].warbands.bank).toBe(0);
+    expect(out.players[1].warbands.board + out.sites.reduce((a, site) => a + site.warbands[1], 0)).toBe(1);
+    expect(out.players[1].warbands.board).toBe(1); // the board is filled first
   });
 
   it('takes the mandatory Reliquary relic into the new Citizen\'s personal relics', () => {
@@ -313,12 +345,13 @@ describe('citizenship.exile (Law §6.7)', () => {
 
   it('moves the exiled Citizen\'s purple holdings to the Chancellor\'s bank (Glossary "Kill")', () => {
     const s = citizenState();
-    s.players[1].warbands.board = 2; // give them something purple to lose
+    s.players[1].warbands.board += 2; // give them more purple to lose (on top of what accepting replaced)
     s.players[0].warbands.bank -= 2; // source it (purple-24 conservation)
     const chancellorBankBefore = s.players[0].warbands.bank;
+    const held = s.players[1].warbands.bank + s.players[1].warbands.board + s.sites.reduce((a, site) => a + site.warbands[1], 0);
     const out = exileCitizen(s, 0, { citizen: 1 });
     checkInvariants(out);
-    expect(out.players[0].warbands.bank).toBe(chancellorBankBefore + 2);
+    expect(out.players[0].warbands.bank).toBe(chancellorBankBefore + held); // ALL their purple goes back
   });
 
   it('modifies the favor amount by Oathkeeper/People\'s Favor status on both sides', () => {
@@ -359,11 +392,11 @@ describe('citizenship.selfExile (Law §6.8)', () => {
     const s = citizenState();
     s.players[1].secrets = { ready: 2, flipped: 1 };
     s.players[1].advisers[0].secrets = 1;
-    s.players[1].warbands.board = 4;
+    s.players[1].warbands.board += 4;
     s.players[0].warbands.bank -= 4; // source the board warbands (purple-24 conservation)
-    s.sharedBank.favor -= 7; // source it (conservation): give seat 1 enough to pay §6.8's favor
-    s.players[1].favor += 7;
-    const expectedAmount = 2 + 1 + 1 + 4;
+    const expectedAmount = 2 + 1 + 1 + s.players[1].warbands.board; // every board warband counts (§6.8)
+    s.sharedBank.favor -= expectedAmount; // source it (conservation): give seat 1 enough to pay §6.8's favor
+    s.players[1].favor += expectedAmount;
     const scepterFavorBefore = s.players[0].favor;
     const out = selfExile(s, 1);
     checkInvariants(out);
@@ -376,6 +409,9 @@ describe('citizenship.selfExile (Law §6.8)', () => {
   it("always ends the Act Phase (Law §6.8's own explicit step)", () => {
     const s = citizenState();
     s.turn.round = 3;
+    // Enough favor to pay for the purple warbands on their board (§6.8).
+    s.sharedBank.favor -= s.players[1].warbands.board;
+    s.players[1].favor += s.players[1].warbands.board;
     const out = selfExile(s, 1);
     checkInvariants(out);
     expect(out.turn.activeSeat).toBe(2);
@@ -400,5 +436,25 @@ describe('citizenship.selfExile (Law §6.8)', () => {
     const s = citizenState();
     s.turn.activeSeat = 2; // not seat 1's turn
     expect(() => selfExile(s, 1)).toThrow(IllegalAction);
+  });
+});
+
+describe('a Citizen musters purple from the Chancellor\'s bank (Law §5.2.2; corrected 2026-10-02)', () => {
+  it('gains 2 purple warbands taken from the Chancellor\'s bank', () => {
+    const s = offerState();
+    const offered = offer(s, 0, { exile: 1, relicId: s.reliquary[0].relicId! });
+    const citizen = accept(offered, 1);
+    citizen.turn.activeSeat = 1;
+    citizen.players[1].supply = 7;
+    citizen.players[1].favor += 1;
+    citizen.sharedBank.favor -= 1;
+    const site = citizen.sites.find((x) => x.id === citizen.players[1].pawnSite)!;
+    const card = site.cards.find((c) => c !== null && c.favor === 0 && c.secrets === 0 && !c.ruined)!;
+    const boardBefore = citizen.players[1].warbands.board;
+    const bankBefore = citizen.players[0].warbands.bank;
+    const out = act(citizen, 'muster', 1, { cardId: card.id });
+    checkInvariants(out);
+    expect(out.players[1].warbands.board).toBe(boardBefore + 2);
+    expect(out.players[0].warbands.bank).toBe(bankBefore - 2);
   });
 });

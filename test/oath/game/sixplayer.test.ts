@@ -252,7 +252,7 @@ describe('six players, measured (P3 unit 9)', () => {
     // asks once the hard way, and the Chancellor answers.
     r = await act(ctx, 1, 'warbands.move', { direction: 'toBoard', count: 1 });
     expect(r.pending).toContainEqual(
-      expect.objectContaining({ seat: 0, kind: 'warbands', resolves: ['warbands.allow', 'warbands.deny'] }),
+      expect.objectContaining({ seat: 0, kind: 'warbands', resolves: ['warbands.respond'] }),
     );
     r = await act(ctx, 0, 'warbands.allow', {});
     expect(r.view.sites[0].warbands[1]).toBe(1);

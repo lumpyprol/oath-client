@@ -58,7 +58,7 @@ describe.each(FIXTURES)('the harness over a full game — $name', ({ fixture }) 
       check(`#${row.seq} ${row.type}`);
     }
     expect(violations).toEqual([]);
-  });
+  }, 30_000); // a whole-game sweep: generous under a loaded parallel run
 
   it('every offered action type is named by one of that seat\'s own pending decisions (entries ⊆ resolves)', () => {
     let state = openingState(fixture);

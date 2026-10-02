@@ -488,7 +488,7 @@ function stats(p: PlayerAreaModel): Raw {
   return html`<span class="pb-stats">
     ${favorChip(p.favor)}
     ${secretChip(p.secretsReady, p.secretsFlipped)}
-    <span class="tok wb" title="Warbands (bank)">${warbandTok(p.color)}${p.warbandsBank}</span>
+    <span class="tok wb" title="Warbands (bank)">${warbandTok(p.citizen || p.chancellor ? 'purple' : p.color)}${p.warbandsBank}</span>
     <span class="tok supply" title="Supply"><img class="tok-img supply-tok" src="${artUrl(`supply ${p.color} shadow.png`)}" alt="Supply">${p.supply}</span>
     <span class="tok pawn" title="Pawn"><img class="tok-img pawn-icon" src="${artUrl(pawnFile(p.color))}" alt="Pawn">${p.pawnSite ?? 'unplaced'}</span>
   </span>`;

@@ -272,8 +272,16 @@ describe("warbands.move — a Citizen needs the Chancellor's permission (Law §6
       seat: 0,
       kind: 'warbands',
       prompt: expect.stringContaining('permission'),
-      resolves: ['warbands.allow', 'warbands.deny'],
+      resolves: ['warbands.respond'],
     });
+  });
+
+  it('warbands.respond is exactly allow or deny, in one action (Ben: one form)', () => {
+    const asked = act(citizenAtSite(), 'warbands.move', 2, { direction: 'toBoard', count: 1 });
+    expect(act(asked, 'warbands.respond', 0, { answer: 'allow' })).toEqual(act(asked, 'warbands.allow', 0));
+    expect(act(asked, 'warbands.respond', 0, { answer: 'deny' })).toEqual(act(asked, 'warbands.deny', 0));
+    expect(() => act(asked, 'warbands.respond', 0, { answer: 'maybe' })).toThrow(/allow" or "deny/);
+    expect(() => act(asked, 'warbands.respond', 1, { answer: 'allow' })).toThrow(/only seat 0/);
   });
 
   it('allow applies the move; deny clears it without moving anything', () => {

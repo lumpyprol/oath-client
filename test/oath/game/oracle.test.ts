@@ -169,12 +169,14 @@ const TABLE: Record<string, FieldEntry[]> = {
   ],
   'citizenship.accept': [],
   'citizenship.decline': [],
+  'citizenship.respond': [], // answer: 'accept' | 'decline' — a word, never an id
   'citizenship.exile': [],
   'citizenship.selfExile': [],
   'adviser.play': [], // adviserIndex is positional into the actor's OWN advisers — already index-only since unit 6, no id ever sent
   'warbands.move': [],
   'warbands.allow': [],
   'warbands.deny': [],
+  'warbands.respond': [], // answer: 'allow' | 'deny' — a word, never an id
   'standing.set': [],
   'setup.choose': [{ field: 'siteId', classification: 'public' }], // must be faceup (Law §1.23.1) — see the message-collapse fix, not a shape change
   'wake.resolve': [], // `bank` is a suit name, not a card id

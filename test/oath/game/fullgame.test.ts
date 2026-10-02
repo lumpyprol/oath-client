@@ -323,12 +323,14 @@ describe('a full 3-player game, end to end through the HTTP API', () => {
 
     r = await act(ctx, 0, 'citizenship.offer', { exile: 2, relicId: reliquaryRelic(ctx) });
     expect(r.pending).toContainEqual(
-      expect.objectContaining({ seat: 2, resolves: ['citizenship.accept', 'citizenship.decline'] }),
+      expect.objectContaining({ seat: 2, resolves: ['citizenship.respond'] }),
     );
     // Seat 2 answers out of turn — a Citizenship offer does not lock (unit 16).
     r = await act(ctx, 2, 'citizenship.accept', {});
     expect(r.view.players[2].citizenship).toBe('citizen');
-    expect(r.view.players[2].warbands).toEqual({ bank: 0, board: 0 }); // D41
+    // D41 as amended: board warbands are replaced with purple from the Chancellor's bank.
+    expect(r.view.players[2].warbands.bank).toBe(0);
+    expect(r.view.players[2].warbands.board).toBeGreaterThan(0);
 
     await act(ctx, 0, 'power.use', {
       cardId: denizen,

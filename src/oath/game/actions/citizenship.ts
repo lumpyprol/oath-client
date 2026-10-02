@@ -85,26 +85,18 @@
  * distinction the abstract per-seat model doesn't need... purple-pool
  * conservation is already an invariant." Applied here:
  *
- *   - The purple total is a CLOSED, already-fully-allocated system: by the
- *     invariant, Chancellor + existing Citizens ALREADY hold exactly 24
- *     between them, at all times, before any new Citizen joins. So the
- *     "capacity" for a joining Exile's warbands is provably always 0 —
- *     there is never a spare purple piece sitting anywhere. This isn't a
- *     simplification; it's what the physical rule's "if there aren't
- *     enough" clause is describing (there almost never are). `accept`
- *     computes the formula generally rather than hardcoding 0, and throws
- *     (rather than silently mishandling it) on the — provably unreached
- *     from any invariant-valid state — case where capacity would be
- *     positive.
- *   - A joining Exile's own-color total (bank + board + every site, always
- *     exactly 14 by the invariant) is therefore wholly REMOVED, with no
- *     tracked destination — same treatment `power.ts`'s header gives any
- *     genuinely untrackable quantity. It isn't lost information: nothing
- *     ever reads "a Citizen's idle own-color reserve," and if they later
- *     leave Citizenship, they get a FRESH 14 back (below), not a
- *     remembered one — exactly mirroring how Law §1.15 hands a brand-new
- *     Exile 14 warbands (3 board / 11 bank) from nowhere-in-particular at
- *     setup.
+ *   - CORRECTED 2026-10-02 (RULINGS): the original reading here said
+ *     the purple pool was always fully allocated, so a joining Exile could
+ *     never get any purple and simply lost every warband. That was wrong:
+ *     the purple pieces NOT in play sit in the Chancellor's personal bank
+ *     (Law §1.8; Glossary "Kill" returns purple there), and those are
+ *     exactly the spare pieces §6.6.2's "replace … with purple" uses. So
+ *     `accept` now replaces the Exile's board and map warbands with purple
+ *     from the Chancellor's bank, board first then sites, as far as the
+ *     bank goes. Their own-colour pieces go away (nothing tracks a
+ *     Citizen's own-colour reserve; leaving Citizenship grants a fresh 14,
+ *     below). The purple total stays exactly CHANCELLOR_WARBANDS, since
+ *     the pieces only move from the Chancellor's bank to the new Citizen.
  *   - Leaving Citizenship (`exile`/`selfExile`) is the mirror image: the
  *     departing seat's ENTIRE current purple holding (bank + board + every
  *     site — not just "board", generalizing §6.7/§6.8's silence about site
@@ -391,20 +383,27 @@ function accept(state: OathState, action: GameAction): OathState {
     banner.holder = o.scepterSeat;
   }
 
-  // Law §6.6.2 step 2 — see file header's WARBAND MODEL section.
-  const totalHeld = totalWarbands(working, seat);
-  const existingPurple = working.players.reduce((sum, p, i) => {
-    if (i === seat || p.citizenship === 'exile') return sum;
-    return sum + totalWarbands(working, i);
-  }, 0);
-  const capacity = Math.max(0, CHANCELLOR_WARBANDS - existingPurple);
-  const kept = Math.min(totalHeld, capacity);
-  if (kept > 0) {
-    throw new IllegalAction(
-      'citizenship.accept: partial-purple-capacity join is not supported (Law §6.6.2) — unreached from a valid state',
-    );
-  }
+  // Law §6.6.2 step 2: "Replace all warbands on their board and on the map
+  // with purple warbands." The spare purple pieces are the Chancellor's
+  // bank (corrected 2026-10-02 — see the WARBAND MODEL note). Board first,
+  // then each site in slot order, as far as the bank goes; past that the
+  // warbands are simply removed. (The Law lets the Exile choose which to
+  // keep when purple runs short; this takes a fixed order instead.)
+  const chancellor = chancellorSeatOf(working);
+  const onBoard = working.players[seat].warbands.board;
+  const atSites = working.sites.map((site) => site.warbands[seat]);
   wipeAllWarbands(working, seat);
+  let spare = working.players[chancellor].warbands.bank;
+  const take = (n: number) => {
+    const k = Math.min(n, spare);
+    spare -= k;
+    working.players[chancellor].warbands.bank -= k;
+    return k;
+  };
+  working.players[seat].warbands.board = take(onBoard);
+  atSites.forEach((n, i) => {
+    working.sites[i].warbands[seat] = take(n);
+  });
 
   working.players[seat].citizenship = 'citizen';
   if (working.oathkeeper === seat && working.usurper) working.usurper = false; // step 4
@@ -478,10 +477,24 @@ function selfExile(state: OathState, action: GameAction): OathState {
   return working;
 }
 
+/**
+ * One answer to an offer (P4 unit 11, Ben: one form with accept/decline):
+ * `{ answer: 'accept' | 'decline' }`, which is exactly `citizenship.accept`
+ * or `citizenship.decline`. Those two stay, so every logged game replays and
+ * the JSON API keeps them.
+ */
+const RespondPayloadSchema = z.object({ answer: z.enum(['accept', 'decline']) });
+function respond(state: OathState, action: GameAction): OathState {
+  const parsed = RespondPayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('citizenship.respond: answer must be "accept" or "decline"');
+  return parsed.data.answer === 'accept' ? accept(state, action) : decline(state, action);
+}
+
 export const CITIZENSHIP_HANDLERS: Record<string, Handler> = {
   'citizenship.offer': offer,
   'citizenship.accept': accept,
   'citizenship.decline': decline,
+  'citizenship.respond': respond,
   'citizenship.exile': exile,
   'citizenship.selfExile': selfExile,
 };

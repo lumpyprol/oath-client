@@ -178,7 +178,9 @@ export const oath: GameDefinition<OathState, OathSetup> = {
             seat: state.citizenshipOffer.exile,
             kind: 'citizenshipOffer',
             prompt: `Seat ${state.citizenshipOffer.scepterSeat} offered you Citizenship (Law §6.6.1) — accept or decline.`,
-            resolves: ['citizenship.accept', 'citizenship.decline'],
+            // One answer, accept or decline (Ben). citizenship.accept and
+            // .decline stay valid actions (logged games, the JSON API).
+            resolves: ['citizenship.respond'],
           },
         ]
       : [];
@@ -195,7 +197,9 @@ export const oath: GameDefinition<OathState, OathSetup> = {
         seat: r.approver,
         kind: 'warbands',
         prompt: `Seat ${r.seat} asks permission to ${what} (Law §6.5).`,
-        resolves: ['warbands.allow', 'warbands.deny'],
+        // One answer, allow or deny (Ben). warbands.allow and .deny stay
+        // valid actions (logged games, the JSON API).
+        resolves: ['warbands.respond'],
       });
     }
     if (state.titleChoice) {
