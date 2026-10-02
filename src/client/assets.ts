@@ -42,6 +42,8 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 /* ---- the board (unit 10) — desktop layout (D66) ---- */
 .status { color: var(--muted); margin: 0 0 var(--gap); }
 .status.done { color: inherit; font-weight: 700; }
+.status .waiting { color: #d9a400; } /* an off-turn reaction the game is waiting on */
+.status .waiting.you { font-weight: 700; }
 .spectator-note { font-style: italic; color: var(--muted); }
 .site-grid, .player-grid {
   display: grid; gap: var(--gap);
@@ -123,20 +125,21 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
   width: 100%; height: auto; min-width: 0; min-height: 0;
   border: none; border-radius: 4px; box-shadow: 0 1px 5px #0009; display: block;
 }
-.tf-count {
-  position: absolute; right: -0.4rem; bottom: -0.4rem;
-  min-width: 1.5rem; height: 1.5rem; padding: 0 0.3rem; border-radius: 0.75rem;
-  display: flex; align-items: center; justify-content: center;
-  background: #000d; border: 1px solid #e8b53a; color: #ffd98a;
-  font-size: 0.85rem; font-weight: 800;
-}
+/* A banner's stake, drawn as its real token with a count on the art's own
+   printed token spot (the coin or book at lower middle-right). */
+.banner-stake { position: absolute; left: 51%; top: 69%; height: 26%; display: flex; align-items: center; gap: 0.2rem; pointer-events: none; }
+.banner-stake .pb-tok { height: 100%; width: auto; }
+.banner-stake .pb-count { font-size: 1.3rem; }
 .reference-aids .goal-ref { margin-bottom: 0.6rem; }
+.ref-cards { display: flex; gap: 1rem; align-items: flex-start; max-width: 42rem; } /* the Goal Reference and War Exhaustion cards, side by side */
 .ref-sheet { margin: 0.4rem 0; max-width: 42rem; }
 .ref-sheet summary { cursor: pointer; color: var(--muted); }
 .ref-sheet img { width: 100%; height: auto; display: block; margin-top: 0.4rem; border-radius: 6px; }
 .placard figcaption { font-size: 0.8rem; margin-top: 0.3rem; line-height: 1.3; color: var(--muted); }
-.held-relics { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
-.held-relics img.face { width: 3rem; height: auto; min-width: 0; min-height: 0; border-radius: 4px; }
+/* Held relics at full table size under the board: a relic card is 326px of
+   the board art's 1011px width, as the Grand Scepter placard already is. */
+.held-relics { display: flex; flex-wrap: wrap; gap: 0.6rem 1%; margin-top: 0.5rem; width: var(--pb-w); }
+.held-relics img.face { width: 32.2%; height: auto; min-width: 0; min-height: 0; border-radius: 6px; box-shadow: 0 1px 4px #0008; }
 .slot.empty { display: none; }
 .face {
   display: inline-flex; align-items: center; justify-content: center; text-align: center;
@@ -239,9 +242,7 @@ body.board { max-width: 96rem; }
 .tokens .favor, .tokens .secrets { display: inline-flex; align-items: center; gap: 0.1em; }
 .tokens .favor { margin-right: 0.3rem; }
 .ruined { font-size: 0.7rem; color: #b00; }
-.relics, .warbands, .held-relics { font-size: 0.8rem; margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
-.banks { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; }
-.banks li { padding: 0.15rem 0; }
+.relics, .warbands { font-size: 0.8rem; margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
 .campaign, .pending { border: 1px solid #b008; border-radius: 6px; padding: 0.5rem; margin: var(--gap) 0; }
 .campaign .phase { color: var(--muted); }
 .dice-rows { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.5rem 0; }
@@ -264,6 +265,10 @@ body.board { max-width: 96rem; }
 .composer { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.5rem; align-items: start; }
 .compose { border: 1px solid #8884; border-radius: 6px; padding: 0.35rem 0.6rem; }
 .compose[open] { grid-column: 1 / -1; }
+/* An action that cannot be taken now: greyed and inert, with the server's reason. */
+.compose.unavailable { opacity: 0.5; cursor: not-allowed; }
+.u-title { font-weight: 600; }
+.compose.unavailable .why { margin: 0.15rem 0 0; font-size: 0.8rem; }
 .composer-pinned { margin-bottom: 0.5rem; }
 .action-group { margin-top: 0.75rem; }
 .action-group h3 { font-size: 0.9rem; margin: 0 0 0.35rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }

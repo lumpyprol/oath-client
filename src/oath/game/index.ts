@@ -33,7 +33,7 @@ import { STANDING_HANDLERS } from './actions/standing.js';
 import { SETUP_HANDLERS } from './actions/setup.js';
 import { VICTORY_HANDLERS, afterAction, prepareRest } from './victory.js';
 import { project } from './project.js';
-import { computeAffordances } from './affordances.js';
+import { computeAffordances, computeUnavailable } from './affordances.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
 // is the only place they're merged.
@@ -142,6 +142,10 @@ export const oath: GameDefinition<OathState, OathSetup> = {
     // Driven by the same pending() this definition already computes — one
     // source of truth for "what may this seat do now" (unit 4 of P4).
     return computeAffordances(state, seat, this.pending(state));
+  },
+
+  unavailable(state, seat) {
+    return computeUnavailable(state, seat, this.pending(state));
   },
 
   pending(state) {

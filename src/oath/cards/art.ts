@@ -154,6 +154,7 @@ const PIECES = [
   'oathpeople.png',
   'oathdevotion.png',
   'oathprotection.png',
+  'victoryref.png', // the War Exhaustion card: who wins at the end of round 8 (Law §3.4)
   'reference_front.jpg',
   'site_reference.jpg',
   // Die faces (Law §5.5.4/§5.5.5). 'blank' has no file — it is a blank side.

@@ -44,7 +44,7 @@ describe('a one-answer choice (Ben, 2026-10-01)', () => {
   it('in its own box is still shown and picked: the title is just the action', () => {
     expect(declares).toHaveLength(1);
     const html = composer(declares, { gameId: 'g', seq: 1, back: '/' }).value;
-    expect(html).toMatch(/<summary>Campaign: declare<\/summary>|<summary>Campaign: declare <span class="note">/);
+    expect(html).toMatch(/<summary>Campaign<\/summary>|<summary>Campaign <span class="note">/);
     expect(html).toMatch(/<input type="radio" name="defender" value="2"[^>]*required>[^<]*<span>Blue Exile<\/span>/);
     expect(html).not.toMatch(/name="defender" value="2" checked/);
   });

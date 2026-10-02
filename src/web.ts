@@ -172,11 +172,17 @@ function renderBoard(
     res.status(404).type('html').send(page('Not found', '<p>That game no longer exists.</p>'));
     return;
   }
-  const model = boardModel(board.view as OathView, { gameId, seat, names: board.names });
+  const model = boardModel(board.view as OathView, { gameId, seat, names: board.names, waiting: board.waiting });
   const entries = board.affordances as Affordance[];
   let compose: ComposeView | undefined;
   if (seat !== null) {
-    compose = { entries, seq: board.seq, back: `/games/${gameId}`, banner: extra.banner };
+    compose = {
+      entries,
+      seq: board.seq,
+      back: `/games/${gameId}`,
+      banner: extra.banner,
+      unavailable: board.unavailable as { type: string; reason: string }[],
+    };
     if (extra.body) {
       const { index } = reconcile(entries, extra.body);
       if (index !== null) compose.prefill = { index, body: extra.body };

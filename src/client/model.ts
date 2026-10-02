@@ -258,13 +258,20 @@ export interface BoardModel {
   winner: number | null;
   /** How the table names each seat: "Chancellor", "Yellow Exile", "Blue Citizen" (seats.ts). */
   seatTitles: string[];
+  /**
+   * Off-turn reactions the game is waiting on: a seat other than the one
+   * whose turn it is, and what kind of decision (Ben: the status line should
+   * say so). Labels are public kinds, never a decision's specifics.
+   */
+  waitingOn: { seat: number; title: string; what: string; you: boolean }[];
   regions: RegionModel[];
   players: PlayerAreaModel[];
   favorBanks: { suit: string; label: string; favor: number }[];
   sharedBank: { favor: number; secrets: number };
   reliquary: ReliquaryModel[];
   /** The two banner placards (Law §2.5): which face is up, who holds it, how many tokens. */
-  banners: { name: string; face: FaceModel; holder: number | null; tokens: number; mob: boolean }[];
+  /** `token`: what the stake is made of — favor on the People's Favor, secrets on the Darkest Secret (Law §2.5). */
+  banners: { name: string; face: FaceModel; holder: number | null; tokens: number; token: 'favor' | 'secret'; mob: boolean }[];
   /** Seat holding the Grand Scepter (Law §2.4) — always a seat, never unheld. */
   grandScepter: number;
   relicDeckCount: number;
@@ -374,7 +381,10 @@ function playerAreaModel(
   };
 }
 
-export function boardModel(view: OathView, meta: { gameId: string; seat: number | null; names: string[] }): BoardModel {
+export function boardModel(
+  view: OathView,
+  meta: { gameId: string; seat: number | null; names: string[]; waiting?: { seat: number; kind: string }[] },
+): BoardModel {
   // Site display names by id, for pawns and campaign targets — only faceup
   // sites have a non-null id, which is exactly the set a pawn can stand on.
   const siteNameById = new Map<string, string>();
@@ -461,9 +471,15 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   const ownHand = meta.seat === null ? undefined : view.players[meta.seat]?.hand;
   const hand = Array.isArray(ownHand) ? ownHand.map((id) => faceOf(id)) : [];
 
+  const waitingOn = (meta.waiting ?? [])
+    .filter((d) => d.seat !== view.turn.activeSeat)
+    .filter((d, i, all) => all.findIndex((x) => x.seat === d.seat && x.kind === d.kind) === i)
+    .map((d) => ({ seat: d.seat, title: titles[d.seat] ?? `seat ${d.seat}`, what: otherLabel(d.kind), you: d.seat === meta.seat }));
+
   return {
     hand,
     seatTitles: titles,
+    waitingOn,
     gameId: meta.gameId,
     seat: meta.seat,
     spectator: meta.seat === null,
@@ -493,6 +509,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
       face: faceOf(b.id, b.mob ? `${b.id}#1` : b.id),
       holder: b.holder,
       tokens: b.tokens,
+      token: b.id === 'banner:peoples-favor' ? ('favor' as const) : ('secret' as const),
       mob: !!b.mob,
     })),
     grandScepter: view.grandScepter,

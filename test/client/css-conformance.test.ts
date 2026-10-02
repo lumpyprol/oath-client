@@ -48,7 +48,7 @@ const HOOKS: Record<string, string> = {
   players: 'section wrapper for the player boards',
   regions: 'section wrapper for the fallback region listing',
   region: 'one region in the fallback listing',
-  supply: 'the banks & supply section wrapper, and the supply stat chip',
+  supply: 'which stat chip (styled as .tok)',
   'table-furniture': 'the unclaimed-banners section wrapper',
   yours: 'the inbox\'s waiting-on-you section wrapper',
   // Variants that distinguish WHICH thing a generically styled element is.
@@ -226,6 +226,10 @@ function allDocuments(): string[] {
     docs.push(boardPage(m0, { art: withArt, boardImageUrl: '/art/full_board.png', siteBackUrl: '/art/lands3_08.png', compose: c }));
   }
   docs.push(boardPage(m0, { art: withArt, compose: compose({ entries: [] }) }));
+  // The status line naming off-turn reactions the game is waiting on.
+  docs.push(boardPage(boardModel(project(st0, 0), { gameId: 'g', seat: 0, names, waiting: [{ seat: 1, kind: 'campaign' }, { seat: 0, kind: 'citizenshipOffer' }] }), { art: withArt }));
+  // Actions that cannot be taken now: greyed and inert, with a reason.
+  docs.push(boardPage(m0, { art: withArt, compose: compose({ unavailable: [{ type: 'muster', reason: 'No denizen here' }, { type: 'turn.rest', reason: 'Not your turn' }] }) }));
   // After the roll: Resolve and Casualties render inside the campaign box.
   const [rolledState] = synthesized();
   const mRolled = boardModel(project(rolledState, 0), { gameId: 'g', seat: 0, names });

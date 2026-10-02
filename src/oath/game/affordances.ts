@@ -1320,3 +1320,148 @@ export function computeAffordances(
   }
   return out;
 }
+
+// ---- what a seat CANNOT do now, and why (P4 unit 11, Ben) ------------------
+
+/**
+ * The actions a board always shows (Rest, Law §5's major and §6's minor
+ * actions): offered as a form when legal, otherwise greyed with a reason.
+ */
+export const ALWAYS_SHOWN = [
+  'turn.rest',
+  'search',
+  'muster',
+  'trade',
+  'travel',
+  'recover',
+  'campaign.declare',
+  'adviser.play',
+  'power.use',
+  'peek.relic',
+  'peek.reliquary',
+  'warbands.move',
+  'citizenship.offer',
+  'citizenship.exile',
+  'citizenship.selfExile',
+] as const;
+
+export interface Unavailable {
+  type: string;
+  /** Why not, in words; derived here from the same state the describers read, never by a client. */
+  reason: string;
+}
+
+/**
+ * The Imperial minor actions only exist for the seats they can apply to
+ * (Ben): the Grand Scepter's (Peek at the Reliquary §6.4, offer §6.6.1,
+ * exile §6.7) for its holder, normally the Chancellor, and self-exile
+ * (§6.8) for Citizens. Anyone else does not see them at all, not even
+ * greyed. Everything else always shows.
+ */
+export function shownTo(state: OathState, seat: number, type: string): boolean {
+  switch (type) {
+    case 'peek.reliquary':
+    case 'citizenship.offer':
+    case 'citizenship.exile':
+      return seat === state.grandScepter;
+    case 'citizenship.selfExile':
+      return state.players[seat].citizenship === 'citizen';
+    default:
+      return true;
+  }
+}
+
+/** What blocks a seat's turn actions while one of its other decisions is open. */
+const BLOCKED_BY: Record<string, string> = {
+  setup: 'Finish setup first (Law §1.23).',
+  wake: 'Resolve your Wake first (Law §4.1).',
+  play: 'Finish your Search first: keep a card (Law §5.1.4).',
+  campaign: 'Finish the campaign first (Law §5.5).',
+  oathkeeper: 'Choose who takes the Oathkeeper title first (Law §2.11).',
+};
+
+/** Why an action this seat's turn DOES allow still offers nothing: its own precondition. */
+function whyNotNow(state: OathState, seat: number, type: string): string {
+  const p = state.players[seat];
+  const site = pawnSiteOf(state, seat);
+  const s = (n: number) => `${n} Supply`;
+  switch (type) {
+    case 'search': {
+      const costs: number[] = [];
+      if (state.worldDeck.length > 0) costs.push(worldDeckCost(state.visionsDrawn));
+      if (site && state.discards[site.region].length > 0) costs.push(2);
+      if (costs.length === 0) return 'There are no cards to draw (Law §5.1.2).';
+      return `Costs at least ${s(Math.min(...costs))}; you have ${p.supply} (Law §5.1.1).`;
+    }
+    case 'muster':
+      return 'No denizen or intact edifice without tokens at your site (Law §5.2.1).';
+    case 'trade':
+      if (!site || tokenFreeSuitedCards(site).length === 0) return 'No denizen or intact edifice without tokens at your site (Law §5.3.2).';
+      if (p.supply < 1) return `Costs 1 Supply; you have ${p.supply} (Law §5.3.1).`;
+      return `Needs 1 ready secret or 2 favor; you have ${p.secrets.ready} and ${p.favor} (Law §5.3.2).`;
+    case 'travel': {
+      if (!site) return 'Your pawn is not on the map yet.';
+      const costs = state.sites
+        .map((x, i) => (x.id === site.id ? null : travelRoute(state, seat, i, 'supply')))
+        .filter((r) => r !== null && (!r.blocked || r.blocked.startsWith('costs')))
+        .map((r) => r!.cost);
+      if (costs.length === 0) return 'No site you can travel to from here (Law §5.6.1, §11.8).';
+      return `Costs at least ${s(Math.min(...costs))}; you have ${p.supply} (Law §5.6.1).`;
+    }
+    case 'recover':
+      return p.supply < 1
+        ? `Costs 1 Supply; you have ${p.supply} (Law §5.4.1).`
+        : 'Nothing here or among the banners that you can afford to recover (Law §5.4).';
+    case 'campaign.declare':
+      return p.supply < CAMPAIGN_COST
+        ? `Costs ${s(CAMPAIGN_COST)}; you have ${p.supply} (Law §5.5.1).`
+        : 'No one to campaign against: nobody else rules your site or stands at it (Law §5.5.1).';
+    case 'adviser.play':
+      return 'You have no facedown adviser (Law §6.1).';
+    case 'power.use':
+      return 'You have access to no card with a power to use (Law §6.2).';
+    case 'peek.relic':
+      return 'No facedown relic at your site (Law §6.3).';
+    case 'peek.reliquary':
+      return seat !== state.grandScepter
+        ? 'Only the Grand Scepter holder may (Law §6.4).'
+        : 'No relic is left in the Imperial Reliquary (Law §6.4).';
+    case 'warbands.move':
+      return 'No warbands you can move to or from your site (Law §6.5).';
+    case 'citizenship.offer':
+      if (seat !== state.grandScepter) return 'Only the Grand Scepter holder may offer Citizenship (Law §6.6.1).';
+      if (state.citizenshipOffer) return 'An offer is already waiting for an answer (Law §6.6.1).';
+      if (!state.players.some((x, i) => i !== seat && x.citizenship === 'exile')) return 'There is no Exile to offer it to (Law §6.6.1).';
+      return 'Peek at a Reliquary relic first: an offer must promise one (Law §6.6.1).';
+    case 'citizenship.exile':
+      return seat !== state.grandScepter
+        ? 'Only the Grand Scepter holder may exile a Citizen (Law §6.7).'
+        : 'No Citizen you can afford to exile (Law §6.7).';
+    case 'citizenship.selfExile':
+      if (p.citizenship !== 'citizen') return 'Only a Citizen may exile themselves (Law §6.8).';
+      if (seat === state.grandScepter) return 'The Grand Scepter holder cannot exile themselves (Law §6.8).';
+      return `Costs ${selfExileFavorCost(state, seat)} favor; you have ${p.favor} (Law §6.8).`;
+    default:
+      return 'Not possible right now.';
+  }
+}
+
+/**
+ * Every ALWAYS_SHOWN action this seat has NO form for right now, with why:
+ * not its turn (and whose it is), another of its decisions first, or the
+ * action's own precondition. Disjoint from `computeAffordances` by
+ * construction, which a test holds.
+ */
+export function computeUnavailable(state: OathState, seat: number | null, pending: PendingDecision[]): Unavailable[] {
+  if (seat === null || state.complete) return [];
+  const offered = new Set(computeAffordances(state, seat, pending).map((e) => e.type));
+  const mine = pending.filter((d) => d.seat === seat);
+  const turnHolder = pending.find((d) => d.kind === 'turn')?.seat ?? state.turn.activeSeat;
+  return ALWAYS_SHOWN.filter((type) => !offered.has(type) && shownTo(state, seat, type)).map((type) => {
+    if (mine.some((d) => d.resolves.includes(type))) return { type, reason: whyNotNow(state, seat, type) };
+    const blocker = mine.find((d) => BLOCKED_BY[d.kind]);
+    if (blocker) return { type, reason: BLOCKED_BY[blocker.kind] };
+    if (turnHolder !== seat) return { type, reason: `Not your turn: waiting on the ${seatTitle(state.players, turnHolder)}.` };
+    return { type, reason: 'Not possible right now.' };
+  });
+}

@@ -106,6 +106,8 @@ export interface GameDefinition<S, Setup = unknown> {
    * layer passes it through verbatim.
    */
   affordances?(state: S, seat: number | null): unknown;
+  /** What this seat cannot do right now, and why (P4 unit 11): shown greyed, never as a form. */
+  unavailable?(state: S, seat: number | null): unknown;
 
   /** True once the game is over and no further actions are accepted. */
   isComplete(state: S): boolean;

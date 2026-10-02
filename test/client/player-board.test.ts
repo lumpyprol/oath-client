@@ -180,7 +180,7 @@ describe('"Your move" is grouped: Standing + Rest, then major, then minor', () =
     const html = boardPage(boardModel(project(s, seat), { gameId: 'g', seat, names }), { compose: { entries, seq: 1, back: '/' } });
     const top = html.match(/<div class="compose-head">[\s\S]*?<\/div>\s*<div class="composer-pinned">([\s\S]*?)<div class="action-group/)![1];
     expect(top).toContain('<summary>Standing: set');
-    expect(top).toContain('<summary>Turn: rest');
+    expect(top).toContain('<summary>Rest');
     // Major actions (Law §5) before minor ones (§6), each type in its own group.
     const major = html.match(/<div class="action-group major">([\s\S]*?)(?=<div class="action-group|<\/section>)/)![1];
     const minor = html.match(/<div class="action-group minor">([\s\S]*?)(?=<div class="action-group|<\/section>)/)?.[1] ?? '';
@@ -340,5 +340,162 @@ describe('after the roll, the campaign is resolved in the campaign box (Ben, 202
     const move = html.match(/<section class="compose-section"[\s\S]*?<\/section>/)![0];
     expect(move).not.toContain('value="campaign.resolve"');
     expect(move).toContain('Your campaign decision is in the campaign box above.');
+  });
+});
+
+describe('a Citizenship offer is answered in one form, inside "Awaiting a decision" (Ben, 2026-10-02)', () => {
+  it('renders accept/decline as one open form in the offer box, not in "Your move"', () => {
+    const s = after(6);
+    s.citizenshipOffer = {
+      scepterSeat: 0,
+      exile: 1,
+      relicId: s.reliquary.find((r) => r.relicId !== null)!.relicId!,
+      give: { favor: 0, secrets: 0, relics: [], banners: [] },
+      take: { favor: 0, secrets: 0, relics: [], banners: [] },
+      offeredAt: s.actionCount,
+    };
+    const entries = oath.affordances!(s, 1) as Affordance[];
+    const respond = entries.filter((e) => e.type.startsWith('citizenship.'));
+    expect(respond.map((e) => e.type)).toEqual(['citizenship.respond']);
+    const html = boardPage(boardModel(project(s, 1), { gameId: 'g', seat: 1, names }), { compose: { entries, seq: 1, back: '/' } });
+    const box = html.match(/<section class="pending">[\s\S]*?<\/section>/)![0];
+    expect(box).toMatch(/<details class="compose" open id="compose-\d+">\s*<summary>Citizenship: respond/);
+    expect(box).toContain('value="&quot;accept&quot;"');
+    expect(box).toContain('value="&quot;decline&quot;"');
+    expect(html.indexOf('<section class="pending">')).toBeLessThan(html.indexOf('<section class="compose-section"'));
+    const move = html.match(/<section class="compose-section"[\s\S]*?<\/section>/)![0];
+    expect(move).not.toContain('value="citizenship.respond"');
+  });
+});
+
+describe('a warband request is answered in one form, inside "Awaiting a decision" (Ben, 2026-10-02)', () => {
+  it('renders allow/deny as one open form in the box, not in "Your move"', () => {
+    const s = after(6);
+    s.warbandRequest = { seat: 1, approver: 0, direction: 'toBoard', count: 1, target: null, requestedAt: s.actionCount };
+    const entries = oath.affordances!(s, 0) as Affordance[];
+    expect(entries.filter((e) => e.type.startsWith('warbands.') && e.type !== 'warbands.move').map((e) => e.type)).toEqual(['warbands.respond']);
+    const html = boardPage(boardModel(project(s, 0), { gameId: 'g', seat: 0, names }), { compose: { entries, seq: 1, back: '/' } });
+    const box = html.match(/<section class="pending">[\s\S]*?<\/section>/)![0];
+    expect(box).toMatch(/<summary>Warbands: respond/);
+    expect(box).toContain('value="&quot;allow&quot;"');
+    expect(box).toContain('value="&quot;deny&quot;"');
+  });
+});
+
+describe('every action is always shown: greyed and inert when it cannot be taken (Ben, 2026-10-02)', () => {
+  it('draws the unavailable ones in their groups with the reason, and no form for them', () => {
+    const s = after(6);
+    const seat = (s.turn.activeSeat + 1) % 3; // off turn
+    const entries = oath.affordances!(s, seat) as Affordance[];
+    const unavailable = oath.unavailable!(s, seat) as { type: string; reason: string }[];
+    const html = boardPage(boardModel(project(s, seat), { gameId: 'g', seat, names }), { compose: { entries, seq: 1, back: '/', unavailable } });
+    const move = html.match(/<section class="compose-section"[\s\S]*?<\/section>/)![0];
+    expect(move).toMatch(/<div class="compose unavailable" aria-disabled="true">\s*<div class="u-title">Muster<\/div>\s*<p class="why">Not your turn: waiting on the /);
+    expect(move).toContain('<div class="action-group major">');
+    expect(move).toContain('<div class="action-group minor">');
+    expect(move).toMatch(/<div class="composer-pinned">[\s\S]*<div class="u-title">Rest<\/div>/);
+    // Only standing.set has a form; everything else is greyed.
+    expect(move.match(/<form /g)).toHaveLength(entries.length);
+    // Fixed order: Search before Muster before Trade.
+    expect(move.indexOf('>Search<')).toBeLessThan(move.indexOf('>Muster<'));
+    expect(move.indexOf('>Muster<')).toBeLessThan(move.indexOf('>Trade<'));
+  });
+});
+
+describe("a banner's stake shows as its own tokens (Ben, 2026-10-02)", () => {
+  it('draws favor on the People\'s Favor and secrets on the Darkest Secret, with the count', () => {
+    const s = after(6);
+    const pf = s.banners.find((b) => b.id === 'banner:peoples-favor')!;
+    const ds = s.banners.find((b) => b.id === 'banner:darkest-secret')!;
+    const html = boardPage(boardModel(project(s, 0), { gameId: 'g', seat: 0, names }));
+    expect(html).toContain(`<span class="banner-stake" title="${pf.tokens} favor on this banner">`);
+    expect(html).toMatch(new RegExp(`favour\\.png" alt=""><span class="pb-count">×${pf.tokens}<`));
+    expect(html).toMatch(new RegExp(`title="${ds.tokens} secrets? on this banner">\\s*<img class="pb-tok" src="/art/secret\\.png"`));
+  });
+});
+
+describe("a Citizen's warbands are purple everywhere; their pawn keeps the seat colour (Ben, 2026-10-02)", () => {
+  it('draws a Citizen\'s map warbands purple and their pawn in their own colour', () => {
+    const s = after(6);
+    const seat = 1;
+    s.players[seat].citizenship = 'citizen';
+    const site = s.sites.find((x) => x.id === s.players[seat].pawnSite)!;
+    site.warbands[seat] = 2;
+    const m = boardModel(project(s, 0), { gameId: 'g', seat: 0, names });
+    const sm = m.regions.flatMap((r) => r.sites).find((x) => x.warbands.some((w) => w.seat === seat))!;
+    expect(sm.warbands.find((w) => w.seat === seat)!.color).toBe('purple');
+    const own = m.players[seat].color;
+    expect(own).not.toBe('purple');
+    expect(m.regions.flatMap((r) => r.sites).flatMap((x) => x.pawns).find((p) => p.seat === seat)!.color).toBe(own);
+  });
+});
+
+describe('a defender answers the campaign inside the campaign box (Ben, 2026-10-02)', () => {
+  it('renders Campaign: respond open in the campaign box, before the dice', async () => {
+    const { imperialState } = await import('../oath/game/campaign-lib.js');
+    const { act } = await import('../oath/game/campaign-lib.js');
+    const base = imperialState();
+    const declared = act(base, 'campaign.declare', 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
+    const respondSeat = (oath.pending(declared) as { seat: number; resolves: string[] }[]).find((d) => d.resolves.includes('campaign.respond'))?.seat;
+    expect(respondSeat).toBeDefined(); // the defender's response window is open
+    const entries = oath.affordances!(declared, respondSeat!) as Affordance[];
+    const html = boardPage(boardModel(project(declared, respondSeat!), { gameId: 'g', seat: respondSeat!, names: ['A', 'B', 'C', 'D'] }), { compose: { entries, seq: 1, back: '/' } });
+    const box = html.match(/<section class="campaign">[\s\S]*?<\/section>/)![0];
+    expect(box).toMatch(/<details class="compose" open id="compose-\d+">\s*<summary>Campaign: respond/);
+    const move = html.match(/<section class="compose-section"[\s\S]*?<\/section>/)![0];
+    expect(move).not.toContain('value="campaign.respond"');
+  });
+});
+
+describe('the status line says when an off-turn player must react (Ben, 2026-10-02)', () => {
+  it('names whose turn it is, and each other seat the game is waiting on and why', () => {
+    const s = after(6);
+    const active = s.turn.activeSeat;
+    const other = (active + 1) % 3;
+    const page = (viewer: number) =>
+      boardPage(boardModel(project(s, viewer), { gameId: 'g', seat: viewer, names, waiting: [{ seat: active, kind: 'turn' }, { seat: other, kind: 'campaign' }] }));
+    const status = (viewer: number) => page(viewer).match(/<p class="status">([\s\S]*?)<\/p>/)![1];
+    const titles = boardModel(project(s, 0), { gameId: 'g', seat: 0, names }).seatTitles;
+    const bystander = [0, 1, 2].find((x) => x !== active && x !== other)!;
+    expect(status(bystander)).toContain(`the ${titles[active]}&#39;s turn`);
+    expect(status(bystander)).toContain(`<span class="waiting">waiting on the ${titles[other]} (in a Campaign)</span>`);
+    expect(status(other)).toContain('<span class="waiting you">waiting on you (in a Campaign)</span>');
+    expect(status(active)).toContain('your turn');
+  });
+});
+
+describe('the campaign box names the Allies defending (Law §5.5.2)', () => {
+  it('shows the Chancellor joining an Imperial defence', async () => {
+    const { imperialRolled } = await import('../oath/game/campaign-lib.js');
+    const s = imperialRolled();
+    expect(s.campaign!.allies).toContain(0);
+    const html = boardPage(boardModel(project(s, 1), { gameId: 'g', seat: 1, names: ['A', 'B', 'C', 'D'] }));
+    expect(html).toMatch(/Allies defending: the Chancellor \(<a class="law-ref"[^>]*>Law §5\.5\.2<\/a>\)/);
+  });
+});
+
+describe('the defending force says where its warbands come from (Ben, 2026-10-02)', () => {
+  it('lists each part, marking Allies', async () => {
+    const { imperialRolled } = await import('../oath/game/campaign-lib.js');
+    const s = imperialRolled();
+    const html = boardPage(boardModel(project(s, 1), { gameId: 'g', seat: 1, names: ['A', 'B', 'C', 'D'] }));
+    expect(html).toContain(
+      '0 from shields + 5 from the defending force (2 warbands of the Chancellor&#39;s on Mine (Ally), 3 warbands on the Blue Citizen&#39;s board) = 5',
+    );
+  });
+});
+
+describe('an action with no legal choice is greyed, not a form to open and find empty (Ben, 2026-10-02)', () => {
+  it('Muster with no favor shows greyed with the server\'s reason, and no form', () => {
+    const entries: Affordance[] = [
+      { type: 'muster', fields: [{ name: 'cardId', kind: 'choose-one', options: [{ value: 'x', label: 'Elders', disabled: 'needs 1 favor, you have 0 (Law §5.2.1)' }] }] },
+      { type: 'travel', fields: [{ name: 'siteIndex', kind: 'choose-one', options: [{ value: 1, label: 'Mine' }] }] },
+    ];
+    const s = after(6);
+    const html = boardPage(boardModel(project(s, 0), { gameId: 'g', seat: 0, names }), { compose: { entries, seq: 1, back: '/' } });
+    const major = html.match(/<div class="action-group major">[\s\S]*?(?=<div class="action-group|<\/section>)/)![0];
+    expect(major).toMatch(/<div class="u-title">Muster<\/div>\s*<p class="why">Needs 1 favor, you have 0 \(/);
+    expect(major).not.toContain('value="muster"');
+    expect(major).toContain('value="travel"'); // a submittable action is still a form
   });
 });

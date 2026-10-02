@@ -238,6 +238,11 @@ export function buildBoard(gameId: string, seat: number | null) {
     // P4 unit 11: what this seat may compose — the same affordances the JSON
     // API serves, for the requesting seat only. A spectator composes nothing.
     affordances: seat === null ? [] : (def.affordances?.(state, seat) ?? []),
+    // ...and what it cannot do, and why, so the board can show it greyed.
+    unavailable: seat === null ? [] : (def.unavailable?.(state, seat) ?? []),
+    // Who the game is waiting on, and for what KIND of decision: public, the
+    // same facts the inbox shows others (never a decision's specifics).
+    waiting: def.pending(state).map((d) => ({ seat: d.seat, kind: d.kind })),
   };
 }
 

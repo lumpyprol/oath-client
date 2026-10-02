@@ -386,7 +386,11 @@ const PLACARD_W = {
 function bannerPlacard(b: BoardModel['banners'][number], art: ArtResolver): Raw {
   return html`<figure class="placard" style="width:${PLACARD_W.banner}%">
     <div class="tf-art">${face(b.face, art)}
-      <span class="tf-count" title="tokens on this banner">${b.tokens}</span>
+      ${/* The stake as real tokens, on the printed token spot (Law §2.5):
+           favor on the People's Favor, secrets on the Darkest Secret. */ ''}
+      <span class="banner-stake" title="${b.tokens} ${b.token === 'favor' ? 'favor' : `secret${b.tokens === 1 ? '' : 's'}`} on this banner">
+        <img class="pb-tok" src="${artUrl(b.token === 'favor' ? 'favour.png' : 'secret.png')}" alt=""><span class="pb-count">×${b.tokens}</span>
+      </span>
     </div>
     <figcaption>${b.name}${b.mob ? ' (Mob side)' : ''}</figcaption>
   </figure>`;
@@ -440,12 +444,18 @@ const GOAL_REFERENCE: Record<string, string> = {
 function referenceAids(m: BoardModel): Raw {
   const goal = GOAL_REFERENCE[m.oath];
   return html`<section class="reference-aids"><h2>Reference</h2>
-    ${goal
-      ? html`<figure class="placard goal-ref" style="width:${(332 / 1011) * 100}%">
-          <div class="tf-art"><img src="${artUrl(goal)}" alt="Goal Reference: ${m.oathLabel}"></div>
-          <figcaption>Goal Reference — ${m.oathLabel}</figcaption>
-        </figure>`
-      : ''}
+    <div class="ref-cards">
+      ${goal
+        ? html`<figure class="placard goal-ref" style="width:${(332 / 1011) * 100}%">
+            <div class="tf-art"><img src="${artUrl(goal)}" alt="Goal Reference: ${m.oathLabel}"></div>
+            <figcaption>Goal Reference — ${m.oathLabel}</figcaption>
+          </figure>`
+        : ''}
+      <figure class="placard goal-ref" style="width:${(332 / 1011) * 100}%">
+        <div class="tf-art"><img src="${artUrl('victoryref.png')}" alt="War Exhaustion: victory at the end of round 8"></div>
+        <figcaption>War Exhaustion — victory at the end of round 8 (Law §3.4)</figcaption>
+      </figure>
+    </div>
     <details class="ref-sheet"><summary>Card reference</summary>
       <img src="${artUrl('reference_front.jpg')}" alt="Card reference: suits, restrictions, power costs, rules of use"></details>
     <details class="ref-sheet"><summary>Site reference &amp; campaign summary</summary>
@@ -557,6 +567,8 @@ export interface ComposeView {
    */
   banner?: { kind: 'stale' | 'illegal' | 'invalid'; message: string; problems?: string[] };
   dryRun?: DryRunView;
+  /** Rest/Major/Minor actions this seat cannot take now, with the server's reason: drawn greyed. */
+  unavailable?: { type: string; reason: string }[];
 }
 
 function dryRunPanel(d: DryRunView): Raw {
@@ -572,6 +584,26 @@ function dryRunPanel(d: DryRunView): Raw {
   </div>`;
 }
 
+/** A fixed order for the always-shown actions, so nothing jumps around as it becomes available. */
+const ACTION_ORDER = [
+  'standing.set',
+  'turn.rest',
+  'search',
+  'muster',
+  'trade',
+  'travel',
+  'recover',
+  'campaign.declare',
+  'adviser.play',
+  'power.use',
+  'peek.relic',
+  'peek.reliquary',
+  'warbands.move',
+  'citizenship.offer',
+  'citizenship.exile',
+  'citizenship.selfExile',
+];
+
 /** Law §5's major actions and §6's minor actions, by action type (grouping only). */
 const MAJOR_ACTIONS = new Set(['search', 'muster', 'trade', 'travel', 'recover', 'campaign.declare']);
 const MINOR_ACTIONS = new Set([
@@ -585,8 +617,29 @@ const MINOR_ACTIONS = new Set([
   'citizenship.selfExile', // §6.8
 ]);
 
+/**
+ * An action the server offered, but with no legal choice in some required
+ * field (every option disabled): Muster with no favor, say. It cannot be
+ * submitted, so it is shown greyed with the server's own reason rather than
+ * as a form to open and find empty (Ben, 2026-10-02). A type with several
+ * entries is greyed only when none of them can be submitted.
+ */
+function blockedActions(entries: Affordance[]): { type: string; reason: string }[] {
+  const dead = (e: Affordance) =>
+    e.fields.find((f) => f.kind === 'choose-one' && f.options.length > 0 && f.options.every((o) => o.disabled));
+  const types = [...new Set(entries.map((e) => e.type))];
+  return types.flatMap((type) => {
+    const all = entries.filter((e) => e.type === type);
+    if (!all.every((e) => dead(e))) return [];
+    const f = dead(all[0]) as Extract<Affordance['fields'][number], { options: unknown[] }>;
+    const reason = (f.options[0] as { disabled?: string }).disabled ?? 'Not possible right now.';
+    return [{ type, reason: reason[0].toUpperCase() + reason.slice(1) + (reason.endsWith('.') ? '' : '.') }];
+  });
+}
+
 /** The composer options every box on this page shares. */
 function composeBase(model: BoardModel, c: ComposeView, art: ArtResolver, siteBackUrl?: string) {
+  const blocked = blockedActions(c.entries);
   // Option art hints (Travel's sites, a Search's drawn cards) drawn with the
   // page's own resolver — the same faces the board shows.
   const artFor = (key: string) => {
@@ -600,15 +653,33 @@ function composeBase(model: BoardModel, c: ComposeView, art: ArtResolver, siteBa
     back: c.back,
     prefill: c.prefill,
     freeHelp: { effects: effectsHelp(model.seat as number) },
+    greyed: [...(c.unavailable ?? []), ...blocked],
+    hideTypes: new Set(blocked.map((b) => b.type)),
+    order: ACTION_ORDER,
   };
 }
 
 /**
- * After the dice: resolving the battle and allocating its casualties belong
- * with the dice they depend on, so they render in the campaign box, open
- * (Ben, 2026-10-02), not in "Your move".
+ * A campaign's own decisions (ally, permit, respond, then resolve and
+ * casualties after the dice) render in the campaign box, open (Ben,
+ * 2026-10-02), beside the battle they are about, not in "Your move".
  */
-const AFTER_THE_ROLL = new Set(['campaign.resolve', 'campaign.casualties']);
+const AFTER_THE_ROLL = new Set([
+  // Every answer inside a campaign in progress: joining as an ally, the
+  // defender's permit and response (Ben, 2026-10-02), then, after the dice,
+  // resolving it and allocating casualties.
+  'campaign.ally',
+  'campaign.permit',
+  'campaign.respond',
+  'campaign.resolve',
+  'campaign.casualties',
+]);
+
+/** Answers to an offer render with the offer, in "Awaiting a decision", open (Ben). */
+const WITH_THE_OFFER = new Set(['citizenship.respond', 'warbands.respond']);
+
+/** Forms drawn somewhere other than "Your move". */
+const DRAWN_ELSEWHERE = (type: string) => AFTER_THE_ROLL.has(type) || WITH_THE_OFFER.has(type);
 
 function composeSection(model: BoardModel, c: ComposeView, art: ArtResolver, siteBackUrl?: string): Raw {
   const base = composeBase(model, c, art, siteBackUrl);
@@ -627,17 +698,20 @@ function composeSection(model: BoardModel, c: ComposeView, art: ArtResolver, sit
     ? html`<div class="drawn"><h3>Your Search drew</h3>
         ${searchForm ?? html`<div class="drawn-cards">${model.hand.map((f) => face(f, art))}</div>`}</div>`
     : raw('');
-  const others = c.entries.filter((e) => !isStanding(e) && !isSearch(e) && !AFTER_THE_ROLL.has(e.type));
+  const others = c.entries.filter((e) => !isStanding(e) && !isSearch(e) && !DRAWN_ELSEWHERE(e.type) && !base.hideTypes.has(e.type));
+  const greyedIn = (key: 'respond' | 'major' | 'minor') => (base.greyed ?? []).some((g) => group({ type: g.type, fields: [] }) === key);
   const section = (key: 'respond' | 'major' | 'minor', title: string) =>
-    others.some((e) => group(e) === key)
-      ? html`<div class="action-group ${key}"><h3>${title}</h3>${composer(c.entries, { ...base, include: (e) => !isStanding(e) && !isSearch(e) && !AFTER_THE_ROLL.has(e.type) && group(e) === key })}</div>`
+    others.some((e) => group(e) === key) || greyedIn(key)
+      ? html`<div class="action-group ${key}"><h3>${title}</h3>${composer(c.entries, { ...base, include: (e) => !isStanding(e) && !isSearch(e) && !DRAWN_ELSEWHERE(e.type) && group(e) === key })}</div>`
       : raw('');
-  const rest = others.length
+  const rest = others.length || greyedIn('major') || greyedIn('minor')
     ? html`${section('respond', 'Respond')}${section('major', 'Major actions (Law §5)')}${section('minor', 'Minor actions (Law §6)')}`
     : c.entries.some(isSearch)
       ? raw('')
       : c.entries.some((e) => AFTER_THE_ROLL.has(e.type))
         ? html`<p class="muted">Your campaign decision is in the campaign box above.</p>`
+        : c.entries.some((e) => WITH_THE_OFFER.has(e.type))
+          ? html`<p class="muted">Your answer to the offer is in "Awaiting a decision" above.</p>`
         : html`<p class="muted">${c.entries.length ? 'Nothing else for you to do right now.' : 'Nothing for you to do right now.'}</p>`;
   const banner = c.banner
     ? html`<div class="banner ${c.banner.kind}" role="alert"><p>${c.banner.message}</p>
@@ -648,7 +722,7 @@ function composeSection(model: BoardModel, c: ComposeView, art: ArtResolver, sit
   // Order: standing answers first, always (they apply whoever's turn it is),
   // then anything this page is re-rendered to say, then the Search, then the rest.
   return html`<section class="compose-section" id="compose" data-seq="${c.seq}"><div class="compose-head"><h2>Your move</h2>${you ? stats(you) : ''}</div>
-    ${c.entries.some(isStanding) ? html`<div class="composer-pinned">${composer(c.entries, { ...base, include: isStanding })}</div>` : ''}
+    ${c.entries.some(isStanding) || (c.unavailable ?? []).some((g) => isStanding({ type: g.type, fields: [] })) ? html`<div class="composer-pinned">${composer(c.entries, { ...base, include: isStanding })}</div>` : ''}
     ${banner}
     ${c.dryRun ? dryRunPanel(c.dryRun) : ''}
     ${hand}
@@ -677,13 +751,16 @@ export function boardPage(
 
   const status = model.complete
     ? html`<p class="status done">Game over — winner: ${model.winner === null ? 'a tie' : model.seatTitles[model.winner]}.</p>`
-    : html`<p class="status">Round ${model.round} · ${model.seatTitles[model.activeSeat]} to act · ${model.oathLabel} · Visions drawn: ${model.visionsDrawn}</p>`;
+    : html`<p class="status">Round ${model.round} · ${model.activeSeat === model.seat ? 'your turn' : `the ${model.seatTitles[model.activeSeat]}'s turn`}${model.waitingOn.map(
+        (w) => html` · <span class="waiting${w.you ? ' you' : ''}">waiting on ${w.you ? 'you' : `the ${w.title}`} (${w.what})</span>`,
+      )} · ${model.oathLabel} · Visions drawn: ${model.visionsDrawn}</p>`;
 
   const c = model.campaign;
   const campaign = c
     ? html`<section class="campaign"><h2>Campaign in progress</h2>
         <p>The ${model.seatTitles[c.attacker]} attacks ${c.defender === 'the bandits' ? c.defender : `the ${c.defender}`} — ${c.attackDice} attack${c.attackDiceWhy ? ` (${c.attackDiceWhy}, Law §11.4)` : ''} / ${c.defenseDice} defense dice. <span class="phase">(${c.phase})</span></p>
         <p>Targets: ${c.targets.join(', ')}</p>
+        ${c.allies.length ? html`<p>Allies defending: ${c.allies.map((a) => `the ${a}`).join(', ')} (Law §5.5.2)</p>` : ''}
         ${c.attackFaces.length || c.defenseFaces.length
           ? html`<div class="dice-rows">
               <div class="dice-row"><span class="dice-label">Attack</span>
@@ -733,8 +810,18 @@ export function boardPage(
       ${status}
       ${model.spectator ? html`<p class="spectator-note">You are watching as a spectator.</p>` : ''}
       ${campaign}
+      ${pending.length
+        ? html`<section class="pending"><h2>Awaiting a decision</h2><ul>${pending}</ul>
+            ${opts?.compose && !model.spectator && opts.compose.entries.some((e) => WITH_THE_OFFER.has(e.type))
+              ? html`<div class="campaign-act">${composer(opts.compose.entries, {
+                  ...composeBase(model, opts.compose, art, opts.siteBackUrl),
+                  include: (e) => WITH_THE_OFFER.has(e.type),
+                  open: true,
+                })}</div>`
+              : ''}
+          </section>`
+        : ''}
       ${!model.spectator && opts?.compose ? composeSection(model, opts.compose, art, opts.siteBackUrl) : ''}
-      ${pending.length ? html`<section class="pending"><h2>Awaiting a decision</h2><ul>${pending}</ul></section>` : ''}
 
       ${table}
 
@@ -746,15 +833,6 @@ export function boardPage(
 
       ${referenceAids(model)}
 
-      <section class="supply"><h2>Banks & supply</h2>
-        <ul class="banks">
-          ${model.favorBanks.map((b) => html`<li>${b.label}: ${b.favor}${favorTok}</li>`)}
-          <li>Shared bank: ${model.sharedBank.favor}${favorTok} / ${model.sharedBank.secrets}${secretTok}</li>
-          <li>Relic deck: ${model.relicDeckCount}</li>
-          <li>Discards: ${model.discardCounts.map((d) => `${d.label} ${d.count}`).join(' · ')}</li>
-          <li>Dispossessed: ${model.dispossessedCount}</li>
-        </ul>
-      </section>
 
       <nav class="page-nav">
         <a href="${model.inboxUrl}">Inbox</a>

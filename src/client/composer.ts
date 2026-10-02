@@ -57,8 +57,16 @@ export const actUrl = (gameId: string): string => `/games/${gameId}/act`;
 
 // ---- labels (generic, from names only — never per action) -----------------
 
-/** `campaign.declare` → "Campaign: declare"; `travel` → "Travel". */
+/** `campaign.resolve` → "Campaign: resolve"; `travel` → "Travel"; a few take the Law's own name (TITLES). */
+/** Where the Law's own name for an action reads better than one built from its type. */
+const TITLES: Record<string, string> = {
+  'adviser.play': 'Facedown adviser: play or discard', // Law §6.1's own name
+  'campaign.declare': 'Campaign', // Law §5.5's own name (Ben)
+  'turn.rest': 'Rest', // Law §4.3's own name (Ben)
+};
+
 export function typeLabel(type: string): string {
+  if (TITLES[type]) return TITLES[type];
   const words = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
   const [head, ...rest] = type.split('.');
   const cap = words(head).replace(/^./, (c) => c.toUpperCase());
@@ -244,6 +252,16 @@ export interface ComposerOptions {
   include?: (entry: Affordance) => boolean;
   /** Draw each form already open (the Search's one form). */
   open?: boolean;
+  /**
+   * Actions this seat cannot take now, with the server's reason: drawn
+   * greyed and inert among the forms (Ben: always show every action).
+   * Only those passing `include` are drawn.
+   */
+  greyed?: { type: string; reason: string }[];
+  /** A fixed order of action types, so an action never jumps when it becomes available. */
+  order?: readonly string[];
+  /** Action types not to draw as forms (they are shown greyed instead). */
+  hideTypes?: ReadonlySet<string>;
   /** Resolves an option's `art` hint to an image URL (null = draw none). */
   artFor?: ArtFor;
 }
@@ -369,16 +387,38 @@ function variantBox(type: string, items: { e: Affordance; i: number }[], opts: C
   </details>`;
 }
 
+/** An action this seat cannot take now: greyed, inert, with the server's reason. No form. */
+function unavailableBox(g: { type: string; reason: string }): Raw {
+  return html`<div class="compose unavailable" aria-disabled="true">
+    <div class="u-title">${typeLabel(g.type)}</div>
+    <p class="why">${g.reason}</p>
+  </div>`;
+}
+
 /** Every entry's form, in entry order. */
 export function composer(entries: Affordance[], opts: ComposerOptions): Raw {
-  const shown = entries.map((e, i) => ({ e, i })).filter(({ e }) => !opts.include || opts.include(e));
-  if (shown.length === 0) return opts.include ? raw('') : html`<p class="muted">Nothing for you to do right now.</p>`;
-  // One box per action type, in order of first appearance.
+  const keep = (type: string) => !opts.include || opts.include({ type, fields: [] });
+  const shown = entries
+    .map((e, i) => ({ e, i }))
+    .filter(({ e }) => (!opts.include || opts.include(e)) && !opts.hideTypes?.has(e.type));
+  const greyed = (opts.greyed ?? []).filter((g) => keep(g.type) && !shown.some(({ e }) => e.type === g.type));
+  if (shown.length === 0 && greyed.length === 0) return opts.include ? raw('') : html`<p class="muted">Nothing for you to do right now.</p>`;
+  // One box per action type, in order of first appearance (or the fixed order).
   const byType = new Map<string, { e: Affordance; i: number }[]>();
   for (const x of shown) byType.set(x.e.type, [...(byType.get(x.e.type) ?? []), x]);
-  return html`<div class="composer">${[...byType].map(([type, items]) =>
-    items.length === 1 ? composeForm(items[0].e, items[0].i, opts) : variantBox(type, items, opts),
-  )}</div>`;
+  const boxes: { type: string; box: Raw }[] = [
+    ...[...byType].map(([type, items]) => ({
+      type,
+      box: items.length === 1 ? composeForm(items[0].e, items[0].i, opts) : variantBox(type, items, opts),
+    })),
+    ...greyed.map((g) => ({ type: g.type, box: unavailableBox(g) })),
+  ];
+  const rank = (t: string) => {
+    const i = opts.order?.indexOf(t) ?? -1;
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  boxes.sort((a, b) => rank(a.type) - rank(b.type)); // stable: unranked keep their order
+  return html`<div class="composer">${boxes.map((b) => b.box)}</div>`;
 }
 
 // ---- the decoder, mirroring the renderers -----------------------------------
