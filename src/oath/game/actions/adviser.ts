@@ -31,6 +31,13 @@
  *         exactly as `card.play` already leaves it.
  *     "When Played" powers (§7.3.3) likewise stay declared (`power.use`).
  *
+ *   'site' — §5.1.4.1, also reached through "as if you searched" (Ben,
+ *     2026-10-01: the original reading allowed only turning it over in
+ *     place, but §5.1.4 lists your site among the destinations). The
+ *     denizen moves from your advisers to an empty slot at your site,
+ *     faceup, and you gain one favor of its suit. Not for a Vision (§5.1.4.3),
+ *     a full site (§2.8.1), or an adviser-only card (§7.2.1).
+ *
  *   'discard' — bins it to the pawn region's downstream pile (Glossary
  *     "Discard", via `map.ts#discardRegion`), the same destination
  *     `card.play` uses.
@@ -46,11 +53,12 @@ import { discardRegion } from '../map.js';
 import { stripDiscardedTokens } from '../discard.js';
 import { isRestricted } from '../restrictions.js';
 import { CONSPIRACY_ID, type OathState } from '../state.js';
+import { byId } from '../../cards/index.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
 const PlayPayloadSchema = z.object({
   adviserIndex: z.number().int().min(0),
-  as: z.enum(['faceup', 'discard']),
+  as: z.enum(['faceup', 'site', 'discard']),
 });
 
 function play(state: OathState, action: GameAction): OathState {
@@ -88,6 +96,26 @@ function play(state: OathState, action: GameAction): OathState {
         to: { kind: 'discard', region: discardRegion(region) },
       },
     ]);
+  }
+
+  if (as === 'site') {
+    if (isVision) throw new IllegalAction('adviser.play: a Vision cannot be played to a site (Law §5.1.4.3)');
+    if (isRestricted(cardId, 'adviser')) {
+      throw new IllegalAction(`adviser.play: ${cardId} may only be played to your advisers (Law §7.2.1)`);
+    }
+    const site = state.sites.find((s) => s.id === player.pawnSite)!;
+    if (!site.cards.includes(null)) {
+      throw new IllegalAction(`adviser.play: your site is at capacity (Law §2.8.1)`);
+    }
+    const effects: Effect[] = [
+      { kind: 'card', id: cardId, from: { kind: 'seatAdvisers', seat }, to: { kind: 'siteSlot', siteId: site.id } },
+    ];
+    // Law §5.1.4.1: gain one favor of the card's suit, as many as the bank has (§9.3).
+    const card = byId(cardId);
+    if ('suit' in card && state.favorBanks[card.suit] > 0) {
+      effects.push({ kind: 'favor', from: { kind: 'favorBank', suit: card.suit }, to: { kind: 'seatFavor', seat }, amount: 1 });
+    }
+    return applyEffects(state, seat, effects);
   }
 
   if (!isVision) {

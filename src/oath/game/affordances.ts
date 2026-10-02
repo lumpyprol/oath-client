@@ -429,7 +429,13 @@ function describeAdviserPlay(state: OathState, seat: number): Affordance[] {
     const canFaceup = isVision
       ? !isConspiracy && p.citizenship === 'exile' // §5.1.4.3 via §6.1
       : !isRestricted(cardId, 'site'); // a site-only card cannot turn faceup here (§7.2.1)
-    if (canFaceup) asOptions.push({ value: 'faceup', label: 'Play faceup' });
+    if (canFaceup) asOptions.push({ value: 'faceup', label: 'Play faceup as an adviser' });
+    // §6.1 "as if you searched": your site is a §5.1.4 destination too.
+    const site = pawnSiteOf(state, seat);
+    if (!isVision && !isRestricted(cardId, 'adviser') && site && site.cards.includes(null)) {
+      // With the site's face, so it is plain WHICH site (Ben, 2026-10-01).
+      asOptions.push({ value: 'site', label: `Play to your site (${byId(site.id).name})`, art: site.id });
+    }
     const note = restrictionKnown(cardId)
       ? undefined
       : `§7.2 restrictions for ${byId(cardId).name} were never transcribed (D46) — self-policed, offered as-is.`;

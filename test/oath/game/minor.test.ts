@@ -24,6 +24,56 @@ function act(state: OathState, type: string, actor: number | null, payload: unkn
 // single FACEDOWN adviser and 2 warbands at that site. Seat 0's one adviser
 // is faceup; seat 2 has none.
 
+describe('adviser.play — to your site (Law §6.1 "as if you searched" → §5.1.4.1)', () => {
+  /** baseState with a slot free at seat 1's site (River) and a plain denizen as their facedown adviser. */
+  function ready(): OathState {
+    const s = baseState();
+    const site = s.sites.find((x) => x.id === s.players[1].pawnSite)!;
+    const free = site.cards.indexOf(null);
+    if (free === -1) {
+      const moved = site.cards[site.cards.length - 1]!;
+      site.cards[site.cards.length - 1] = null;
+      s.discards[site.region].unshift(moved.id);
+    }
+    return s;
+  }
+
+  it('moves the denizen from your advisers to your site, faceup, and gains a favor of its suit', () => {
+    const s = ready();
+    const cardId = s.players[1].advisers[0].id;
+    const suit = (byId(cardId) as { suit: Suit }).suit;
+    const out = act(s, 'adviser.play', 1, { adviserIndex: 0, as: 'site' });
+    checkInvariants(out);
+    const site = out.sites.find((x) => x.id === out.players[1].pawnSite)!;
+    expect(out.players[1].advisers).toHaveLength(0);
+    expect(site.cards.some((c) => c?.id === cardId)).toBe(true);
+    expect(out.players[1].favor).toBe(s.players[1].favor + 1);
+    expect(out.favorBanks[suit]).toBe(s.favorBanks[suit] - 1);
+  });
+
+  it('is offered by the form, and refused for a full site or a Vision', () => {
+    const s = ready();
+    const entry = (oath.affordances!(s, 1) as { type: string; fields: { name: string; options?: { value: unknown }[] }[] }[]).find((e) => e.type === 'adviser.play')!;
+    expect(entry.fields.find((f) => f.name === 'as')!.options!.map((o) => o.value)).toContain('site');
+    const siteOpt = entry.fields.find((f) => f.name === 'as')!.options!.find((o) => o.value === 'site') as { art?: string };
+    expect(siteOpt.art).toBe(s.players[1].pawnSite); // drawn with the site's face
+
+    const full = structuredClone(s);
+    const site = full.sites.find((x) => x.id === full.players[1].pawnSite)!;
+    const filler = full.worldDeck.find((id) => id.startsWith('denizen:'))!;
+    full.worldDeck = full.worldDeck.filter((id) => id !== filler);
+    site.cards[site.cards.indexOf(null)] = { id: filler, favor: 0, secrets: 0 };
+    expect(() => act(full, 'adviser.play', 1, { adviserIndex: 0, as: 'site' })).toThrow(/at capacity/);
+
+    const vision = structuredClone(s);
+    const visionId = cards.visions[1].id;
+    vision.worldDeck = vision.worldDeck.filter((id) => id !== visionId);
+    vision.worldDeck.push(vision.players[1].advisers[0].id);
+    vision.players[1].advisers[0] = { id: visionId, facedown: true, favor: 0, secrets: 0 };
+    expect(() => act(vision, 'adviser.play', 1, { adviserIndex: 0, as: 'site' })).toThrow(/Vision cannot be played to a site/);
+  });
+});
+
 describe('adviser.play — faceup (Law §6.1 via §5.1.4)', () => {
   it('turns a facedown denizen over in place: same slot, same count, and NO favor', () => {
     const s = baseState();
