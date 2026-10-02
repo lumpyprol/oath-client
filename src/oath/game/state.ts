@@ -267,8 +267,15 @@ export interface CampaignState {
   /** `'bandits'` when no player rules the attacker's site (Law §5.5.1). */
   defenderSeat: number | 'bandits';
   targets: CampaignTarget[];
-  /** The attacker's chosen dice-pool size, 0..their board warbands at declare (Law §5.5.2). */
+  /** The attack pool rolled: the attacker's choice after any §11.4 Plains/Mountain change. */
   attackDice: number;
+  /**
+   * What the attacker chose before §11.4 changed it, and the changes, e.g.
+   * ['−1 Mountain'] (P4 unit 11: so the board can say why 3 became 2).
+   * Absent on campaigns declared before this existed, and when nothing changed.
+   */
+  attackDiceChosen?: number;
+  attackDiceChanges?: string[];
   /** Sum of each target's printed defense dice, fixed at declare (Law §5.5.2). */
   defenseDice: number;
   /**

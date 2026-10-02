@@ -36,6 +36,7 @@
  * byte-for-byte the same information a bare count carried.
  */
 
+import { battleTotals, type BattleTotals } from './actions/campaign.js';
 import {
   REGIONS,
   type Adviser,
@@ -158,7 +159,8 @@ export interface OathView {
    * things every player at the table can already see) — passed through
    * verbatim, unlike every hidden-zone field above.
    */
-  campaign: CampaignState | null;
+  /** The campaign, public in full (Law §9.4), plus its totals once rolled (unit 11). */
+  campaign: (CampaignState & { battle: BattleTotals | null }) | null;
   /**
    * A pending Citizenship offer (unit 16; Law §6.6.1) is likewise public:
    * the exile must be told exactly which relic and terms are on the table
@@ -263,6 +265,8 @@ export function project(state: OathState, seat: number | null): OathView {
           ...(state.campaign.casualties
             ? { casualties: { ...state.campaign.casualties, force: [...state.campaign.casualties.force] } }
             : {}),
+          // The engine's own totals for both sides, so no client re-adds them.
+          battle: battleTotals(state, state.campaign),
         }
       : null,
     citizenshipOffer: state.citizenshipOffer

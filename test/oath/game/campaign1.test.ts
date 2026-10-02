@@ -11,6 +11,9 @@ import { oath } from '../../../src/oath/game/index.js';
 import { cards } from '../../../src/oath/cards/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
 import { baseState } from './helpers.js';
+import { boardModel } from '../../../src/client/model.js';
+import { boardPage } from '../../../src/client/pages/board.js';
+import { project } from '../../../src/oath/game/project.js';
 
 // A separate DB per test file (store.test.ts's own convention), needed only
 // by the "prepare persists dice, replay reuses them" exit-criterion test.
@@ -278,7 +281,19 @@ describe('campaign.declare (Law §5.5.1-5.5.2)', () => {
       // of who rules Mountain.
       const out = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
       expect(out.campaign).toMatchObject({ attackDice: 1 }); // 2 - 1
+      // ...and the campaign remembers why, so the board can say it (unit 11, Ben).
+      expect(out.campaign).toMatchObject({ attackDiceChosen: 2, attackDiceChanges: ['−1 Mountain'] });
       checkInvariants(out);
+      const model = boardModel(project(out, 0), { gameId: 'g', seat: 0, names: ['A', 'B', 'C', 'D'] });
+      expect(boardPage(model)).toMatch(/1 attack \(2 chosen, −1 Mountain, <a class="law-ref" href="[^"]*#11\.4"[^>]*>Law §11\.4<\/a>\) \//);
+    });
+
+    it('a campaign with no Plains/Mountain target records no change', () => {
+      const s = baseState();
+      s.players[2].pawnSite = s.sites[5].id; // River, the attacker's site
+      const out = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
+      expect(out.campaign!.attackDiceChosen).toBeUndefined();
+      expect(out.campaign!.attackDiceChanges).toBeUndefined();
     });
 
     it("Mountain's subtraction clamps at 0, never negative", () => {
@@ -313,7 +328,8 @@ describe('campaign — projection (Law §9.4: nothing about a declared Campaign 
     const out = declare(s, 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 1 });
     for (const seat of [0, 1, 2, null]) {
       const view = oath.project(out, seat) as { campaign: unknown };
-      expect(view.campaign).toEqual(out.campaign);
+      // Verbatim, plus the engine's battle totals (null until the dice roll — unit 11).
+      expect(view.campaign).toEqual({ ...out.campaign, battle: null });
     }
   });
 });

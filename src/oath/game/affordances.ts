@@ -37,6 +37,7 @@
  * player checks a declaration.
  */
 
+import { seatTitle } from './seats.js';
 import type { PendingDecision } from '../../engine/types.js';
 import { byId } from '../cards/index.js';
 import type { Site } from '../cards/schema.js';
@@ -64,6 +65,7 @@ import {
   SCEPTER_DEFENSE_DICE,
   titleDefenseDice,
   attackTotal,
+  battleTotals,
   defenseTotal,
   defendingForce,
   eligibleAllyVolunteers,
@@ -85,9 +87,26 @@ export interface Option {
   cost?: Cost;
   /** Present iff a client should show this greyed; the string is the reason. A disabled option is NOT claimed legal. */
   disabled?: string;
+  /**
+   * Presentation hints (unit 11), never rules. `group` heads a column the
+   * option is listed under (Travel: the region, so the choice reads like the
+   * map). `art` is the card face to draw beside it — an art-manifest key the
+   * seat may already see, or `site-back` for a facedown site.
+   */
+  group?: string;
+  art?: string;
+  /** `allocate` only: the most this one option can take (e.g. the warbands actually at a location). */
+  max?: number;
+  /**
+   * Legal only when another field of the SAME entry holds one of `values`
+   * (Card: play's "to your site" fits some drawn cards, not others). A client
+   * shows the option only then; the harness checks it is accepted for every
+   * listed value and refused for every other option of that field.
+   */
+  requires?: { field: string; values: unknown[] };
 }
 
-export type Field =
+export type Field = (
   | { name: string; kind: 'choose-one' | 'choose-many'; options: Option[]; max?: number }
   // `deferred` marks a bound the reducer does NOT enforce at submit — a
   // permissioned warband move creates a request and validates the count
@@ -96,7 +115,16 @@ export type Field =
   // at submit for it. Absent/false means submit-enforced (the usual case).
   | { name: string; kind: 'count'; min: number; max: number; deferred?: boolean }
   | { name: string; kind: 'flag' }
-  | { name: string; kind: 'free'; schema: string };
+  // Spread a number across options (unit 11): the payload value is a list of
+  // `{ ...option.value, count }` for each option given a nonzero count (a
+  // non-object value becomes `{ value, count }`), and the counts must total
+  // between `min` and `max`. Casualty kills (exactly the quota) and seizure
+  // placements (up to the warbands left on the board) are both this shape.
+  | { name: string; kind: 'allocate'; options: Option[]; min: number; max: number }
+  | { name: string; kind: 'free'; schema: string }) & {
+  /** A display heading for the field (presentation only); clients fall back to the name. */
+  label?: string;
+};
 
 export interface Affordance {
   type: string;
@@ -128,11 +156,7 @@ function describeRest(): Affordance[] {
   return [{ type: 'turn.rest', fields: [], note: 'End your turn (Rest — Law §4.3).' }];
 }
 
-function siteLabel(state: OathState, i: number): string {
-  const site = state.sites[i];
-  if (site.facedown) return `Slot ${i}: facedown site (${site.region})`;
-  return `${byId(site.id).name} (${site.region})`;
-}
+const REGION_LABEL: Record<string, string> = { cradle: 'Cradle', provinces: 'Provinces', hinterland: 'Hinterland' };
 
 function describeTravel(state: OathState, seat: number): Affordance[] {
   const player = state.players[seat];
@@ -142,7 +166,14 @@ function describeTravel(state: OathState, seat: number): Affordance[] {
   state.sites.forEach((site, i) => {
     if (site.id === player.pawnSite) return; // "already on that site" is illegal, never an option
     const cost = travelCost(from.region, site.region); // Law §5.6.1 — the ONE definition
-    const option: Option = { value: i, label: siteLabel(state, i), cost: { supply: cost } };
+    // Grouped by region so the form reads like the board: one column each.
+    const option: Option = {
+      value: i,
+      label: site.facedown ? 'Facedown site' : byId(site.id).name,
+      cost: { supply: cost },
+      group: REGION_LABEL[site.region],
+      art: site.facedown ? 'site-back' : site.id,
+    };
     if (player.supply < cost) {
       option.disabled = `costs ${cost} Supply, you have ${player.supply} (Law §5.6.1)`;
     }
@@ -211,6 +242,7 @@ function describeMuster(state: OathState, seat: number): Affordance[] {
   const options: Option[] = targets.map((c) => ({
     value: c.id,
     label: byId(c.id).name,
+    art: c.id, // a faceup card at your site — public
     cost: { supply: 1, favor: 1 },
     ...(reason ? { disabled: reason } : {}),
   }));
@@ -235,7 +267,7 @@ function describeTrade(state: OathState, seat: number): Affordance[] {
     {
       type: 'trade',
       fields: [
-        { name: 'cardId', kind: 'choose-one', options: targets.map((c) => ({ value: c.id, label: byId(c.id).name })) },
+        { name: 'cardId', kind: 'choose-one', options: targets.map((c) => ({ value: c.id, label: byId(c.id).name, art: c.id })) },
         {
           name: 'for',
           kind: 'choose-one',
@@ -278,6 +310,7 @@ function describeRecover(state: OathState, seat: number): Affordance[] {
         value: i,
         label: p.peeked.includes(relicId) ? byId(relicId).name : `Slot ${i}`,
         cost,
+        art: p.peeked.includes(relicId) ? relicId : 'relic-back', // the face only once peeked
       }));
       out.push({
         type: 'recover',
@@ -332,54 +365,56 @@ function describeCardPlay(state: OathState, seat: number): Affordance[] {
   if (p.hand.length === 0) return []; // only mid-Search (Law §5.1.4)
   const site = pawnSiteOf(state, seat);
   const underLimit = p.advisers.length < ADVISER_LIMIT;
-  const out: Affordance[] = [];
 
+  // ONE choice of card and ONE of destination (Ben: one form, keep a card
+  // and discard the rest). A destination legal for only some cards says so
+  // with `requires`, which the composer uses to show only the choices that
+  // fit the chosen card, and which the harness checks both ways.
+  // Discard LAST: it means "keep nothing", not "discard this one" (Ben read
+  // it that way, 2026-10-01: Law §5.1.3 already bins every card not picked).
+  const legal: Record<string, number[]> = { site: [], adviser: [], vision: [], facedown: [], discard: [] };
   p.hand.forEach((cardId, i) => {
     const isVision = cardId.startsWith('vision:');
-    const isConspiracy = cardId === CONSPIRACY_ID;
-    const handField: Field = {
-      name: 'handIndex',
-      kind: 'choose-one',
-      options: [{ value: i, label: byId(cardId).name }], // your OWN hand — id legitimate (oracle table's 'own' row)
-    };
-    const note = restrictionKnown(cardId)
-      ? undefined
-      : `§7.2 restrictions for ${cardId} were never transcribed (D46) — self-policed, offered as-is.`;
-
-    // Entry A: the destinations legal at their default (faceup / no discard).
-    const asOptions: Option[] = [{ value: 'discard', label: 'Discard' }];
-    if (!isVision && !isRestricted(cardId, 'adviser') && site && site.cards.includes(null)) {
-      asOptions.push({ value: 'site', label: `Play to your site (${byId(site.id).name})` });
-    }
-    if (!isVision && !isRestricted(cardId, 'site') && underLimit) {
-      asOptions.push({ value: 'adviser', label: 'Play faceup as an adviser' });
-    }
-    if (isVision && !isConspiracy && p.citizenship === 'exile') {
-      asOptions.push({ value: 'vision', label: 'Reveal on your Vision space' });
-    }
-    out.push({
-      type: 'card.play',
-      fields: [handField, { name: 'as', kind: 'choose-one', options: asOptions }],
-      ...(note ? { note } : {}),
-    });
-
-    // Entry B: a FACEDOWN adviser — legal for any card while under the
-    // limit (§7.2 exempts facedown cards), and the only way to keep a Vision
-    // as an adviser (§5.1.4.3). facedown is fixed true, so no illegal
-    // faceup-Vision combo is ever offered.
-    if (underLimit) {
-      out.push({
-        type: 'card.play',
-        fields: [
-          handField,
-          { name: 'as', kind: 'choose-one', options: [{ value: 'adviser', label: 'Play facedown as an adviser' }] },
-          { name: 'facedown', kind: 'choose-one', options: [{ value: true, label: 'facedown' }] },
-        ],
-        ...(note ? { note } : {}),
-      });
-    }
+    legal.discard.push(i);
+    if (!isVision && !isRestricted(cardId, 'adviser') && site && site.cards.includes(null)) legal.site.push(i);
+    if (!isVision && !isRestricted(cardId, 'site') && underLimit) legal.adviser.push(i);
+    if (isVision && cardId !== CONSPIRACY_ID && p.citizenship === 'exile') legal.vision.push(i);
+    // A FACEDOWN adviser — legal for any card while under the limit (§7.2
+    // exempts facedown cards), and the only way to keep a Vision as an
+    // adviser (§5.1.4.3), via the engine's `as: 'facedown'` shorthand.
+    if (underLimit) legal.facedown.push(i);
   });
-  return out;
+  const labels: Record<string, string> = {
+    discard: 'Keep none: discard all of them',
+    site: site ? `Play to your site (${byId(site.id).name})` : 'Play to your site',
+    adviser: 'Play faceup as an adviser',
+    vision: 'Reveal on your Vision space',
+    facedown: 'Play facedown as an adviser',
+  };
+  const asOptions: Option[] = Object.entries(legal)
+    .filter(([, cards]) => cards.length > 0)
+    .map(([value, cards]) => ({
+      value,
+      label: labels[value],
+      ...(value === 'site' && site ? { art: site.id } : {}), // the site's face: plain WHICH site
+      ...(cards.length < p.hand.length ? { requires: { field: 'handIndex', values: cards } } : {}),
+    }));
+  return [
+    {
+      type: 'card.play',
+      fields: [
+        {
+          name: 'handIndex',
+          label: 'Keep which card (every card you do not pick is discarded)',
+          kind: 'choose-one',
+          // your OWN hand — ids legitimate (oracle table's 'own' row)
+          options: p.hand.map((cardId, i) => ({ value: i, label: byId(cardId).name, art: cardId })),
+        },
+        { name: 'as', label: 'Play it', kind: 'choose-one', options: asOptions },
+      ],
+      note: 'You keep ONE card and play it; every other card you drew is discarded (Law §5.1.3). You may also keep none.',
+    },
+  ];
 }
 
 function describeAdviserPlay(state: OathState, seat: number): Affordance[] {
@@ -397,7 +432,7 @@ function describeAdviserPlay(state: OathState, seat: number): Affordance[] {
     if (canFaceup) asOptions.push({ value: 'faceup', label: 'Play faceup' });
     const note = restrictionKnown(cardId)
       ? undefined
-      : `§7.2 restrictions for ${cardId} were never transcribed (D46) — self-policed, offered as-is.`;
+      : `§7.2 restrictions for ${byId(cardId).name} were never transcribed (D46) — self-policed, offered as-is.`;
     out.push({
       type: 'adviser.play',
       fields: [
@@ -461,8 +496,8 @@ function describeWarbandsMove(state: OathState, seat: number): Affordance[] {
         out.push({
           type: 'warbands.move',
           fields: [
-            { name: 'direction', kind: 'choose-one', options: [{ value: 'give', label: `Give warbands to seat ${t}` }] },
-            { name: 'target', kind: 'choose-one', options: [{ value: t, label: `seat ${t}` }] },
+            { name: 'direction', kind: 'choose-one', options: [{ value: 'give', label: `Give warbands to the ${seatTitle(state.players, t)}` }] },
+            { name: 'target', kind: 'choose-one', options: [{ value: t, label: seatTitle(state.players, t) }] },
             { name: 'count', kind: 'count', min: 1, max: board, deferred: true },
           ],
           note: `needs seat 's permission (Law §6.5)`,
@@ -472,11 +507,11 @@ function describeWarbandsMove(state: OathState, seat: number): Affordance[] {
         out.push({
           type: 'warbands.move',
           fields: [
-            { name: 'direction', kind: 'choose-one', options: [{ value: 'take', label: `Take warbands from seat ${t}` }] },
-            { name: 'target', kind: 'choose-one', options: [{ value: t, label: `seat ${t}` }] },
+            { name: 'direction', kind: 'choose-one', options: [{ value: 'take', label: `Take warbands from the ${seatTitle(state.players, t)}` }] },
+            { name: 'target', kind: 'choose-one', options: [{ value: t, label: seatTitle(state.players, t) }] },
             { name: 'count', kind: 'count', min: 1, max: other.warbands.board, deferred: true },
           ],
-          note: `needs seat ${t}'s permission (Law §6.5)`,
+          note: `needs the ${seatTitle(state.players, t)}'s permission (Law §6.5)`,
         });
       }
     });
@@ -536,6 +571,8 @@ function describePeekRelic(state: OathState, seat: number): Affordance[] {
           options: site.relics.map((relicId, i) => ({
             value: i,
             label: peeked.includes(relicId) ? `Slot ${i} (${byId(relicId).name})` : `Slot ${i}`,
+            // The face once you have peeked it (you know it); the back until then.
+            art: peeked.includes(relicId) ? relicId : 'relic-back',
           })),
         },
       ],
@@ -561,6 +598,7 @@ function describePeekReliquary(state: OathState, seat: number): Affordance[] {
           options: covered.map(({ sp, i }) => ({
             value: i,
             label: peeked.includes(sp.relicId!) ? `${sp.modifier} (${byId(sp.relicId!).name})` : `${sp.modifier} space`,
+            art: peeked.includes(sp.relicId!) ? sp.relicId! : 'relic-back',
           })),
         },
       ],
@@ -632,6 +670,13 @@ function describeWakeResolve(state: OathState, seat: number): Affordance[] {
 
 // § Campaign (Law §5.5). declare is a major action (on your turn); the rest
 // resolve a live campaign phase.
+/** Law §11.4, said where the target is chosen: a Plains/Mountain target changes the ATTACK (red) dice. */
+export function siteAttackModifier(siteName: string): string {
+  if (siteName === 'Plains') return ', +1 attack die (Law §11.4)';
+  if (siteName === 'Mountain') return ', −1 attack die (Law §11.4)';
+  return '';
+}
+
 function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
   const p = state.players[seat];
   const site = pawnSiteOf(state, seat);
@@ -663,7 +708,7 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
       // so the site is the only solo-legal target.
       soloTargets.push({
         value: [{ kind: 'site', siteId: attackerSite }],
-        label: `${byId(attackerSite).name} — ${SITE_DEFENSE_DICE} defense die`,
+        label: `${byId(attackerSite).name} — ${SITE_DEFENSE_DICE} defense die${siteAttackModifier(byId(attackerSite).name)}`,
       });
     } else if (pawnHere) {
       // Pawn present but not ruling: the at-your-site targets are solo-legal.
@@ -694,10 +739,10 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
         {
           name: 'defender',
           kind: 'choose-one',
-          options: [{ value: defender, label: defender === 'bandits' ? 'the bandits' : `seat ${defender}` }],
+          options: [{ value: defender, label: defender === 'bandits' ? 'the bandits' : seatTitle(state.players, defender) }],
         },
         { name: 'targets', kind: 'choose-one', options: soloTargets },
-        { name: 'attackDice', kind: 'count', min: 0, max: p.warbands.board },
+        { name: 'attackDice', label: 'attack dice (before any Plains/Mountain change)', kind: 'count', min: 0, max: p.warbands.board },
       ],
       note:
         `Costs ${CAMPAIGN_COST} Supply. The defender's title adds ` +
@@ -730,7 +775,7 @@ function describeCampaignPermit(state: OathState, seat: number): Affordance[] {
         {
           name: 'allies',
           kind: 'choose-many',
-          options: c.allyVolunteers.map((s) => ({ value: s, label: `seat ${s}` })),
+          options: c.allyVolunteers.map((s) => ({ value: s, label: seatTitle(state.players, s) })),
         },
       ],
       note: "Name which volunteers you permit as Allies (Law §5.5.2) — an empty list permits none.",
@@ -761,44 +806,104 @@ function describeCampaignResolve(state: OathState, seat: number): Affordance[] {
   const needed = Math.max(0, defense - swords + 1); // §5.5.5
   const board = state.players[c.attackerSeat].warbands.board;
   const postSkull = board - Math.min(skulls, board); // §5.5.5 kills skulls before the sacrifice
+  const t = battleTotals(state, c)!; // rolled, so never null
+  const note =
+    `Attack ${t.swords} vs defense ${t.defense} (${t.shields} from shields + ${t.force} from the defending ${c.defenderSeat === 'bandits' ? 'bandits' : 'force'}). ` +
+    (skulls ? `${skulls} skull(s) kill your own warbands first. ` : '') +
+    `The attack must be greater to win (Law §5.5.5).`;
   // Legal sacrifice values are exactly 0 (accept the outcome) or `needed`
   // (pay for the win, if the post-skull board can afford it) — never a value
-  // in between (the reducer rejects those), so this is a choose-one, not a
-  // count. The §5.5.7 seizure choices ride the same payload on a win; that
-  // richer block is self-policed (see note), offered here as sacrifice only.
-  const sacrifice: Option[] = [{ value: 0, label: swords > defense ? 'resolve (already victorious)' : 'resolve without sacrificing' }];
-  if (needed > 0 && needed <= postSkull) {
-    sacrifice.push({ value: needed, label: `sacrifice ${needed} warband(s) to become victorious` });
+  // in between. The two outcomes are SEPARATE entries, because only a win
+  // carries the §5.5.7 seizure choices: the attacker knows before submitting
+  // which one they are taking, and a seizure on a loss is refused.
+  if (swords > defense) {
+    return [victoryEntry(state, c, 0, postSkull, 'resolve — you are victorious', note)];
   }
-  return [
-    {
-      type: 'campaign.resolve',
-      fields: [{ name: 'sacrifice', kind: 'choose-one', options: sacrifice }],
-      note:
-        `Attack ${swords} sword(s) vs ${defense} defense (${skulls} skull(s) kill your own first, §5.5.5). ` +
-        `On a win you may also seize (§5.5.7): pass a seize block of placements/banish/burnFavor in the same action.`,
-    },
+  const out: Affordance[] = [
+    { type: 'campaign.resolve', fields: [{ name: 'sacrifice', kind: 'choose-one', options: [{ value: 0, label: 'resolve — you are defeated' }] }], note },
   ];
+  if (needed > 0 && needed <= postSkull) {
+    out.push(victoryEntry(state, c, needed, postSkull - needed, `sacrifice ${needed} warband(s) to become victorious`, note));
+  }
+  return out;
+}
+
+/**
+ * A victorious `campaign.resolve`: the sacrifice fixed, plus the optional
+ * §5.5.7 seizure choices as ordinary fields — place warbands on targeted
+ * sites (up to what is left on the board), and, if their pawn & favor were
+ * targeted, banish their pawn and burn half their favor.
+ */
+function victoryEntry(
+  state: OathState,
+  c: NonNullable<OathState['campaign']>,
+  sacrifice: number,
+  boardLeft: number,
+  label: string,
+  note: string,
+): Affordance {
+  const fields: Field[] = [{ name: 'sacrifice', kind: 'choose-one', options: [{ value: sacrifice, label }] }];
+  const siteTargets = c.targets.filter((t): t is Extract<typeof t, { kind: 'site' }> => t.kind === 'site');
+  if (siteTargets.length > 0 && boardLeft > 0) {
+    fields.push({
+      name: 'place',
+      kind: 'allocate',
+      min: 0,
+      max: boardLeft,
+      options: siteTargets.map((t) => ({ value: { siteId: t.siteId }, label: byId(t.siteId).name, art: t.siteId })),
+    });
+  }
+  if (c.targets.some((t) => t.kind === 'pawnFavor') && typeof c.defenderSeat === 'number') {
+    const defenderAt = state.players[c.defenderSeat].pawnSite;
+    fields.push({
+      name: 'banishTo',
+      kind: 'choose-one',
+      options: [
+        { value: null, label: 'Leave their pawn where it is' },
+        ...state.sites
+          .map((site, i) => ({ site, i }))
+          .filter(({ site }) => site.id !== defenderAt)
+          .map(({ site, i }) => ({
+            value: i,
+            label: site.facedown ? 'Facedown site' : byId(site.id).name,
+            group: REGION_LABEL[site.region],
+            art: site.facedown ? 'site-back' : site.id,
+          })),
+      ],
+    });
+    fields.push({ name: 'burnFavor', kind: 'flag' });
+  }
+  return {
+    type: 'campaign.resolve',
+    fields,
+    note: `${note} Victorious: you may also seize (Law §5.5.7).`,
+  };
 }
 
 function describeCampaignCasualties(state: OathState, seat: number): Affordance[] {
   const c = state.campaign;
-  if (!c || c.phase !== 'casualties' || casualtyChooser(state, c) !== seat) return [];
-  // The kill allocation is a structured choice over the (public) defeated
-  // force and quota — a `free` field the client builds and the engine
-  // validates; the harness skips it, like power.use.
+  if (!c || c.phase !== 'casualties' || casualtyChooser(state, c) !== seat || !c.casualties) return [];
+  const { force, quota } = c.casualties;
+  // The defeated force is public (it was just rolled against): which seat's
+  // warbands, where, how many. Each location is one option, capped at the
+  // warbands actually there; the kills must total exactly the quota.
   return [
     {
       type: 'campaign.casualties',
       fields: [
         {
           name: 'kills',
-          kind: 'free',
-          schema:
-            'Array<{ kind: "site", siteId, seat, count } | { kind: "board", seat, count }> summing to the quota, drawn from campaign.casualties.force',
+          kind: 'allocate',
+          min: quota,
+          max: quota,
+          options: force.map((e) => ({
+            value: e.kind === 'site' ? { kind: 'site', siteId: e.siteId, seat: e.seat } : { kind: 'board', seat: e.seat },
+            label: `the ${seatTitle(state.players, e.seat)}'s warbands ${e.kind === 'site' ? `at ${byId(e.siteId).name}` : 'on their board'} (${e.count})`,
+            max: e.count,
+          })),
         },
       ],
-      note: `Allocate exactly ${c.casualties?.quota} kill(s) among the defeated force (Law §5.5.6).`,
+      note: `Kill exactly ${quota} warband(s) among the defeated force (Law §5.5.6).`,
     },
   ];
 }
@@ -823,7 +928,7 @@ function describeCitizenshipOffer(state: OathState, seat: number): Affordance[] 
     {
       type: 'citizenship.offer',
       fields: [
-        { name: 'exile', kind: 'choose-one', options: exiles.map(({ s }) => ({ value: s, label: `seat ${s}` })) },
+        { name: 'exile', kind: 'choose-one', options: exiles.map(({ s }) => ({ value: s, label: seatTitle(state.players, s) })) },
         { name: 'relicId', kind: 'choose-one', options: peekedReliquary.map((id) => ({ value: id, label: byId(id).name })) },
       ],
       note: 'Offer Citizenship with one Reliquary relic (Law §6.6.1). Peek more relics (peek.reliquary) to offer them; give/take negotiation is self-policed.',
@@ -859,7 +964,7 @@ function describeCitizenshipExile(state: OathState, seat: number): Affordance[] 
           kind: 'choose-one',
           options: affordable.map(({ s }) => ({
             value: s,
-            label: `seat ${s}`,
+            label: seatTitle(state.players, s),
             cost: { favor: exileFavorCost(state, seat, s) },
           })),
         },
@@ -902,7 +1007,7 @@ function describeOathkeeperGrant(state: OathState, seat: number): Affordance[] {
   return [
     {
       type: 'oathkeeper.grant',
-      fields: [{ name: 'seat', kind: 'choose-one', options: c.candidates.map((s) => ({ value: s, label: `seat ${s}` })) }],
+      fields: [{ name: 'seat', kind: 'choose-one', options: c.candidates.map((s) => ({ value: s, label: seatTitle(state.players, s) })) }],
       note: 'Choose which qualifying seat takes the Oathkeeper title (Law §2.11).',
     },
   ];

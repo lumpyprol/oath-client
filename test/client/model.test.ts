@@ -73,7 +73,7 @@ describe('inboxModel', () => {
       },
       NOW,
     );
-    expect(m.waitingOnOthers).toEqual([{ seat: 2, label: 'resolving their Wake Phase' }]);
+    expect(m.waitingOnOthers).toEqual([{ seat: 2, who: 'seat 2', label: 'resolving their Wake Phase' }]);
     // The other seat's prompt text never appears in the summary.
     expect(JSON.stringify(m.waitingOnOthers)).not.toContain('favor');
   });

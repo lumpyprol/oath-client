@@ -135,7 +135,8 @@ router.post('/games/:id/actions', (req, res) => {
   // StaleSeq into the shared error middleware — byte-identical 400/409
   // bodies to a real submit.
   //
-  // WHY THE DISCARDED DICE ARE NOT A RANDOMNESS LEAK: prepare() rolls at
+  // WHY THE DISCARDED DICE WERE NEVER A RANDOMNESS LEAK (and are now not even
+  // returned — see below): prepare() rolls at
   // append time (D14), so a dry run rolls dice that will never be the real
   // ones. Each roll is independent — nothing about a discarded roll
   // constrains the next (no shared PRNG state is persisted; a real submit
@@ -145,6 +146,14 @@ router.post('/games/:id/actions', (req, res) => {
   // result.
   if (req.query.dryRun !== undefined) {
     const { state, seq, speculative } = dryRunAction(def, req.params.id, body.prevSeq, proposed);
+    // A dry run that rolled dice returns NO outcome — no view, pending or
+    // affordances, which would all carry the throwaway roll. Each roll is
+    // independent, so a preview never predicted the real one; but showing it
+    // invites re-checking until a "good" roll appears (Ben, unit 11). The
+    // verdict (accepted) and the names of the dice fields remain.
+    if (speculative.length > 0) {
+      return res.status(200).json({ dryRun: true, seq, rollsDice: true, speculative });
+    }
     return res.status(200).json({
       dryRun: true,
       seq, // the seq this WOULD have been; the log is unchanged
@@ -222,7 +231,38 @@ export function buildBoard(gameId: string, seat: number | null) {
   const { state, seq } = loadState(def, gameId);
   const names: string[] = [];
   for (const { seat: s, name } of playersOf(gameId)) names[s] = name;
-  return { seq, view: def.project(state, seat), names };
+  return {
+    seq,
+    view: def.project(state, seat),
+    names,
+    // P4 unit 11: what this seat may compose — the same affordances the JSON
+    // API serves, for the requesting seat only. A spectator composes nothing.
+    affordances: seat === null ? [] : (def.affordances?.(state, seat) ?? []),
+  };
+}
+
+/**
+ * Submit a composed action (P4 unit 11) through the SAME store path the JSON
+ * API's POST /games/:id/actions uses — `appendAction`, or `dryRunAction` for
+ * a "check this" — so a form can never take a route the API cannot. Throws
+ * the same StaleSeq / IllegalAction; the HTML route decides how to show them.
+ * Returns null if the game does not exist.
+ */
+export function submitComposed(
+  gameId: string,
+  seat: number,
+  action: { prevSeq: number; type: string; payload: unknown; dryRun: boolean },
+) {
+  const found = defFor(gameId);
+  if (!found) return null;
+  const { def } = found;
+  const proposed = { type: action.type, actor: seat, payload: action.payload };
+  if (action.dryRun) {
+    const { state, seq, speculative } = dryRunAction(def, gameId, action.prevSeq, proposed);
+    return { dryRun: true as const, seq, view: def.project(state, seat), speculative };
+  }
+  const { seq } = appendAction(def, gameId, action.prevSeq, proposed);
+  return { dryRun: false as const, seq };
 }
 
 /** Legal shape of every id `pending()` mints: `` `${kind-prefix}:${seat}:${anchor}` ``. */

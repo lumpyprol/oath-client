@@ -6,6 +6,8 @@
  */
 
 import { html, raw, type Raw } from './html.js';
+import { ASSET_VERSION } from './assets.js';
+import { linkLaw } from './law-links.js';
 
 export interface LayoutOptions {
   title: string;
@@ -23,15 +25,16 @@ export function layout(opts: LayoutOptions): string {
       ? html`<span class="seat">seat ${opts.seat}</span>`
       : raw('');
   const bodyOpen = opts.bodyClass ? raw(`<body class="${opts.bodyClass}">`) : raw('<body>');
-  return (
+  // Every "Law §x.y" on the page links to that section of the Law.
+  return linkLaw(
     '<!doctype html>' +
     html`<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${opts.title}</title>
-<link rel="stylesheet" href="/assets/app.css">
-<script src="/assets/app.js" defer></script>
+<link rel="stylesheet" href="/assets/app.css?v=${ASSET_VERSION}">
+<script src="/assets/app.js?v=${ASSET_VERSION}" defer></script>
 </head>
 ${bodyOpen}
 <a class="skip-link" href="#main">Skip to content</a>

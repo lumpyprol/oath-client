@@ -457,6 +457,17 @@ describe('§7.2 restriction banners (unit 19, scoped data — Q12/D46)', () => {
     const s = inHand(plain);
     checkInvariants(act(s, 'card.play', 1, { handIndex: 0, as: 'site' }));
   });
+
+  it('Forgotten Vault (tree) is never offered as a faceup adviser, and the engine refuses it (Ben, 2026-10-01)', () => {
+    expect(restrictionsOf('denizen:forgotten-vault')).toEqual(['site']);
+    const s = inHand('denizen:forgotten-vault');
+    expect(() => act(s, 'card.play', 1, { handIndex: 0, as: 'adviser' })).toThrow(/may only be played to a site/);
+    const as = (oath.affordances!(s, 1) as { type: string; fields: { name: string; options?: { value: unknown }[] }[] }[])
+      .filter((e) => e.type === 'card.play')
+      .flatMap((e) => e.fields.find((f) => f.name === 'as')!.options!.map((o) => o.value));
+    expect(as).not.toContain('adviser');
+    expect(as).toContain('facedown'); // §7.2's preamble: a facedown card has no banner
+  });
 });
 
 describe('Glossary §10.5 — a discarded card\'s tokens (unit 20 rules review)', () => {

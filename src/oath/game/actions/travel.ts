@@ -65,6 +65,24 @@ function travel(state: OathState, action: GameAction): OathState {
     throw new IllegalAction(`travel: costs ${cost} Supply, you have ${player.supply} (Law §5.6.1)`);
   }
 
+  const effects = arrivalEffects(state, siteIndex);
+
+  const next = applyEffects(state, seat, effects);
+  next.players[seat].pawnSite = siteId; // Law §5.6.2
+  next.players[seat].supply -= cost;
+  return next;
+}
+
+/**
+ * Law §5.6.2's arrival at slot `siteIndex`: if the site is facedown, flip it
+ * faceup and resolve its reveal prompt (§2.8.2). Empty for a faceup site.
+ * Shared with Campaign's banish (§5.5.7.3 "make them travel"), which is a
+ * travel too — so a banished pawn reveals a facedown site exactly as a
+ * travelling one does, and never sits on a hidden one.
+ */
+export function arrivalEffects(state: OathState, siteIndex: number): Effect[] {
+  const dest = state.sites[siteIndex];
+  const siteId = dest.id;
   const effects: Effect[] = [];
   if (dest.facedown) {
     // Law §5.6.2 / §2.8.2: flip faceup, then resolve the reveal prompt.
@@ -93,11 +111,7 @@ function travel(state: OathState, action: GameAction): OathState {
       });
     }
   }
-
-  const next = applyEffects(state, seat, effects);
-  next.players[seat].pawnSite = siteId; // Law §5.6.2
-  next.players[seat].supply -= cost;
-  return next;
+  return effects;
 }
 
 export const TRAVEL_HANDLERS: Record<string, Handler> = {

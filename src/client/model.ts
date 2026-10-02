@@ -7,32 +7,10 @@
 
 import type { OathView } from '../oath/game/project.js';
 import { findById } from '../oath/cards/index.js';
-import { EXILE_COLORS } from '../oath/cards/art.js';
-import { attackTotal } from '../oath/game/actions/campaign.js';
+import { seatColors, seatTitle } from '../oath/game/seats.js';
+import type { BattleTotals } from '../oath/game/actions/campaign.js';
 import type { DefenseFace } from '../oath/game/state.js';
 
-/**
- * The shield half of Law §5.5.4's defense total: shields, doubleShields
- * counting 2, then doubled once per shieldX2. Deliberately NOT the whole
- * total — that also adds the defending force, which is server state the view
- * does not carry.
- */
-function shieldTotal(faces: readonly DefenseFace[]): number {
-  const shields = faces.filter((f) => f === 'shield').length;
-  const doubles = faces.filter((f) => f === 'doubleShield').length;
-  const doublings = faces.filter((f) => f === 'shieldX2').length;
-  return (shields + doubles * 2) * 2 ** doublings;
-}
-
-/**
- * Seat → wooden-piece colour. The Chancellor is purple; every other seat
- * (Exile or Citizen) takes an Exile colour in seat order — a Citizen keeps
- * the colour it had as an Exile, so this stays stable as roles change.
- */
-function seatColors(players: { citizenship: string }[]): string[] {
-  let ex = 0;
-  return players.map((p) => (p.citizenship === 'chancellor' ? 'purple' : EXILE_COLORS[ex++] ?? 'red'));
-}
 
 /** A pending decision as the inbox sees it — the engine's fields plus the HTTP layer's `since`/`url`. */
 export interface InboxDecision {
@@ -55,6 +33,8 @@ export interface InboxEntry {
 
 export interface OtherEntry {
   seat: number;
+  /** "the Chancellor", "the Yellow Exile" — or "seat N" when no titles were given. */
+  who: string;
   /** A non-leaky summary of what that seat is being waited on for. */
   label: string;
 }
@@ -112,7 +92,7 @@ function byAgeOldestFirst(a: InboxDecision, b: InboxDecision): number {
 }
 
 export function inboxModel(
-  input: { gameId: string; waitingOnYou: InboxDecision[]; waitingOnOthers: InboxDecision[] },
+  input: { gameId: string; waitingOnYou: InboxDecision[]; waitingOnOthers: InboxDecision[]; seatTitles?: string[] },
   nowMs: number,
 ): InboxModel {
   const mine = [...input.waitingOnYou].sort(byAgeOldestFirst);
@@ -126,7 +106,11 @@ export function inboxModel(
       age: humanizeAge(d.since, nowMs),
     })),
     // Summarised by kind so a rival's composable specifics never appear.
-    waitingOnOthers: others.map((d) => ({ seat: d.seat, label: otherLabel(d.kind) })),
+    waitingOnOthers: others.map((d) => ({
+      seat: d.seat,
+      who: input.seatTitles?.[d.seat] ? `the ${input.seatTitles[d.seat]}` : `seat ${d.seat}`,
+      label: otherLabel(d.kind),
+    })),
     boardUrl: `/games/${input.gameId}`,
     historyUrl: `/games/${input.gameId}/history`,
   };
@@ -144,6 +128,12 @@ export function inboxModel(
 export interface FaceModel {
   artKey: string;
   name: string;
+  /**
+   * A Vision: its art is stored portrait with the text running sideways, but
+   * the card is played landscape on the Revealed Vision space — so it is
+   * drawn turned a quarter (unit 11, Ben).
+   */
+  landscape?: boolean;
 }
 
 /** One denizen/edifice slot at a site. */
@@ -165,9 +155,9 @@ export interface SiteModel {
   cards: SiteCard[];
   relics: RelicSlot[];
   /** Warbands present, by seat (with colour), only where non-zero. */
-  warbands: { seat: number; color: string; count: number }[];
+  warbands: { seat: number; color: string; title: string; count: number }[];
   /** Pawns standing at this site, by seat. */
-  pawns: { seat: number; color: string }[];
+  pawns: { seat: number; color: string; title: string }[];
 }
 
 export interface RegionModel {
@@ -179,6 +169,12 @@ export interface RegionModel {
 export interface AdviserModel {
   kind: 'face' | 'back';
   face?: FaceModel;
+  /**
+   * Facedown on the table. Your OWN facedown advisers still carry their face
+   * (project() reveals them to you), but are drawn as a back like everyone
+   * else sees them, with the face on hover — so you can tell which are down.
+   */
+  facedown: boolean;
   favor: number;
   secrets: number;
 }
@@ -186,6 +182,8 @@ export interface AdviserModel {
 export interface PlayerAreaModel {
   seat: number;
   name: string;
+  /** How the table names this seat: "Chancellor", "Yellow Exile", "Blue Citizen". */
+  title: string;
   /** Seat colour (wooden pieces + board), e.g. "red". */
   color: string;
   isYou: boolean;
@@ -218,6 +216,8 @@ export interface CampaignModel {
   defender: string; // seat number as text, or "bandits"
   targets: string[]; // human target descriptions, no hidden ids
   attackDice: number;
+  /** Why the attack pool is not what was chosen, e.g. "3 chosen, −1 Mountain" (Law §11.4); null when unchanged. */
+  attackDiceWhy: string | null;
   defenseDice: number;
   /** Which window the campaign is in (Law §5.5): join, permit, respond, rolled, casualties. */
   phase: string;
@@ -229,12 +229,11 @@ export interface CampaignModel {
   attackFaces: string[];
   defenseFaces: string[];
   /**
-   * What the faces alone say (§5.5.5/§5.5.4), or null before the roll. The
-   * DEFENSE total also adds the defending force, which lives in server state
-   * the view does not carry — so this reports the shield contribution only,
-   * and never pretends to be the final number.
+   * Both sides' totals once rolled (null before), as the ENGINE computed
+   * them (§5.5.4/§5.5.5) — shields plus the defending force for defense —
+   * so the page shows the real numbers and adds nothing up itself.
    */
-  totals: { swords: number; skulls: number; shields: number } | null;
+  battle: BattleTotals | null;
   /** A pending §5.5.6 casualty allocation: how many warbands must be killed. */
   casualtyQuota: number | null;
 }
@@ -253,6 +252,8 @@ export interface BoardModel {
   visionsDrawn: number;
   complete: boolean;
   winner: number | null;
+  /** How the table names each seat: "Chancellor", "Yellow Exile", "Blue Citizen" (seats.ts). */
+  seatTitles: string[];
   regions: RegionModel[];
   players: PlayerAreaModel[];
   favorBanks: { suit: string; label: string; favor: number }[];
@@ -271,6 +272,8 @@ export interface BoardModel {
   warbandRequest: { seat: number; approver: number; direction: string; count: number } | null;
   inboxUrl: string;
   historyUrl: string;
+  /** The cards YOUR Search drew (Law §5.1), awaiting keep/discard — empty otherwise, and always empty for others. */
+  hand: FaceModel[];
 }
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -293,13 +296,14 @@ function nameOfId(id: string): string {
 }
 
 function faceOf(id: string, artKey = id): FaceModel {
-  return { artKey, name: nameOfId(id) };
+  return id.startsWith('vision:') ? { artKey, name: nameOfId(id), landscape: true } : { artKey, name: nameOfId(id) };
 }
 
 function siteModel(
   s: OathView['sites'][number],
-  pawns: { seat: number; color: string }[],
+  pawns: { seat: number; color: string; title: string }[],
   colors: string[],
+  titles: string[],
 ): SiteModel {
   return {
     name: s.id !== null ? nameOfId(s.id) : '(unrevealed)',
@@ -315,7 +319,7 @@ function siteModel(
     }),
     relics: s.relics.map((r): RelicSlot => (r.id !== null ? { kind: 'face', face: faceOf(r.id) } : { kind: 'back' })),
     warbands: s.warbands
-      .map((count, seat) => ({ seat, color: colors[seat] ?? 'red', count }))
+      .map((count, seat) => ({ seat, color: colors[seat] ?? 'red', title: titles[seat] ?? `seat ${seat}`, count }))
       .filter((w) => w.count > 0),
     pawns,
   };
@@ -331,6 +335,7 @@ function playerAreaModel(
     usurper: boolean;
     activeSeat: number;
     color: string;
+    title: string;
     siteName: (id: string) => string;
   },
 ): PlayerAreaModel {
@@ -339,6 +344,7 @@ function playerAreaModel(
   return {
     seat,
     name: meta.names[seat] ?? `seat ${seat}`,
+    title: meta.title,
     color: meta.color,
     isYou: seat === meta.you,
     active: seat === meta.activeSeat,
@@ -347,8 +353,8 @@ function playerAreaModel(
     pawnSite: p.pawnSite !== null ? meta.siteName(p.pawnSite) : null,
     advisers: p.advisers.map((a): AdviserModel =>
       a.id !== null
-        ? { kind: 'face', face: faceOf(a.id), favor: a.favor, secrets: a.secrets }
-        : { kind: 'back', favor: a.favor, secrets: a.secrets },
+        ? { kind: 'face', face: faceOf(a.id), facedown: a.facedown, favor: a.favor, secrets: a.secrets }
+        : { kind: 'back', facedown: true, favor: a.favor, secrets: a.secrets },
     ),
     vision: p.vision !== null ? faceOf(p.vision) : null,
     favor: p.favor,
@@ -369,13 +375,14 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   for (const s of view.sites) if (s.id !== null) siteNameById.set(s.id, nameOfId(s.id));
   const siteName = (id: string) => siteNameById.get(id) ?? '(unrevealed)';
   const colors = seatColors(view.players);
+  const titles = view.players.map((_, seat) => seatTitle(view.players, seat));
 
   // Which seats' pawns stand at each site (pawnSite is a site id, public).
-  const pawnsBySite = new Map<string, { seat: number; color: string }[]>();
+  const pawnsBySite = new Map<string, { seat: number; color: string; title: string }[]>();
   view.players.forEach((p, seat) => {
     if (p.pawnSite === null) return;
     const list = pawnsBySite.get(p.pawnSite) ?? [];
-    list.push({ seat, color: colors[seat] ?? 'red' });
+    list.push({ seat, color: colors[seat] ?? 'red', title: titles[seat] });
     pawnsBySite.set(p.pawnSite, list);
   });
 
@@ -383,7 +390,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   for (const region of ['cradle', 'provinces', 'hinterland']) {
     const sites = view.sites
       .filter((s) => s.region === region)
-      .map((s) => siteModel(s, s.id !== null ? (pawnsBySite.get(s.id) ?? []) : [], colors));
+      .map((s) => siteModel(s, s.id !== null ? (pawnsBySite.get(s.id) ?? []) : [], colors, titles));
     byRegion.push({ region, label: cap(region), sites });
   }
 
@@ -395,6 +402,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
       usurper: view.usurper,
       activeSeat: view.turn.activeSeat,
       color: colors[seat] ?? 'red',
+      title: titles[seat],
       siteName,
     }),
   );
@@ -402,7 +410,7 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
   const campaign: CampaignModel | null = view.campaign
     ? {
         attacker: view.campaign.attackerSeat,
-        defender: view.campaign.defenderSeat === 'bandits' ? 'bandits' : `seat ${view.campaign.defenderSeat}`,
+        defender: view.campaign.defenderSeat === 'bandits' ? 'the bandits' : seatTitle(view.players, view.campaign.defenderSeat),
         targets: view.campaign.targets.map((t) => {
           switch (t.kind) {
             case 'site':
@@ -418,21 +426,26 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
           }
         }),
         attackDice: view.campaign.attackDice,
+        attackDiceWhy:
+          view.campaign.attackDiceChosen !== undefined && view.campaign.attackDiceChanges?.length
+            ? `${view.campaign.attackDiceChosen} chosen, ${view.campaign.attackDiceChanges.join(', ')}`
+            : null,
         defenseDice: view.campaign.defenseDice,
         phase: view.campaign.phase,
         attackFaces: [...(view.campaign.attackFaces ?? [])],
         defenseFaces: [...(view.campaign.defenseFaces ?? [])],
-        totals: view.campaign.attackFaces && view.campaign.defenseFaces
-          ? {
-              ...attackTotal(view.campaign.attackFaces),
-              shields: shieldTotal(view.campaign.defenseFaces),
-            }
-          : null,
+        battle: view.campaign.battle,
         casualtyQuota: view.campaign.casualties?.quota ?? null,
       }
     : null;
 
+  // project() hands a seat its own Search hand as ids, everyone else a count.
+  const ownHand = meta.seat === null ? undefined : view.players[meta.seat]?.hand;
+  const hand = Array.isArray(ownHand) ? ownHand.map((id) => faceOf(id)) : [];
+
   return {
+    hand,
+    seatTitles: titles,
     gameId: meta.gameId,
     seat: meta.seat,
     spectator: meta.seat === null,
@@ -487,4 +500,30 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
     inboxUrl: '/',
     historyUrl: `/games/${meta.gameId}/history`,
   };
+}
+
+/**
+ * The seat's own resources that a dry run would change (unit 11): a diff of
+ * the seat's player area between the board as it is and the board as the
+ * dry run would leave it — both built from the SAME projected view the page
+ * shows, so the preview can say nothing the board could not.
+ */
+export function ownChanges(before: BoardModel, after: BoardModel, seat: number): { what: string; before: string; after: string }[] {
+  const a = before.players.find((p) => p.seat === seat);
+  const b = after.players.find((p) => p.seat === seat);
+  if (!a || !b) return [];
+  const rows: [string, (p: PlayerAreaModel) => string | number | null][] = [
+    ['Favor', (p) => p.favor],
+    ['Secrets (ready)', (p) => p.secretsReady],
+    ['Secrets (flipped)', (p) => p.secretsFlipped],
+    ['Supply', (p) => p.supply],
+    ['Warbands on your board', (p) => p.warbandsBoard],
+    ['Warbands in your supply', (p) => p.warbandsBank],
+    ['Pawn at', (p) => p.pawnSite],
+    ['Advisers', (p) => p.advisers.length],
+    ['Relics', (p) => p.relics.length],
+  ];
+  return rows
+    .map(([what, get]) => ({ what, before: String(get(a) ?? '—'), after: String(get(b) ?? '—') }))
+    .filter((r) => r.before !== r.after);
 }

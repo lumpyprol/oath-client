@@ -28,7 +28,7 @@ export function inboxPage(model: InboxModel, meta: { seat: number; gameId: strin
       : html`<section class="others">
           <h2>Waiting on others</h2>
           <ul>
-            ${model.waitingOnOthers.map((o) => html`<li>seat ${o.seat} — ${o.label}</li>`)}
+            ${model.waitingOnOthers.map((o) => html`<li>${o.who[0].toUpperCase()}${o.who.slice(1)} — ${o.label}</li>`)}
           </ul>
         </section>`;
 

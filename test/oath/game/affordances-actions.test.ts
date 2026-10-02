@@ -67,7 +67,7 @@ describe('the §7.2-restriction-unknown note (D46) is gone: every card has been 
 });
 
 describe('card.play mid-Search', () => {
-  it('offers a destination per drawn card and the harness accepts every offer', () => {
+  it('offers one card choice and the destinations each card allows, and the harness accepts every offer', () => {
     const s = baseState(); // seat 1 active
     // A denizen and a Vision, so both the site/adviser and vision/facedown
     // branches are exercised. Pull from the deck to keep ids unique.
@@ -85,17 +85,16 @@ describe('card.play mid-Search', () => {
     // Mid-Search the 'play' decision resolves only card.play; the sole other
     // offer is the universal standing.set (P4 unit 6).
     expect(new Set(all.map((e) => e.type))).toEqual(new Set(['card.play', 'standing.set']));
+    // ONE entry: choose the card, then a destination; a destination that fits
+    // only some cards says which via `requires` (Ben: one form, 2026-10-01).
     const entries = all.filter((e) => e.type === 'card.play');
-    const asOptionsForDenizen = entries
-      .filter((e) => (e.fields[0] as any).options[0].value === 0)
-      .flatMap((e) => ((e.fields[1] as any).options as { value: string }[]).map((o) => o.value));
-    expect(asOptionsForDenizen).toContain('discard');
+    expect(entries).toHaveLength(1);
+    const as = (entries[0].fields[1] as any).options as { value: string; requires?: { field: string; values: number[] } }[];
+    const fitsCard = (i: number) => as.filter((o) => !o.requires || o.requires.values.includes(i)).map((o) => o.value);
+    expect(fitsCard(0)).toContain('discard');
     if (vision) {
-      const asForVision = entries
-        .filter((e) => (e.fields[0] as any).options[0].value === 1)
-        .flatMap((e) => ((e.fields[1] as any).options as { value: string }[]).map((o) => o.value));
-      expect(asForVision).toContain('vision'); // Exile reveal
-      expect(asForVision).not.toContain('site'); // a Vision cannot go to a site
+      expect(fitsCard(1)).toContain('vision'); // Exile reveal
+      expect(fitsCard(1)).not.toContain('site'); // a Vision cannot go to a site
     }
     expect(auditAffordances(s, 1)).toEqual([]);
   });

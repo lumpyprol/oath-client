@@ -231,6 +231,10 @@ describe('dry run — speculative dice, and seq integrity', () => {
     // ones, named so the client renders them as such.
     expect(r.body.speculative).toContain('attackFaces');
     expect(r.body.speculative).toContain('defenseFaces');
+    // ...but no outcome is returned: nothing that carries the throwaway roll,
+    // so a dry run cannot be re-checked until a "good" roll shows (unit 11).
+    expect(r.body).toEqual({ dryRun: true, seq: ctx.seq + 1, rollsDice: true, speculative: expect.any(Array) });
+    expect(JSON.stringify(r.body)).not.toMatch(/sword|shield|skull|Faces"\s*:\s*\[/);
     expect(dbSnapshot(ctx.gameId)).toEqual(before); // the roll left no trace
   });
 

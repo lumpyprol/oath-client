@@ -95,11 +95,11 @@ function sessionCookieFrom(setCookie: string | string[] | undefined): string {
 }
 
 describe('join links (Q16: token in the URL)', () => {
-  it('sets a correctly-flagged session cookie, 303s to /, no-store, and never echoes the token', async () => {
+  it('sets a correctly-flagged session cookie, 303s to the board, no-store, and never echoes the token', async () => {
     const { gameId, tokens } = await newGame();
     const r = await raw('GET', `/join/${tokens[1]}`);
     expect(r.status).toBe(303);
-    expect(r.headers.location).toBe('/');
+    expect(r.headers.location).toBe(`/games/${gameId}`);
     expect(r.headers['cache-control']).toBe('no-store');
     const setCookie = Array.isArray(r.headers['set-cookie']) ? r.headers['set-cookie'][0] : r.headers['set-cookie'];
     expect(setCookie).toContain('oath_session=');

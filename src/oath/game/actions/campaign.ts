@@ -242,6 +242,7 @@ import {
 } from '../state.js';
 import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 import { consultStanding } from '../standing.js';
+import { arrivalEffects } from './travel.js';
 
 export const CAMPAIGN_COST = 2; // Supply (Law §5.5.1)
 export const PAWN_FAVOR_DICE = 2; // Law §5.5.2 (fixed, "as shown by the shield on their board")
@@ -518,6 +519,7 @@ function computeDeclaration(state: OathState, attackerSeat: number, payload: unk
   // Law §11.4: mandatory, keyed on site identity alone — not a card power.
   const dieModifier = (targetsPlains ? 1 : 0) - (targetsMountain ? 1 : 0);
   const finalAttackDice = Math.max(0, attackDice + dieModifier);
+  const changes = [...(targetsPlains ? ['+1 Plains'] : []), ...(targetsMountain ? ['−1 Mountain'] : [])];
 
   return {
     defender,
@@ -525,6 +527,7 @@ function computeDeclaration(state: OathState, attackerSeat: number, payload: unk
       t.kind === 'banner' ? { kind: 'banner' as const, bannerId: bannerFullId(t.bannerId) } : t,
     ) as CampaignState['targets'],
     attackDice: finalAttackDice,
+    ...(changes.length ? { attackDiceChosen: attackDice, attackDiceChanges: changes } : {}),
     defenseDice,
     allies: mandatoryAllies(state, attackerSeat, defender), // Law §5.5.2
   };
@@ -540,6 +543,7 @@ function declare(state: OathState, action: GameAction): OathState {
     defenderSeat: decl.defender,
     targets: decl.targets,
     attackDice: decl.attackDice,
+    ...(decl.attackDiceChosen !== undefined ? { attackDiceChosen: decl.attackDiceChosen, attackDiceChanges: decl.attackDiceChanges } : {}),
     defenseDice: decl.defenseDice,
     // D51: against bandits there is no window of any kind, so THIS action
     // closed it and carries the faces its own `prepare()` rolled.
@@ -916,6 +920,12 @@ function forceTotal(force: ForceEntry[]): number {
 
 /** Law §5.5.4's full defense-total arithmetic, from the persisted faces + the force. */
 export function defenseTotal(state: OathState, c: CampaignState, force: ForceEntry[]): number {
+  const { shields, force: bonus } = defenseParts(state, c, force);
+  return shields + bonus;
+}
+
+/** §5.5.4's defense, in its two parts: what the dice show, and what the defending force adds. */
+function defenseParts(state: OathState, c: CampaignState, force: ForceEntry[]): { shields: number; force: number } {
   const shields = c.defenseFaces!.filter((f) => f === 'shield').length;
   const doubleShields = c.defenseFaces!.filter((f) => f === 'doubleShield').length;
   const doublings = c.defenseFaces!.filter((f) => f === 'shieldX2').length;
@@ -928,7 +938,33 @@ export function defenseTotal(state: OathState, c: CampaignState, force: ForceEnt
       ? c.targets.filter((t) => t.kind === 'site').length
       : forceTotal(force);
 
-  return shieldTotal + forceBonus;
+  return { shields: shieldTotal, force: forceBonus };
+}
+
+/** Both sides of a rolled battle, as the Law totals them (§5.5.4, §5.5.5). */
+export interface BattleTotals {
+  /** Attack: swords rolled (a skull counts 2, two hollow swords count 1). */
+  swords: number;
+  /** Skulls rolled — each kills one of the attacker's own warbands first. */
+  skulls: number;
+  /** Defense from the dice (shields, doubled per ×2). */
+  shields: number;
+  /** Defense from the defending force (its warbands, or the bandits). */
+  force: number;
+  defense: number;
+}
+
+/**
+ * The battle's totals once the dice are rolled, or null before. Computed
+ * HERE, by the same functions `campaign.resolve` uses, and shipped in the
+ * view — so a client shows the real totals and never re-adds them itself.
+ * Every input is public: the faces, and warbands on the board.
+ */
+export function battleTotals(state: OathState, c: CampaignState): BattleTotals | null {
+  if (!c.attackFaces || !c.defenseFaces) return null;
+  const { swords, skulls } = attackTotal(c.attackFaces);
+  const parts = defenseParts(state, c, defendingForce(state, c));
+  return { swords, skulls, shields: parts.shields, force: parts.force, defense: parts.shields + parts.force };
 }
 
 /** Glossary "Kill": to the personal bank of the matching colour (purple -> the Chancellor). */
@@ -1147,7 +1183,27 @@ const SeizeChoicesSchema = z.object({
 const ResolvePayloadSchema = z.object({
   sacrifice: z.number().int().min(0).default(0),
   seize: SeizeChoicesSchema.optional(),
+  // P4 unit 11: the same seizure choices as FLAT fields, so a form can carry
+  // them (one field per choice — affordances describe top-level fields). The
+  // nested `seize` block stays accepted, so every logged game still replays.
+  place: z.array(z.object({ siteId: z.string(), count: z.number().int().positive() })).optional(),
+  banishTo: z.number().int().min(0).nullable().optional(),
+  burnFavor: z.boolean().optional(),
 });
+
+/** The seizure choices from either form of the payload (never both). */
+function seizeFrom(p: z.infer<typeof ResolvePayloadSchema>): z.infer<typeof SeizeChoicesSchema> | undefined {
+  const flat = p.place !== undefined || p.banishTo !== undefined || p.burnFavor !== undefined;
+  if (flat && p.seize) {
+    throw new IllegalAction('campaign.resolve: give the seizure choices either as a seize block or as fields, not both');
+  }
+  if (!flat) return p.seize;
+  return {
+    placements: (p.place ?? []).map((x) => ({ siteId: x.siteId, warbands: x.count })),
+    ...(p.banishTo !== undefined && p.banishTo !== null ? { banishTo: p.banishTo } : {}),
+    burnFavor: p.burnFavor ?? false,
+  };
+}
 
 function resolve(state: OathState, action: GameAction): OathState {
   const seat = requireActiveSeat(state, action, { campaignOk: true });
@@ -1160,7 +1216,7 @@ function resolve(state: OathState, action: GameAction): OathState {
   }
   const parsed = ResolvePayloadSchema.safeParse(action.payload);
   if (!parsed.success) throw new IllegalAction('campaign.resolve: malformed payload');
-  const seizeChoices = parsed.data.seize;
+  const seizeChoices = seizeFrom(parsed.data);
 
   const { swords, skulls } = attackTotal(c.attackFaces!);
   // Both computed from the ORIGINAL (pre-battle) state: the defending force
@@ -1209,7 +1265,16 @@ function resolve(state: OathState, action: GameAction): OathState {
     // campaign until the allocation lands (P3 unit 4; see `CampaignState.seize`).
     working.campaign!.phase = 'casualties';
     working.campaign!.casualties = { force, quota };
-    if (seizeChoices) working.campaign!.seize = seizeChoices;
+    if (seizeChoices) {
+      // Validate the choices NOW, against a throwaway clone, rather than
+      // only when the allocation lands: a bad banish slot or too many
+      // placements stashed here would make every `campaign.casualties` throw
+      // and leave the game stuck. Nothing the casualties do can change the
+      // verdict — they only kill the DEFENDING force, and every check is
+      // about the attacker's board and the campaign's own targets.
+      applySeizure(structuredClone(working), c, seizeChoices);
+      working.campaign!.seize = seizeChoices;
+    }
     return working;
   }
 
@@ -1358,6 +1423,8 @@ function applySeizure(
     }
   }
   if (banishSite) {
+    // §5.5.7.3 "make them travel": arriving reveals a facedown site (§5.6.2).
+    working = applyEffects(working, seat, arrivalEffects(working, banishTo!));
     working.players[defenderSeat].pawnSite = banishSite.id;
   }
 

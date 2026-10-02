@@ -19,6 +19,10 @@
  *     message that relates to the stated reason;
  *   - for a `count` field, asserts `max` is accepted and `max + 1` refused;
  *   - for a `flag`, asserts both values are accepted;
+ *   - for an `allocate`, asserts the least and the greatest legal total are
+ *     accepted, that every option can carry part of a legal allocation,
+ *     that one past the total's max is refused, and that an unlisted
+ *     option is refused;
  *   - folds a sample of values NOT offered and asserts they are refused
  *     (the negative direction — an honest option list is also a COMPLETE
  *     one for the values it claims to bound);
@@ -67,7 +71,8 @@ function foldError(state: OathState, seat: number, type: string, payload: Record
 function baselineValue(field: Field): unknown {
   switch (field.kind) {
     case 'choose-one': {
-      const legal = field.options.find((o) => !o.disabled);
+      // Prefer an option legal on its own — one with no `requires` on another field.
+      const legal = field.options.find((o) => !o.disabled && !o.requires) ?? field.options.find((o) => !o.disabled);
       return legal ? legal.value : undefined;
     }
     case 'choose-many':
@@ -78,10 +83,37 @@ function baselineValue(field: Field): unknown {
       return false;
     case 'free':
       return undefined; // cannot synthesize a declared-power payload here
+    case 'allocate':
+      return allocation(field, field.min);
   }
 }
 
-function baselinePayload(fields: Field[], except?: string): Record<string, unknown> {
+/** An option's share of an allocation, as the payload carries it. */
+function share(value: unknown, count: number): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? { ...value, count } : { value, count };
+}
+
+/**
+ * Fill an allocate field to `total`, greedily in option order (each option
+ * up to its own cap), optionally starting with `first`. Null when the
+ * options cannot hold that many.
+ */
+export function allocation(field: Extract<Field, { kind: 'allocate' }>, total: number, first?: number): Record<string, unknown>[] | null {
+  const order = field.options.map((_, i) => i).filter((i) => !field.options[i].disabled);
+  if (first !== undefined) order.sort((a, b) => (a === first ? -1 : b === first ? 1 : 0));
+  const out: Record<string, unknown>[] = [];
+  let left = total;
+  for (const i of order) {
+    if (left === 0) break;
+    const o = field.options[i];
+    const n = Math.min(left, o.max ?? left);
+    if (n > 0) out.push(share(o.value, n));
+    left -= n;
+  }
+  return left === 0 ? out : null;
+}
+
+export function baselinePayload(fields: Field[], except?: string): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
   for (const f of fields) {
     if (f.name === except) continue;
@@ -134,6 +166,27 @@ export function auditAffordances(
       if (field.kind === 'choose-one' || field.kind === 'choose-many') {
         for (const opt of field.options) {
           const value = field.kind === 'choose-many' ? [opt.value] : opt.value;
+          if (opt.requires) {
+            // A dependent option: accepted with EVERY value it lists for the
+            // other field, refused with every other option of that field.
+            const other = entry.fields.find((f) => f.name === opt.requires!.field);
+            if (!other || other.kind !== 'choose-one') {
+              violations.push(`${where}.${field.name}=${label(opt)}: requires ${opt.requires.field}, which is not a choose-one field of the entry`);
+              continue;
+            }
+            const listed = new Set(opt.requires.values.map((v) => JSON.stringify(v)));
+            for (const o of other.options) {
+              const payload = { ...baselinePayload(entry.fields, field.name), [field.name]: value, [other.name]: o.value };
+              const err = foldError(state, seat, entry.type, payload);
+              if (listed.has(JSON.stringify(o.value)) && err !== null) {
+                violations.push(`${where}.${field.name}=${label(opt)} with ${other.name}=${label(o)}: listed as allowed but reduce refused it: ${err}`);
+              }
+              if (!listed.has(JSON.stringify(o.value)) && err === null) {
+                violations.push(`${where}.${field.name}=${label(opt)} with ${other.name}=${label(o)}: not listed, but reduce ACCEPTED it`);
+              }
+            }
+            continue;
+          }
           const payload = { ...baselinePayload(entry.fields, field.name), [field.name]: value };
           const err = foldError(state, seat, entry.type, payload);
           if (opt.disabled) {
@@ -167,6 +220,32 @@ export function auditAffordances(
           if (foldError(state, seat, entry.type, overMax) === null) {
             violations.push(`${where}.${field.name}: max+1 (${field.max + 1}) was ACCEPTED by reduce`);
           }
+        }
+      } else if (field.kind === 'allocate') {
+        const fold = (value: unknown) => foldError(state, seat, entry.type, { ...baselinePayload(entry.fields, field.name), [field.name]: value });
+        for (const [what, total] of [['min', field.min], ['max', field.max]] as const) {
+          const value = allocation(field, total);
+          if (value === null) violations.push(`${where}.${field.name}: its options cannot hold the ${what} total (${total})`);
+          else {
+            const err = fold(value);
+            if (err !== null) violations.push(`${where}.${field.name}: the ${what} total (${total}) was refused: ${err}`);
+          }
+        }
+        // Every option must be usable: a legal allocation that leads with it.
+        field.options.forEach((o, i) => {
+          if (o.disabled) return;
+          const value = allocation(field, Math.max(field.min, 1), i);
+          if (value === null) return;
+          const err = fold(value);
+          if (err !== null) violations.push(`${where}.${field.name}=${label(o)}: offered, but an allocation using it was refused: ${err}`);
+        });
+        const over = allocation(field, field.max + 1);
+        if (over !== null && fold(over) === null) {
+          violations.push(`${where}.${field.name}: one past the max total (${field.max + 1}) was ACCEPTED by reduce`);
+        }
+        const base = allocation(field, field.min) ?? [];
+        if (fold([...base, share('not-a-real-value', 1)]) === null) {
+          violations.push(`${where}.${field.name}: an unlisted option was ACCEPTED by reduce`);
         }
       } else if (field.kind === 'flag') {
         for (const value of [true, false]) {

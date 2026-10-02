@@ -8,14 +8,18 @@
  */
 
 import express from 'express';
-import { isAdmin, buildInbox, buildBoard } from './routes.js';
+import { isAdmin, buildInbox, buildBoard, submitComposed } from './routes.js';
 import { oath } from './oath/game/index.js';
 import { createGame, playerByToken } from './actionlog.js';
 import { sessionFromRequest, setCookieHeader } from './session.js';
-import { APP_CSS, APP_JS } from './client/assets.js';
-import { inboxModel, boardModel } from './client/model.js';
+import { APP_CSS, APP_JS, ASSET_VERSION } from './client/assets.js';
+import { inboxModel, boardModel, ownChanges } from './client/model.js';
 import { inboxPage } from './client/pages/inbox.js';
-import { boardPage } from './client/pages/board.js';
+import { boardPage, type ComposeView } from './client/pages/board.js';
+import { decodeSubmission, reconcile, typeLabel, DecodeError, type RawBody, type Submission } from './client/composer.js';
+import type { Affordance } from './oath/game/affordances.js';
+import { seatTitle } from './oath/game/seats.js';
+import { IllegalAction, StaleSeq } from './engine/types.js';
 import type { OathView } from './oath/game/project.js';
 import { ART_DIR, servableArtFiles, SITE_BACK_FILE } from './oath/cards/art.js';
 import { existsSync } from 'node:fs';
@@ -67,12 +71,17 @@ export const webRouter = express.Router();
 
 // ---- static assets (the shell's CSS and one PE script) ---------------------
 
-webRouter.get('/assets/app.css', (_req, res) => {
-  res.type('css').setHeader('Cache-Control', 'public, max-age=3600');
+// Pages link these as `?v=<ASSET_VERSION>`: the current version is cached
+// for good (its URL changes with its content); any other URL — unversioned
+// or an old version — must be revalidated, so it can never go stale.
+const assetCache = (req: express.Request): string =>
+  req.query.v === ASSET_VERSION ? 'public, max-age=31536000, immutable' : 'no-cache';
+webRouter.get('/assets/app.css', (req, res) => {
+  res.type('css').setHeader('Cache-Control', assetCache(req));
   res.send(APP_CSS);
 });
-webRouter.get('/assets/app.js', (_req, res) => {
-  res.type('js').setHeader('Cache-Control', 'public, max-age=3600');
+webRouter.get('/assets/app.js', (req, res) => {
+  res.type('js').setHeader('Cache-Control', assetCache(req));
   res.send(APP_JS);
 });
 
@@ -86,8 +95,10 @@ webRouter.get('/join/:token', (req, res) => {
     return res.status(404).type('html').send(page('Invalid link', '<p>That join link is not valid.</p>'));
   }
   res.setHeader('Set-Cookie', setCookieHeader({ gameId: p.game_id, seat: p.seat }, isSecure(req)));
-  // 303 to the app root; the token never survives into the redirect target.
-  res.redirect(303, safeNext(req.query.next));
+  // 303 to the board (or a safe `next`); the token never survives into the
+  // redirect target. The board, not the inbox: a join link is how a player
+  // opens the game, and the board is where they act.
+  res.redirect(303, req.query.next === undefined ? `/games/${p.game_id}` : safeNext(req.query.next));
 });
 
 // ---- /signin — the fallback for a signed-out deep link ----------------------
@@ -132,14 +143,69 @@ webRouter.get('/', (req, res) => {
   if (!inbox) {
     return res.status(404).type('html').send(page('Not found', '<p>That game no longer exists.</p>'));
   }
+  // Name the other seats the way the table does ("the Yellow Exile"), from the public view.
+  const players = (buildBoard(session.gameId, session.seat)?.view as OathView | undefined)?.players ?? [];
+  const seatTitles = players.map((_, seat) => seatTitle(players, seat));
   const model = inboxModel(
-    { gameId: session.gameId, waitingOnYou: inbox.waitingOnYou, waitingOnOthers: inbox.waitingOnOthers },
+    { gameId: session.gameId, waitingOnYou: inbox.waitingOnYou, waitingOnOthers: inbox.waitingOnOthers, seatTitles },
     Date.now(),
   );
   res.type('html').send(inboxPage(model, { seat: session.seat, gameId: session.gameId }));
 });
 
-// ---- /games/:id — the board, read-only (unit 10) --------------------------
+// ---- /games/:id — the board, and the composer (units 10, 11) ---------------
+
+/**
+ * Render the board for `seat` (null = spectator) with `status`. The composer
+ * section is built from the seat's FRESH affordances every time; `extra`
+ * carries what a re-render adds — a banner, a prefilled form, a dry run.
+ */
+function renderBoard(
+  res: express.Response,
+  gameId: string,
+  seat: number | null,
+  status = 200,
+  extra: Partial<Pick<ComposeView, 'banner' | 'dryRun'>> & { body?: RawBody; dryRunOf?: DryRunOf } = {},
+): void {
+  const board = buildBoard(gameId, seat);
+  if (!board) {
+    res.status(404).type('html').send(page('Not found', '<p>That game no longer exists.</p>'));
+    return;
+  }
+  const model = boardModel(board.view as OathView, { gameId, seat, names: board.names });
+  const entries = board.affordances as Affordance[];
+  let compose: ComposeView | undefined;
+  if (seat !== null) {
+    compose = { entries, seq: board.seq, back: `/games/${gameId}`, banner: extra.banner };
+    if (extra.body) {
+      const { index } = reconcile(entries, extra.body);
+      if (index !== null) compose.prefill = { index, body: extra.body };
+    }
+    if (extra.dryRunOf) {
+      const d = extra.dryRunOf;
+      const after = boardModel(d.view as OathView, { gameId, seat, names: board.names });
+      compose.dryRun = {
+        ok: true,
+        type: d.type,
+        // A check that rolled dice shows nothing that depends on them.
+        rollsDice: d.speculative.length > 0,
+        changes: d.speculative.length > 0 ? [] : ownChanges(model, after, seat),
+      };
+    } else if (extra.dryRun) {
+      compose.dryRun = extra.dryRun;
+    }
+  }
+  const boardImageUrl = existsSync(join(ART_DIR, 'full_board.png')) ? '/art/full_board.png' : undefined;
+  const siteBackUrl = existsSync(join(ART_DIR, SITE_BACK_FILE)) ? `/art/${SITE_BACK_FILE}` : undefined;
+  res.status(status).type('html').send(boardPage(model, { boardImageUrl, siteBackUrl, compose }));
+}
+
+/** A successful dry run, as submitComposed returns it. */
+interface DryRunOf {
+  type: string;
+  view: unknown;
+  speculative: string[];
+}
 
 /**
  * The full table, rendered from this browser's own view. The seat comes from
@@ -150,14 +216,77 @@ webRouter.get('/', (req, res) => {
 webRouter.get('/games/:id', (req, res) => {
   const session = sessionFromRequest(req.header('cookie'));
   const seat = session && session.gameId === req.params.id ? session.seat : null;
-  const board = buildBoard(req.params.id, seat);
-  if (!board) {
-    return res.status(404).type('html').send(page('Not found', '<p>That game no longer exists.</p>'));
+  renderBoard(res, req.params.id, seat);
+});
+
+/**
+ * POST /games/:id/act — a composed form (unit 11). Decoded per field kind
+ * (composer.ts) and submitted through the SAME store path as the JSON API
+ * (`submitComposed` → appendAction / dryRunAction).
+ *
+ * TWO SURFACES, TWO CONTRACTS. The JSON API answers a stale prevSeq with a
+ * 409 and an illegal action with a 400 — unchanged, and its tests still say
+ * so. A browser form gets pages instead:
+ *
+ *   - success → 303 to the page the form came from. A POST response is never
+ *     the page itself, so a refresh can never resubmit an action.
+ *   - StaleSeq → 200, NOT a redirect and NOT an error page: the board
+ *     re-rendered from the FRESH state with a banner saying the table moved,
+ *     the fresh seq in every form, and the submission put back where it is
+ *     still legal against the new affordances — or a line naming each choice
+ *     that stopped being legal.
+ *   - IllegalAction → 400, the board re-rendered in place with the engine's
+ *     own message and the form still filled in.
+ *   - "Check this" (`_dryRun`) → 200 with the dry run's verdict; nothing is
+ *     written, so re-rendering a POST here is harmless.
+ *
+ * Refreshing any of the re-renders resubmits a stale or refused or dry-run
+ * form — which cannot write anything. Only success writes, and success
+ * always redirects.
+ */
+webRouter.post('/games/:id/act', (req, res) => {
+  const gameId = req.params.id;
+  const session = sessionFromRequest(req.header('cookie'));
+  if (!session || session.gameId !== gameId) {
+    return res.status(401).type('html').send(page('Sign in', '<p>Sign in to act in this game.</p>'));
   }
-  const model = boardModel(board.view as OathView, { gameId: req.params.id, seat, names: board.names });
-  const boardImageUrl = existsSync(join(ART_DIR, 'full_board.png')) ? '/art/full_board.png' : undefined;
-  const siteBackUrl = existsSync(join(ART_DIR, SITE_BACK_FILE)) ? `/art/${SITE_BACK_FILE}` : undefined;
-  res.type('html').send(boardPage(model, { boardImageUrl, siteBackUrl }));
+  const seat = session.seat;
+  const body = (req.body ?? {}) as RawBody;
+
+  let sub: Submission;
+  try {
+    sub = decodeSubmission(body);
+  } catch (err) {
+    if (!(err instanceof DecodeError)) throw err;
+    return renderBoard(res, gameId, seat, 400, { body, banner: { kind: 'invalid', message: err.message } });
+  }
+
+  try {
+    const result = submitComposed(gameId, seat, sub);
+    if (!result) return res.status(404).type('html').send(page('Not found', '<p>That game no longer exists.</p>'));
+    if (!result.dryRun) return res.redirect(303, safeNext(sub.back));
+    return renderBoard(res, gameId, seat, 200, { body, dryRunOf: { type: sub.type, ...result } });
+  } catch (err) {
+    if (err instanceof StaleSeq) {
+      const board = buildBoard(gameId, seat);
+      const { index, problems } = reconcile((board?.affordances ?? []) as Affordance[], body);
+      const message =
+        `Someone else acted first — the table moved on while you were choosing (it was at ${sub.prevSeq}, it is now at ${err.expected}). ` +
+        (problems.length === 0 && index !== null
+          ? `Your ${typeLabel(sub.type)} is still legal and is filled in below: check it against the board and submit again.`
+          : `Your ${typeLabel(sub.type)} no longer fits:`);
+      return renderBoard(res, gameId, seat, 200, { body, banner: { kind: 'stale', message, problems } });
+    }
+    const refusal = err instanceof IllegalAction ? err.message : (err as Error)?.name === 'ZodError' ? 'Those details are not in the shape this action takes.' : null;
+    if (refusal === null) throw err;
+    if (sub.dryRun) {
+      return renderBoard(res, gameId, seat, 200, { body, dryRun: { ok: false, type: sub.type, message: refusal } });
+    }
+    return renderBoard(res, gameId, seat, 400, {
+      body,
+      banner: { kind: 'illegal', message: `The game refused that ${typeLabel(sub.type)}: ${refusal}` },
+    });
+  }
 });
 
 // ---- /art/:file — card & board art, to signed-in players only (unit 15) ----

@@ -28,9 +28,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { APP_CSS } from '../../src/client/assets.js';
+import { APP_CSS, APP_JS } from '../../src/client/assets.js';
 import { boardModel, inboxModel, type InboxDecision } from '../../src/client/model.js';
-import { boardPage } from '../../src/client/pages/board.js';
+import { boardPage, type ComposeView } from '../../src/client/pages/board.js';
+import type { Affordance } from '../../src/oath/game/affordances.js';
 import { inboxPage } from '../../src/client/pages/inbox.js';
 import { makeArtResolver } from '../../src/client/art.js';
 import { project } from '../../src/oath/game/project.js';
@@ -52,14 +53,26 @@ const HOOKS: Record<string, string> = {
   yours: 'the inbox\'s waiting-on-you section wrapper',
   // Variants that distinguish WHICH thing a generically styled element is.
   facedown: 'state marker on a site in the fallback listing',
-  relic: 'marks a relic among a site\'s cards (styled as .bcard)',
   pawn: 'which stat chip (styled as .tok)',
   wb: 'which stat chip (styled as .tok)',
   secret: 'which stat chip (styled as .tok)',
   'favor-coin': 'which token image (styled as .tok-img / .bank-fav)',
   'secret-tok': 'which token image (styled as .tok-img)',
+  'supply-tok': 'which token image (styled as .tok-img)',
+  'pawn-icon': 'which token image (styled as .tok-img)',
   'relic-deck': 'which map pile (styled as .map-pile); board-leak.test hook',
   'world-deck': 'which map pile (styled as .map-pile); board-leak.test pins its hidden size',
+  respond: 'which action group (styled as .action-group); tests find groups by it',
+  major: 'which action group (styled as .action-group); tests find groups by it',
+  minor: 'which action group (styled as .action-group); tests find groups by it',
+};
+
+/**
+ * Classes the enhancement SCRIPT adds at runtime, so no server-rendered page
+ * carries them. Each is checked to really be added by APP_JS.
+ */
+const SCRIPT_CLASSES: Record<string, string> = {
+  js: 'added to <html> by app.js, so styles can show script-only controls (the effect "Add" button)',
 };
 
 /** Every class selector in the stylesheet (comments stripped first). */
@@ -163,6 +176,64 @@ function allDocuments(): string[] {
     }
   }
 
+  // The composer (unit 11): every field kind, a long choose-one (a <select>),
+  // disabled options with costs, and every re-render state — the three
+  // banners and every dry-run verdict.
+  const [st0] = foldedStates([]);
+  const m0 = boardModel(project(st0, 0), { gameId: 'g', seat: 0, names });
+  const opt = (value: unknown, label: string, extra: object = {}) => ({ value, label, ...extra });
+  const entries: Affordance[] = [
+    {
+      type: 'travel',
+      decisionId: 'turn:0:1',
+      note: 'a note',
+      fields: [
+        {
+          name: 'siteIndex',
+          kind: 'choose-one',
+          options: [
+            opt(0, 'Here', { cost: { supply: 1, favor: 1, secrets: 2 }, group: 'Cradle', art: cards.sites[0].id }),
+            opt(1, 'There', { disabled: 'too far', group: 'Provinces', art: 'site-back' }),
+          ],
+        },
+      ],
+    },
+    { type: 'x.select', fields: [{ name: 'pick', kind: 'choose-one', options: Array.from({ length: 10 }, (_, i) => opt(i, `#${i}`, i === 3 ? { disabled: 'no' } : {})) }] },
+    // Two entries of one type: one box that switches between them.
+    { type: 'recover', fields: [{ name: 'target', kind: 'choose-one', options: [opt('relic', 'a relic')] }], note: 'relic note' },
+    { type: 'recover', fields: [{ name: 'target', kind: 'choose-one', options: [opt('banner', 'a banner')] }, { name: 'bannerId', kind: 'choose-one', options: [opt('x', 'something else')] }, { name: 'pay', kind: 'count', min: 2, max: 3 }] },
+    { type: 'standing.set', fields: [{ name: 'defense', kind: 'choose-one', options: [opt('ask', 'ask me'), opt('close', 'close')] }] },
+    { type: 'x.many', fields: [{ name: 'spaces', kind: 'choose-many', max: 2, options: [opt(0, 'a'), opt(1, 'b', { disabled: 'no' })] }] },
+    // A one-answer choice is still shown and picked (outside a picker box).
+    { type: 'x.count', fields: [{ name: 'count', kind: 'count', min: 1, max: 3 }, { name: 'faceup', kind: 'flag' }, { name: 'target', kind: 'choose-one', options: [opt(1, 'the only one')] }, { name: 'how', kind: 'choose-one', options: [opt('a', 'always'), opt('b', 'only with the first', { requires: { field: 'target', values: [1] } })] }] },
+    {
+      type: 'campaign.casualties',
+      fields: [{ name: 'kills', kind: 'allocate', min: 2, max: 2, options: [opt({ kind: 'board', seat: 1 }, 'board', { max: 3 }), opt({ siteId: cards.sites[0].id }, 'site', { art: cards.sites[0].id })] }],
+    },
+    { type: 'power.use', fields: [{ name: 'effects', kind: 'free', schema: 'Effect[]' }] },
+  ];
+  const compose = (over: Partial<ComposeView>): ComposeView => ({ entries, seq: 3, back: '/games/g', ...over });
+  for (const c of [
+    compose({}),
+    compose({ prefill: { index: 0, body: { siteIndex: '0' } }, banner: { kind: 'stale', message: 'moved', problems: ['gone'] } }),
+    compose({ banner: { kind: 'illegal', message: 'no' } }),
+    compose({ banner: { kind: 'invalid', message: 'bad' } }),
+    compose({ dryRun: { ok: true, type: 'travel', changes: [{ what: 'Supply', before: '4', after: '3' }], rollsDice: false } }),
+    compose({ dryRun: { ok: true, type: 'travel', changes: [], rollsDice: false } }),
+    compose({ dryRun: { ok: true, type: 'campaign.respond', changes: [], rollsDice: true } }),
+    compose({ dryRun: { ok: false, type: 'travel', message: 'no' } }),
+  ]) {
+    docs.push(boardPage(m0, { art: withArt, boardImageUrl: '/art/full_board.png', siteBackUrl: '/art/lands3_08.png', compose: c }));
+  }
+  docs.push(boardPage(m0, { art: withArt, compose: compose({ entries: [] }) }));
+  // After the roll: Resolve and Casualties render inside the campaign box.
+  const [rolledState] = synthesized();
+  const mRolled = boardModel(project(rolledState, 0), { gameId: 'g', seat: 0, names });
+  docs.push(boardPage(mRolled, { art: withArt, compose: compose({ entries: entries.filter((e) => e.type === 'campaign.casualties') }) }));
+  // Mid-Search: the cards your Search drew, shown above the composer.
+  const midSearch = { ...m0, hand: [{ artKey: cards.denizens[0].id, name: cards.denizens[0].name }] };
+  docs.push(boardPage(midSearch, { art: withArt, compose: compose({}) }));
+
   const decision = (over: Partial<InboxDecision>): InboxDecision => ({
     id: 'turn:0:1',
     seat: 0,
@@ -186,8 +257,12 @@ describe('class-name conformance: templates ↔ stylesheet (unit 16, proxy one)'
   const rendered = renderedClasses(allDocuments());
 
   it('renders every class the stylesheet styles (no dead CSS)', () => {
-    const dead = [...styled].filter((c) => !rendered.has(c)).sort();
+    const dead = [...styled].filter((c) => !rendered.has(c) && !(c in SCRIPT_CLASSES)).sort();
     expect(dead).toEqual([]);
+  });
+
+  it('every script-added class really is added by the script', () => {
+    for (const c of Object.keys(SCRIPT_CLASSES)) expect(APP_JS).toContain(`classList.add("${c}")`);
   });
 
   it('styles every class a page renders, except the named hooks (no typo hides)', () => {

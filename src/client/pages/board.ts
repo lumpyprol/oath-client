@@ -20,6 +20,10 @@ import type {
 } from '../model.js';
 import { makeArtResolver, artUrl, type ArtResolver } from '../art.js';
 import { DENIZEN_BACK_FILE } from '../../oath/cards/art.js';
+import { LEFTMOST_SUPPLY } from '../../oath/game/state.js';
+import type { Affordance } from '../../oath/game/affordances.js';
+import { composer, typeLabel, type RawBody } from '../composer.js';
+import { effectsHelp } from '../effects-help.js';
 
 const BOARD_COLORS = ['red', 'blue', 'yellow', 'white', 'black'];
 /** The player-board image for a seat's role and colour (purple has none → red). */
@@ -73,13 +77,25 @@ const pawnFile = (color: string): string => (color === 'purple' ? 'chancellor.pn
  * supply toward the left; the exact per-board cell ranges differ, so this is a
  * best-effort placement (the "S n" chip carries the precise number).
  */
-const supplyMarkerX = (supply: number): number => 36 - (Math.min(Math.max(supply, 0), 13) / 13) * 26;
+/**
+ * The Supply track's eight circles along the bottom of every player board
+ * (measured on the 1011x799 board art), left to right. The leftmost (the
+ * star) is full Supply, LEFTMOST_SUPPLY = 7 (Law §1.10); each Supply spent
+ * moves the marker one circle right (Law §4.2), so Supply s sits in circle
+ * 7 - s and 0 sits in the rightmost.
+ */
+const SUPPLY_CIRCLE_X = [8.46, 20.52, 32.6, 44.76, 56.82, 68.99, 81.06, 93.2];
+const SUPPLY_CIRCLE_Y = 90.8;
+const supplyMarkerX = (supply: number): number =>
+  SUPPLY_CIRCLE_X[LEFTMOST_SUPPLY - Math.min(Math.max(supply, 0), LEFTMOST_SUPPLY)];
 
 /** A single card face: an <img> when its asset is present, else a named placeholder box. */
 function face(f: FaceModel, art: ArtResolver): Raw {
   const ref = art(f.artKey, f.name);
   if (ref.src) {
-    return html`<img class="face" src="${ref.src}" alt="${ref.alt}"${dims(ref.width, ref.height)} loading="lazy">`;
+    const img = html`<img class="face" src="${ref.src}" alt="${ref.alt}"${dims(ref.width, ref.height)} loading="lazy">`;
+    // A Vision is drawn turned to landscape, as it lies on the Revealed Vision space.
+    return f.landscape ? html`<span class="land">${img}</span>` : img;
   }
   return html`<span class="face placeholder" role="img" aria-label="${f.name}">${f.name}</span>`;
 }
@@ -90,6 +106,18 @@ function dims(w?: number, h?: number): Raw {
 
 /** A facedown card back — carries NO identity, by construction. */
 const back = (label = 'facedown'): Raw => html`<span class="face back" aria-label="${label}"></span>`;
+
+/**
+ * A relic as it lies on the table: FACEDOWN, always (Law §2.8.2; peeking,
+ * §6.3/§6.4, does not turn it over). A relic this seat has peeked carries its
+ * face in data-zoom, so hovering shows it, on this seat's page only.
+ */
+function relicBack(peeked: FaceModel | null, art: ArtResolver): Raw {
+  const src = peeked ? art(peeked.artKey, peeked.name).src : undefined;
+  return src
+    ? html`<img class="face card-back peek" src="${artUrl('relicBack.png')}" data-zoom="${src}" alt="Facedown relic you have peeked: ${peeked!.name}" title="Facedown — ${peeked!.name}">`
+    : html`<img class="face card-back" src="${artUrl('relicBack.png')}" alt="Facedown relic">`;
+}
 
 /** The gold favor coin, and the secret token — the real component art. */
 const favorTok = raw(`<img class="tok-img favor-coin" src="${artUrl('favour.png')}" alt="favor">`);
@@ -151,14 +179,14 @@ function boardSite(s: SiteModel, slot: { x: number; y: number }, art: ArtResolve
               ? html`<span class="bcard">${face(c.face, art)}${c.ruined ? html`<span class="ruined">R</span>` : ''}${c.favor || c.secrets ? html`<span class="bcard-tok">${tokens(c.favor, c.secrets)}</span>` : ''}</span>`
               : html`<span class="bcard"><img class="face card-back" src="${artUrl(DENIZEN_BACK_FILE)}" alt="Facedown denizen">${c.favor || c.secrets ? html`<span class="bcard-tok">${tokens(c.favor, c.secrets)}</span>` : ''}</span>`,
           )}
-          ${s.relics.map((r) => html`<span class="bcard relic">${r.kind === 'face' ? face(r.face, art) : back('facedown relic')}</span>`)}
+          ${s.relics.map((r) => html`<span class="bcard relic">${relicBack(r.kind === 'face' ? r.face : null, art)}</span>`)}
         </div>`
       : ''}
     ${s.pawns.length || s.warbands.length
       ? html`<div class="bsite-pieces">
-          ${s.pawns.map((p) => html`<img class="pawn-tok" src="${artUrl(pawnFile(p.color))}" alt="seat ${p.seat} pawn">`)}
+          ${s.pawns.map((p) => html`<img class="pawn-tok" src="${artUrl(pawnFile(p.color))}" alt="${p.title} pawn" title="${p.title}">`)}
           ${s.warbands.map(
-            (w) => html`<span class="wb-at" title="seat ${w.seat}">${warbandTok(w.color)}<span class="wb-n">${w.count}</span></span>`,
+            (w) => html`<span class="wb-at" title="${w.title}">${warbandTok(w.color)}<span class="wb-n">${w.count}</span></span>`,
           )}
         </div>`
       : ''}
@@ -284,17 +312,22 @@ function siteView(s: SiteModel, art: ArtResolver): Raw {
       ? html`<div class="relics">Relics: ${s.relics.map((r) => (r.kind === 'face' ? face(r.face, art) : back('facedown relic')))}</div>`
       : ''}
     ${s.warbands.length
-      ? html`<div class="warbands">${s.warbands.map((w) => html`<span>seat ${w.seat}: ${w.count}</span>`)}</div>`
+      ? html`<div class="warbands">${s.warbands.map((w) => html`<span>${w.title}: ${w.count}</span>`)}</div>`
       : ''}
   </article>`;
 }
 
 /** One adviser beside a player board: its face if known, else the denizen back. */
 function adviser(a: AdviserModel, art: ArtResolver): Raw {
+  // Your own facedown adviser: the back everyone sees, with its face on hover
+  // (data-zoom; the zoom script shows it). Nobody else's page carries a face.
+  const mine = a.kind === 'face' && a.face && a.facedown ? art(a.face.artKey, a.face.name).src : undefined;
   const card =
-    a.kind === 'face' && a.face
+    a.kind === 'face' && a.face && !a.facedown
       ? face(a.face, art)
-      : html`<img class="card-back" src="${artUrl(DENIZEN_BACK_FILE)}" alt="Facedown adviser">`;
+      : mine
+        ? html`<img class="card-back peek" src="${artUrl(DENIZEN_BACK_FILE)}" data-zoom="${mine}"${raw(a.face!.landscape ? ' data-land="1"' : '')} alt="Your facedown adviser: ${a.face!.name}" title="Facedown — ${a.face!.name}">`
+        : html`<img class="card-back" src="${artUrl(DENIZEN_BACK_FILE)}" alt="Facedown adviser">`;
   return html`<li class="adviser">${card}${a.favor || a.secrets ? tokens(a.favor, a.secrets) : ''}</li>`;
 }
 
@@ -329,11 +362,9 @@ function reliquaryBoard(model: BoardModel, art: ArtResolver): Raw {
       const pos = RELIQUARY_SPACE_POS[i];
       if (!pos) return raw('');
       const style = `left:${pos.x}%;top:${pos.y}%`;
-      if (sp.relic) {
-        return html`<div class="rq-slot" style="${raw(style)}" title="${sp.label}: ${sp.relic.name}">${face(sp.relic, art)}</div>`;
-      }
       if (sp.covered) {
-        return html`<div class="rq-slot" style="${raw(style)}" title="${sp.label}: a facedown relic"><img src="${artUrl('relicBack.png')}" alt="Facedown relic"></div>`;
+        // Facedown even when peeked; the face shows on hover for whoever peeked.
+        return html`<div class="rq-slot" style="${raw(style)}" title="${sp.label}: a facedown relic">${relicBack(sp.relic, art)}</div>`;
       }
       return html`<div class="rq-slot open" style="${raw(style)}" title="${sp.label}: uncovered — the Chancellor may use this modifier"></div>`;
     })}
@@ -431,27 +462,54 @@ function tableFurniture(m: BoardModel, art: ArtResolver): Raw {
   </section>`;
 }
 
+/**
+ * What sits ON a player board: favor, secrets (flipped ones as a dimmed
+ * token) and warbands — one token and a count each, stacked on the right of
+ * the board beside the Advisers bar, clear of the setup icons on the left.
+ * A Citizen's warbands are purple (Law §5.2.2).
+ */
+function pieces(p: PlayerAreaModel): Raw {
+  const wbColor = p.citizen || p.chancellor ? 'purple' : p.color;
+  const row = (kind: string, file: string, n: number, title: string, cls = '') =>
+    n > 0
+      ? html`<span class="pb-pile" data-kind="${kind}" title="${title}"><img class="pb-tok${cls}" src="${artUrl(file)}" alt=""><span class="pb-count">×${n}</span></span>`
+      : raw('');
+  const rows = [
+    row('favor', 'favour.png', p.favor, `${p.favor} favor`),
+    row('secrets', 'secret.png', p.secretsReady, `${p.secretsReady} secret${p.secretsReady === 1 ? '' : 's'}`),
+    row('flipped', 'secret.png', p.secretsFlipped, `${p.secretsFlipped} flipped secret${p.secretsFlipped === 1 ? '' : 's'}`, ' flipped'),
+    row('warbands', `warband ${wbColor}.png`, p.warbandsBoard, `${p.warbandsBoard} warband${p.warbandsBoard === 1 ? '' : 's'} on the board`),
+  ];
+  return p.favor + p.secretsReady + p.secretsFlipped + p.warbandsBoard > 0 ? html`<div class="pb-pieces">${rows}</div>` : raw('');
+}
+
+/** A seat's resources at a glance: favor, secrets, warbands in the bank, Supply, and where the pawn is. */
+function stats(p: PlayerAreaModel): Raw {
+  return html`<span class="pb-stats">
+    ${favorChip(p.favor)}
+    ${secretChip(p.secretsReady, p.secretsFlipped)}
+    <span class="tok wb" title="Warbands (bank)">${warbandTok(p.color)}${p.warbandsBank}</span>
+    <span class="tok supply" title="Supply"><img class="tok-img supply-tok" src="${artUrl(`supply ${p.color} shadow.png`)}" alt="Supply">${p.supply}</span>
+    <span class="tok pawn" title="Pawn"><img class="tok-img pawn-icon" src="${artUrl(pawnFile(p.color))}" alt="Pawn">${p.pawnSite ?? 'unplaced'}</span>
+  </span>`;
+}
+
 function playerArea(p: PlayerAreaModel, art: ArtResolver, model?: BoardModel): Raw {
   const role = p.chancellor ? 'Chancellor' : p.citizen ? 'Citizen' : 'Exile';
   const cls = `pboard${p.isYou ? ' you' : ''}${p.active ? ' active' : ''}`;
   return html`<article class="${cls}" data-color="${p.color}">
     <div class="pb-head">
       <span class="pname">${p.name}</span>
-      <span class="pmeta">seat ${p.seat} · ${role}${p.titles.map((t) => html` · ${t}`)}${p.isYou ? raw(' · <strong>you</strong>') : ''}${p.active ? raw(' · <span class="on-clock">on the clock</span>') : ''}</span>
-      <span class="pb-stats">
-        ${favorChip(p.favor)}
-        ${secretChip(p.secretsReady, p.secretsFlipped)}
-        <span class="tok wb" title="Warbands (bank)">${warbandTok(p.color)}${p.warbandsBank}</span>
-        <span class="tok supply" title="Supply">S ${p.supply}</span>
-        <span class="tok pawn" title="Pawn">⚑ ${p.pawnSite ?? 'unplaced'}</span>
-      </span>
+      <span class="pmeta">${p.title}${p.titles.map((t) => html` · ${t}`)}${p.isYou ? raw(' · <strong>you</strong>') : ''}${p.active ? raw(' · <span class="on-clock">on the clock</span>') : ''}</span>
+      ${stats(p) /* every board, yours included (yours also heads "Your move") */}
     </div>
     <div class="pb-main">
       <div class="pb-frame">
         <img class="pb-bg" src="${artUrl(playerBoardFile(p))}" alt="${role} board">
         ${p.vision ? html`<div class="pb-vision">${face(p.vision, art)}</div>` : ''}
         <img class="pb-supply-marker" src="${artUrl(`supply ${p.color} shadow.png`)}"
-          style="left:${supplyMarkerX(p.supply)}%" alt="Supply ${p.supply}" title="Supply ${p.supply}">
+          style="left:${supplyMarkerX(p.supply)}%;top:${SUPPLY_CIRCLE_Y}%" alt="Supply ${p.supply}" title="Supply ${p.supply}">
+        ${pieces(p)}
         <ul class="advisers pb-side-advisers" title="Advisers">
           ${p.advisers.map((a) => adviser(a, art))}
         </ul>
@@ -466,9 +524,141 @@ function playerArea(p: PlayerAreaModel, art: ArtResolver, model?: BoardModel): R
   </article>`;
 }
 
+// ---- the composer section (unit 11) ----------------------------------------
+
+/** What a "Check this" dry run found, ready to show. */
+export type DryRunView =
+  | {
+      ok: true;
+      type: string;
+      /** The seat's own resources that would change, in words. */
+      changes: { what: string; before: string; after: string }[];
+      /**
+       * The action rolls dice. Then the check shows NO outcome at all — no
+       * dice and no changes, since those depend on the roll — so "Check
+       * this" can never be used to peek at a roll before committing to it.
+       */
+      rollsDice: boolean;
+    }
+  | { ok: false; type: string; message: string };
+
+/** The composer's inputs: the seat's affordances plus whatever a re-render carries back. */
+export interface ComposeView {
+  entries: Affordance[];
+  seq: number;
+  /** The page a successful submit returns to. */
+  back: string;
+  /** A submission put back into the form it came from. */
+  prefill?: { index: number; body: RawBody };
+  /**
+   * Why this page is a re-render rather than a fresh load: someone acted
+   * first (stale), the engine refused (illegal), or the form itself was
+   * unreadable (invalid).
+   */
+  banner?: { kind: 'stale' | 'illegal' | 'invalid'; message: string; problems?: string[] };
+  dryRun?: DryRunView;
+}
+
+function dryRunPanel(d: DryRunView): Raw {
+  if (!d.ok) {
+    return html`<div class="dryrun refused" role="status"><strong>${typeLabel(d.type)} would be refused:</strong> ${d.message}</div>`;
+  }
+  return html`<div class="dryrun accepted" role="status"><strong>${typeLabel(d.type)} would be accepted.</strong> Nothing has been submitted.
+    ${d.rollsDice
+      ? html`<p class="muted">This rolls dice, so there is no preview of the result: the dice are rolled once, when you submit.</p>`
+      : d.changes.length
+        ? html`<ul class="dryrun-changes">${d.changes.map((c) => html`<li>${c.what}: ${c.before} → ${c.after}</li>`)}</ul>`
+        : html`<p class="muted">None of your own resources would change.</p>`}
+  </div>`;
+}
+
+/** Law §5's major actions and §6's minor actions, by action type (grouping only). */
+const MAJOR_ACTIONS = new Set(['search', 'muster', 'trade', 'travel', 'recover', 'campaign.declare']);
+const MINOR_ACTIONS = new Set([
+  'adviser.play', // §6.1
+  'power.use', // §6.2
+  'peek.relic', // §6.3
+  'peek.reliquary', // §6.4
+  'warbands.move', // §6.5
+  'citizenship.offer', // §6.6
+  'citizenship.exile', // §6.7
+  'citizenship.selfExile', // §6.8
+]);
+
+/** The composer options every box on this page shares. */
+function composeBase(model: BoardModel, c: ComposeView, art: ArtResolver, siteBackUrl?: string) {
+  // Option art hints (Travel's sites, a Search's drawn cards) drawn with the
+  // page's own resolver — the same faces the board shows.
+  const artFor = (key: string) => {
+    const src = key === 'site-back' ? siteBackUrl : key === 'relic-back' ? artUrl('relicBack.png') : art(key, '').src;
+    return src ? { src, landscape: key.startsWith('vision:') } : null;
+  };
+  return {
+    artFor,
+    gameId: model.gameId,
+    seq: c.seq,
+    back: c.back,
+    prefill: c.prefill,
+    freeHelp: { effects: effectsHelp(model.seat as number) },
+  };
+}
+
+/**
+ * After the dice: resolving the battle and allocating its casualties belong
+ * with the dice they depend on, so they render in the campaign box, open
+ * (Ben, 2026-10-02), not in "Your move".
+ */
+const AFTER_THE_ROLL = new Set(['campaign.resolve', 'campaign.casualties']);
+
+function composeSection(model: BoardModel, c: ComposeView, art: ArtResolver, siteBackUrl?: string): Raw {
+  const base = composeBase(model, c, art, siteBackUrl);
+  // Ben's grouping (2026-10-01): the always-there row, then the Law's own
+  // chapters — major actions (§5) and minor actions (§6). Anything else is an
+  // answer to someone else's move (a campaign window, an offer, a request,
+  // Wake, setup), grouped as "Respond" so nothing waiting goes unshown.
+  const isStanding = (e: Affordance) => e.type === 'standing.set' || e.type === 'turn.rest';
+  const isSearch = (e: Affordance) => e.type === 'card.play';
+  const group = (e: Affordance): 'major' | 'minor' | 'respond' =>
+    MAJOR_ACTIONS.has(e.type) ? 'major' : MINOR_ACTIONS.has(e.type) ? 'minor' : 'respond';
+  // Mid-Search: the drawn cards ARE the Card: play form's card choice (with
+  // their faces), so the one form sits in the Search box, already open.
+  const searchForm = c.entries.some(isSearch) ? composer(c.entries, { ...base, include: isSearch, open: true }) : null;
+  const hand = model.hand.length
+    ? html`<div class="drawn"><h3>Your Search drew</h3>
+        ${searchForm ?? html`<div class="drawn-cards">${model.hand.map((f) => face(f, art))}</div>`}</div>`
+    : raw('');
+  const others = c.entries.filter((e) => !isStanding(e) && !isSearch(e) && !AFTER_THE_ROLL.has(e.type));
+  const section = (key: 'respond' | 'major' | 'minor', title: string) =>
+    others.some((e) => group(e) === key)
+      ? html`<div class="action-group ${key}"><h3>${title}</h3>${composer(c.entries, { ...base, include: (e) => !isStanding(e) && !isSearch(e) && !AFTER_THE_ROLL.has(e.type) && group(e) === key })}</div>`
+      : raw('');
+  const rest = others.length
+    ? html`${section('respond', 'Respond')}${section('major', 'Major actions (Law §5)')}${section('minor', 'Minor actions (Law §6)')}`
+    : c.entries.some(isSearch)
+      ? raw('')
+      : c.entries.some((e) => AFTER_THE_ROLL.has(e.type))
+        ? html`<p class="muted">Your campaign decision is in the campaign box above.</p>`
+        : html`<p class="muted">${c.entries.length ? 'Nothing else for you to do right now.' : 'Nothing for you to do right now.'}</p>`;
+  const banner = c.banner
+    ? html`<div class="banner ${c.banner.kind}" role="alert"><p>${c.banner.message}</p>
+        ${c.banner.problems?.length ? html`<ul>${c.banner.problems.map((p) => html`<li>${p}</li>`)}</ul>` : ''}</div>`
+    : raw('');
+  // Your own resources, where you decide what to spend them on.
+  const you = model.players.find((p) => p.isYou);
+  // Order: standing answers first, always (they apply whoever's turn it is),
+  // then anything this page is re-rendered to say, then the Search, then the rest.
+  return html`<section class="compose-section" id="compose" data-seq="${c.seq}"><div class="compose-head"><h2>Your move</h2>${you ? stats(you) : ''}</div>
+    ${c.entries.some(isStanding) ? html`<div class="composer-pinned">${composer(c.entries, { ...base, include: isStanding })}</div>` : ''}
+    ${banner}
+    ${c.dryRun ? dryRunPanel(c.dryRun) : ''}
+    ${hand}
+    ${rest}
+  </section>`;
+}
+
 export function boardPage(
   model: BoardModel,
-  opts?: { art?: ArtResolver; boardImageUrl?: string; siteBackUrl?: string },
+  opts?: { art?: ArtResolver; boardImageUrl?: string; siteBackUrl?: string; compose?: ComposeView },
 ): string {
   const art = opts?.art ?? makeArtResolver();
   const title = model.spectator ? 'Board (spectator) — Oath' : 'Board — Oath';
@@ -486,28 +676,38 @@ export function boardPage(
       </section>`;
 
   const status = model.complete
-    ? html`<p class="status done">Game over — winner: ${model.winner === null ? 'a tie' : `seat ${model.winner}`}.</p>`
-    : html`<p class="status">Round ${model.round} · seat ${model.activeSeat} to act · ${model.oathLabel} · Visions drawn: ${model.visionsDrawn}</p>`;
+    ? html`<p class="status done">Game over — winner: ${model.winner === null ? 'a tie' : model.seatTitles[model.winner]}.</p>`
+    : html`<p class="status">Round ${model.round} · ${model.seatTitles[model.activeSeat]} to act · ${model.oathLabel} · Visions drawn: ${model.visionsDrawn}</p>`;
 
   const c = model.campaign;
   const campaign = c
     ? html`<section class="campaign"><h2>Campaign in progress</h2>
-        <p>seat ${c.attacker} attacks ${c.defender} — ${c.attackDice} attack / ${c.defenseDice} defense dice. <span class="phase">(${c.phase})</span></p>
+        <p>The ${model.seatTitles[c.attacker]} attacks ${c.defender === 'the bandits' ? c.defender : `the ${c.defender}`} — ${c.attackDice} attack${c.attackDiceWhy ? ` (${c.attackDiceWhy}, Law §11.4)` : ''} / ${c.defenseDice} defense dice. <span class="phase">(${c.phase})</span></p>
         <p>Targets: ${c.targets.join(', ')}</p>
         ${c.attackFaces.length || c.defenseFaces.length
           ? html`<div class="dice-rows">
               <div class="dice-row"><span class="dice-label">Attack</span>
                 <span class="dice">${c.attackFaces.map((f) => die(f))}</span>
-                ${c.totals
-                  ? html`<span class="dice-total">${c.totals.swords} sword${c.totals.swords === 1 ? '' : 's'}${c.totals.skulls ? html` · ${c.totals.skulls} skull${c.totals.skulls === 1 ? '' : 's'}` : ''}</span>`
+                ${c.battle
+                  ? html`<span class="dice-total">${c.battle.swords} sword${c.battle.swords === 1 ? '' : 's'}${c.battle.skulls ? html` · ${c.battle.skulls} skull${c.battle.skulls === 1 ? '' : 's'} (each kills one of the attacker's own warbands first)` : ''}</span>`
                   : ''}
               </div>
               <div class="dice-row"><span class="dice-label">Defense</span>
                 <span class="dice">${c.defenseFaces.map((f) => die(f))}</span>
-                ${c.totals ? html`<span class="dice-total">${c.totals.shields} from shields (+ the defending force)</span>` : ''}
+                ${c.battle
+                  ? html`<span class="dice-total">${c.battle.shields} from shields + ${c.battle.force} from the defending ${c.defender === 'bandits' ? 'bandits' : 'force'} = ${c.battle.defense}</span>`
+                  : ''}
               </div>
+              ${c.battle ? html`<p class="battle-score">Attack <strong>${c.battle.swords}</strong> vs defense <strong>${c.battle.defense}</strong> — the attack must be greater to win (Law §5.5.5).</p>` : ''}
             </div>`
           : html`<p class="muted">Dice are not rolled yet.</p>`}
+        ${opts?.compose && !model.spectator && opts.compose.entries.some((e) => AFTER_THE_ROLL.has(e.type))
+          ? html`<div class="campaign-act">${composer(opts.compose.entries, {
+              ...composeBase(model, opts.compose, art, opts.siteBackUrl),
+              include: (e) => AFTER_THE_ROLL.has(e.type),
+              open: true,
+            })}</div>`
+          : ''}
         ${c.casualtyQuota !== null
           ? html`<p class="casualties">Casualties to allocate: <strong>${c.casualtyQuota}</strong> warband${c.casualtyQuota === 1 ? '' : 's'} (Law §5.5.6).</p>`
           : ''}
@@ -516,10 +716,10 @@ export function boardPage(
 
   const pending = [
     model.citizenshipOffer
-      ? html`<li>Citizenship offer: the Scepter holder (seat ${model.citizenshipOffer.scepterSeat}) → seat ${model.citizenshipOffer.exile}.</li>`
+      ? html`<li>Citizenship offer: the ${model.seatTitles[model.citizenshipOffer.scepterSeat]} (Scepter holder) → the ${model.seatTitles[model.citizenshipOffer.exile]}.</li>`
       : null,
     model.warbandRequest
-      ? html`<li>Warband request: seat ${model.warbandRequest.seat} awaits seat ${model.warbandRequest.approver} (${model.warbandRequest.direction}, ${model.warbandRequest.count}).</li>`
+      ? html`<li>Warband request: the ${model.seatTitles[model.warbandRequest.seat]} awaits the ${model.seatTitles[model.warbandRequest.approver]} (${model.warbandRequest.direction}, ${model.warbandRequest.count}).</li>`
       : null,
   ].filter(Boolean);
 
@@ -533,6 +733,7 @@ export function boardPage(
       ${status}
       ${model.spectator ? html`<p class="spectator-note">You are watching as a spectator.</p>` : ''}
       ${campaign}
+      ${!model.spectator && opts?.compose ? composeSection(model, opts.compose, art, opts.siteBackUrl) : ''}
       ${pending.length ? html`<section class="pending"><h2>Awaiting a decision</h2><ul>${pending}</ul></section>` : ''}
 
       ${table}

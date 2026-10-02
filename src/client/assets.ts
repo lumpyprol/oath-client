@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 /**
  * The client's stylesheet and progressive-enhancement script, as strings
  * served by `web.ts` (P4 unit 9). Kept as TS so `tsc` ships them to `dist/`
@@ -55,28 +57,41 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .slots, .advisers { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 /* ---- player boards (unit 16 batch 1) ---- */
-.pboard { border: 2px solid #8884; border-radius: 8px; padding: 0.4rem; }
+.pboard {
+  border: 2px solid #8884; border-radius: 8px; padding: 0.4rem;
+  /* The box holds the board AND a full row of advisers (the limit is 3,
+     Law §2.2.2), so the advisers never spill past its edge. An adviser is
+     63% of the board's height (the ADVISERS bar) at the card's 326:508, i.e.
+     0.3195 board-widths; three plus 1rem of gaps make 1.9586 board-widths.
+     So the board's width comes FROM the box: --pb-w. */
+  container-type: inline-size; max-width: 84rem;
+  --pb-w: calc((100cqw - 1.2rem) / 1.9586);
+}
 .pboard.you { border-color: #8f8; }
 .pboard.active { box-shadow: 0 0 0 2px #ffd54a, 0 0 16px #ffd54a88; border-color: #ffd54a; }
 .pb-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.6rem; margin-bottom: 0.35rem; }
 .pb-head .pname { font-weight: 700; }
 .on-clock { color: #d9a400; font-weight: 600; }
-.pb-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-left: auto; font-size: 0.85rem; }
+.pb-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem; } /* follows the name and role, left-aligned */
 .tok { display: inline-flex; align-items: center; gap: 0.2rem; font-variant-numeric: tabular-nums; }
 .tok-img { height: 1.1em; width: auto; vertical-align: middle; }
 .tok .flip { color: var(--muted); }
 /* Board on the left; advisers tuck to its right at the exact height of the
    board's ADVISERS bar (~17%–80% of the board), not the full board height. */
 .pb-main { display: flex; align-items: flex-start; }
-.pb-frame { position: relative; flex: 0 1 42rem; min-width: 0; }
+.pb-frame { position: relative; flex: 0 0 var(--pb-w); min-width: 0; }
 .pb-bg { width: 100%; height: auto; display: block; border-radius: 6px; }
-.pb-supply-marker { position: absolute; top: 90%; transform: translate(-50%, -50%); height: 9%; width: auto; filter: drop-shadow(0 1px 2px #000a); pointer-events: none; }
-.pb-vision { position: absolute; left: 4%; top: 29%; width: 24%; }
+.pb-supply-marker { position: absolute; transform: translate(-50%, -50%); height: 11%; width: auto; filter: drop-shadow(0 1px 2px #000a); pointer-events: none; }
+.card-back.peek { cursor: zoom-in; outline: 2px dashed #d9a400aa; outline-offset: -2px; }
+.pb-vision { position: absolute; left: 2.95%; top: 28.8%; width: 48.4%; } /* the board's Revealed Vision box, fitted to the card's height */
 .pb-vision .face, .pb-vision img.face { width: 100%; height: auto; min-width: 0; min-height: 0; border-radius: 4px; box-shadow: 0 1px 6px #0008; }
 .pb-side-advisers {
   position: absolute; left: 100%; top: 17%; height: 63%; margin-left: 0.4rem;
-  display: flex; flex-direction: row; gap: 0.3rem; list-style: none; padding: 0;
-  max-width: 55vw; overflow-x: auto;
+  display: flex; flex-direction: row; flex-wrap: nowrap; gap: 0.3rem; list-style: none; padding: 0;
+  /* Absolutely placed at left:100%, it has no width of its own to lay out in;
+     without these, the base .advisers wrap rule stacks each card on its own
+     line. One row, as wide as its cards, each the height of the ADVISERS bar. */
+  width: max-content;
 }
 .pb-side-advisers:empty { display: none; }
 .pb-side-advisers .adviser { flex: 0 0 auto; height: 100%; display: flex; }
@@ -84,7 +99,7 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .card-back { display: block; border-radius: 4px; box-shadow: 0 1px 3px #0007; }
 
 /* The Imperial Reliquary sits under the Chancellor's board, same width. */
-.reliquary-board { position: relative; width: 100%; max-width: 42rem; margin-top: 0.5rem; }
+.reliquary-board { position: relative; width: var(--pb-w); margin-top: 0.5rem; }
 .rq-bg { width: 100%; display: block; border-radius: 6px; }
 .rq-slot { position: absolute; transform: translate(-50%, -50%); width: 45%; aspect-ratio: 1 / 1; }
 .rq-slot img, .rq-slot .face {
@@ -101,6 +116,7 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
   display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: flex-start;
   width: 100%; max-width: 42rem; margin-top: 0.5rem;
 }
+.pb-placards { width: var(--pb-w); max-width: none; } /* under a board: the board's own width */
 .placard { margin: 0; }
 .tf-art { position: relative; }
 .tf-art img, .tf-art .face {
@@ -168,6 +184,9 @@ body.board { max-width: 96rem; }
   display: flex; align-items: center; justify-content: center; text-align: center;
 }
 .board-map .bsite-cards .face.back { width: 64%; aspect-ratio: 325 / 508; }
+/* A relic card is as wide as a denizen and square (both 326px wide in the
+   art), so beside a denizen it stands 326/508 of the height. */
+.bsite-cards .bcard.relic { height: 64.17%; }
 .bsite-cards .bcard .ruined { position: absolute; top: 0; right: 0; font-size: 0.55rem; background: #b00; color: #fff; border-radius: 2px; padding: 0 1px; }
 .bcard-tok { position: absolute; left: 1px; bottom: 1px; font-size: 0.55rem; background: #000b; color: #fff; border-radius: 3px; padding: 0 2px; }
 /* Pawns and warbands stand ON the site, in the illustration above the title bar. */
@@ -233,7 +252,99 @@ body.board { max-width: 96rem; }
 .die.blank { background: #1f7fd0; border: 1px solid #0006; }
 .dice-total { font-size: 0.85rem; font-weight: 700; }
 .casualties { color: #d9a400; }
+.battle-score { margin: 0.25rem 0 0; font-size: 1.05rem; }
+.campaign-act { margin-top: 0.5rem; }
 .muted { color: var(--muted); }
+
+/* ---- the composer (unit 11): one form per affordance entry ---- */
+.compose-section { border: 1px solid #8886; border-radius: 6px; padding: 0.5rem 0.75rem; margin: var(--gap) 0; }
+.compose-section h2 { margin: 0.25rem 0; }
+.compose-head { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.compose-head .pb-stats { font-size: 1rem; }
+.composer { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.5rem; align-items: start; }
+.compose { border: 1px solid #8884; border-radius: 6px; padding: 0.35rem 0.6rem; }
+.compose[open] { grid-column: 1 / -1; }
+.composer-pinned { margin-bottom: 0.5rem; }
+.action-group { margin-top: 0.75rem; }
+.action-group h3 { font-size: 0.9rem; margin: 0 0 0.35rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.compose summary { cursor: pointer; font-weight: 600; }
+.compose .note { display: block; font-weight: 400; font-size: 0.8rem; color: var(--muted); }
+.compose-form { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+.field { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; align-items: baseline; }
+.field-name { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; flex-basis: 100%; padding: 0; }
+.opt { display: inline-flex; gap: 0.3rem; align-items: baseline; }
+.opt.disabled { color: var(--muted); }
+.why { font-size: 0.8rem; font-style: italic; }
+.field.free { flex-direction: column; align-items: stretch; }
+.field.free textarea { font: 0.85rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; width: 100%; }
+.schema { font-size: 0.8rem; color: var(--muted); }
+.compose-buttons { display: flex; gap: 0.5rem; }
+.compose-buttons button { font: inherit; padding: 0.3rem 0.9rem; border-radius: 4px; border: 1px solid #8888; cursor: pointer; }
+.compose-buttons button:not(.secondary) { font-weight: 700; }
+.secondary { background: transparent; }
+.banner { border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.5rem 0; border: 1px solid; }
+.banner p { margin: 0; }
+.banner ul { margin: 0.25rem 0 0; }
+.banner.stale { border-color: #d9a400; background: #d9a40018; }
+.banner.illegal, .banner.invalid { border-color: #b00; background: #b0000014; }
+.dryrun { border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.5rem 0; border: 1px dashed; }
+.dryrun.accepted { border-color: #2a8a2a; }
+.dryrun.refused { border-color: #b00; }
+.dryrun-changes { margin: 0.25rem 0; }
+.vocab { font-size: 0.85rem; }
+.vocab summary { cursor: pointer; color: var(--muted); }
+.vocab-list { list-style: none; padding: 0; margin: 0.25rem 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.vocab-list code { display: block; font-size: 0.75rem; overflow-wrap: anywhere; }
+.vocab-kind { font-weight: 700; }
+.vocab-add { display: none; font: inherit; font-size: 0.75rem; padding: 0 0.5rem; }
+.js .vocab-add { display: inline-block; } /* "Add" needs the script; without it, copy the example */
+
+/* Options that carry a card face (Travel's sites, a Search's cards), and
+   Travel's region columns, laid out like the map. */
+.opt-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; width: 100%; }
+.opt-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.group-name { font-weight: 700; }
+.card-opt { position: relative; flex-direction: column; align-items: flex-start; gap: 0.2rem; padding: 0.3rem; border-radius: 6px; border: 2px solid transparent; cursor: pointer; }
+.card-opt:has(input:checked) { border-color: #d9a400; background: #d9a40014; }
+.card-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.card-opt:focus-within { outline: 2px solid #d9a400; }
+.opt-face { width: 11rem; height: auto; border-radius: 6px; display: block; }
+.card-opt.disabled .opt-face { filter: grayscale(1) brightness(0.6); }
+.allocate { flex-direction: column; align-items: flex-start; }
+.opt[hidden] { display: none; }
+.field.fixed { margin: 0; }
+.field.fixed .field-name { flex-basis: auto; }
+.variant[hidden] { display: none; }
+.variant-pick { margin-bottom: 0.4rem; }
+.variant-name { font-size: 0.9rem; margin: 0.6rem 0 0.2rem; }
+.js .variant-name { display: none; } /* with the script only the picked form shows, so no heading is needed */ /* a dependent option the chosen card does not allow (script) */
+.req-note { font-size: 0.8rem; color: var(--muted); }
+.js .req-note { display: none; } /* with the script, a dependent option only shows when it applies */
+.alloc-row { display: flex; align-items: center; gap: 0.5rem; }
+.alloc-row input { width: 4rem; }
+.alloc-row .opt-face { width: 6rem; }
+.rule { font-size: 0.85rem; margin: 0.4rem 0 0; }
+.law-ref { color: inherit; text-decoration: underline dotted; text-underline-offset: 2px; } /* a citation in running text, linked to the Law */
+.rule a { font-weight: 600; white-space: nowrap; }
+.drawn { margin: 0.5rem 0; }
+.drawn h3 { font-size: 0.95rem; margin: 0; }
+.drawn-cards { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.drawn-cards .face { width: 11rem; height: auto; }
+
+/* Pieces sitting on a player board (favor, secrets, warbands): one token and
+   a count each, stacked on the right beside the Advisers bar, above the
+   Supply track — clear of the setup icons on the left. */
+.pb-pieces { position: absolute; right: 8%; bottom: 17%; display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem; pointer-events: none; }
+.pb-pile { display: flex; align-items: center; gap: 0.3rem; }
+.pb-tok { width: 4.4rem; height: 4.4rem; object-fit: contain; filter: drop-shadow(0 1px 2px #000a); }
+.pb-tok.flipped { filter: grayscale(1) brightness(0.55) drop-shadow(0 1px 2px #000a); }
+.pb-count { font-weight: 700; font-size: 1.8rem; color: #fff; text-shadow: 0 1px 3px #000, 0 0 2px #000; }
+
+/* A Vision, drawn landscape: a box of the card's turned shape, with the
+   portrait art rotated a quarter turn to fill it (508x326 rotated = 326x508). */
+.land { position: relative; display: inline-block; aspect-ratio: 508 / 326; width: 17rem; vertical-align: top; }
+.land img.face, .land img.opt-face { position: absolute; left: 50%; top: 50%; width: 64.17%; height: auto; min-width: 0; transform: translate(-50%, -50%) rotate(-90deg); }
+.pb-vision .land { width: 100%; display: block; }
 
 /* Hover-to-enlarge preview (progressive enhancement; JS builds #card-zoom). */
 #card-zoom { position: fixed; display: none; z-index: 1000; pointer-events: none; }
@@ -242,9 +353,9 @@ body.board { max-width: 96rem; }
 `.trim();
 
 export const APP_JS = `
-// Progressive enhancement (P4 unit 9). The pages work with no JS at all —
-// forms POST and the server redirects. Later units add refetch-on-focus and
-// inline conflict recovery here.
+// Progressive enhancement (P4 units 9, 11, 16). The pages work with no JS at
+// all — forms POST and the server redirects or re-renders. Plain ES2022, no
+// build; delete this file and every page still works.
 "use strict";
 document.documentElement.classList.add("js");
 
@@ -260,13 +371,14 @@ document.documentElement.classList.add("js");
   box.appendChild(big);
   document.body.appendChild(box);
 
+  // What to enlarge for an element: a card face's own src, or — for your own
+  // facedown adviser, drawn as a back — the face it names in data-zoom.
   function zoomable(t) {
-    return (
-      t && t.tagName === "IMG" &&
-      (t.classList.contains("face") || t.classList.contains("site-back")) &&
-      !t.classList.contains("back") &&
-      t.getAttribute("src")
-    );
+    if (!t || t.tagName !== "IMG") return null;
+    if (t.getAttribute("data-zoom")) return t.getAttribute("data-zoom");
+    return (t.classList.contains("face") || t.classList.contains("site-back")) && !t.classList.contains("back") && !t.classList.contains("card-back")
+      ? t.getAttribute("src")
+      : null;
   }
   function place(x, y) {
     var pad = 18, w = box.offsetWidth, h = box.offsetHeight;
@@ -275,10 +387,24 @@ document.documentElement.classList.add("js");
     var top = y + pad; if (top + h > vh) top = vh - h - pad; if (top < 0) top = pad;
     box.style.left = left + "px"; box.style.top = top + "px";
   }
+  // A Vision is shown landscape (it sits in a .land box): turn the enlarged
+  // copy too, and size the box to the turned shape so it is placed right.
+  var landscape = false;
+  function fit() {
+    big.style.cssText = "";
+    box.style.width = box.style.height = "";
+    if (!landscape) return;
+    var w = big.offsetWidth, h = big.offsetHeight;
+    box.style.width = h + "px"; box.style.height = w + "px";
+    big.style.cssText = "position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg)";
+  }
+  big.addEventListener("load", function () { fit(); });
   document.addEventListener("pointerover", function (e) {
     if (!zoomable(e.target)) return;
-    big.src = e.target.getAttribute("src");
+    landscape = !!(e.target.getAttribute("data-land") || (e.target.parentElement && e.target.parentElement.classList.contains("land")));
+    big.src = zoomable(e.target);
     box.style.display = "block";
+    if (big.complete) fit();
     place(e.clientX, e.clientY);
   });
   document.addEventListener("pointermove", function (e) {
@@ -288,4 +414,138 @@ document.documentElement.classList.add("js");
     if (zoomable(e.target)) box.style.display = "none";
   });
 })();
+
+// The composer (unit 11). Every form works without any of this: it POSTs, the
+// server 303s on success and re-renders on a conflict, a refusal or a dry run.
+// This only (1) submits in place with fetch and swaps in the page the server
+// answered with, so the address bar stays on the board; (2) enforces a
+// choose-many's max as a courtesy (the server enforces it for real);
+// (3) lets "Add" append an effect example to the effects list; and
+// (4) refreshes the inbox when the window regains focus (D57's transport).
+(function () {
+  function swapIn(text, url) {
+    var doc = new DOMParser().parseFromString(text, "text/html");
+    var next = doc.querySelector("main");
+    var main = document.querySelector("main");
+    if (!next || !main) return false;
+    main.innerHTML = next.innerHTML;
+    document.title = doc.title;
+    if (url && url !== location.href) history.replaceState(null, "", url);
+    return true;
+  }
+
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form.classList || !form.classList.contains("compose-form") || form.dataset.native) return;
+    e.preventDefault();
+    var data = new FormData(form, e.submitter || undefined);
+    var buttons = form.querySelectorAll("button");
+    buttons.forEach(function (b) { b.disabled = true; });
+    fetch(form.action, {
+      method: "POST",
+      body: new URLSearchParams(data),
+      headers: { accept: "text/html" },
+      credentials: "same-origin",
+    })
+      .then(function (res) {
+        return res.text().then(function (text) {
+          // A success was a 303 that fetch followed back to the board; a
+          // re-render (conflict, refusal, dry run) answered in place.
+          if (!swapIn(text, res.redirected ? res.url : null)) throw new Error("no page");
+          applyAll();
+          var focus = document.querySelector(".banner, .dryrun");
+          if (focus) focus.scrollIntoView({ block: "center" });
+        });
+      })
+      .catch(function () {
+        // Anything odd: fall back to the plain form post the page was built for.
+        buttons.forEach(function (b) { b.disabled = false; });
+        form.dataset.native = "1";
+        if (e.submitter) form.requestSubmit(e.submitter); else form.requestSubmit();
+      });
+  });
+
+  // Dependent options (an affordance's \`requires\`): show an option only
+  // while the field it depends on holds one of the values it lists — e.g. a
+  // Search's "Play to your site" only for the cards that may go there. The
+  // server still judges whatever is submitted.
+  function applyRequires(form) {
+    var deps = form.querySelectorAll("[data-requires-field]");
+    for (var i = 0; i < deps.length; i++) {
+      var l = deps[i];
+      var ctl = form.elements[l.getAttribute("data-requires-field")];
+      var v = ctl ? ctl.value : "";
+      var ok = v !== "" && JSON.parse(l.getAttribute("data-requires")).indexOf(v) !== -1;
+      var input = l.querySelector("input");
+      l.hidden = !ok;
+      if (input) {
+        input.disabled = !ok || input.hasAttribute("data-off");
+        if (!ok) input.checked = false;
+      }
+    }
+  }
+  // A box of several forms for one action (Recover: a relic or a banner):
+  // show only the one picked at the top.
+  function applyVariants(box) {
+    var pick = box.querySelector("[data-variant-pick]:checked");
+    var parts = box.querySelectorAll(".variant");
+    for (var i = 0; i < parts.length; i++) parts[i].hidden = !pick || parts[i].getAttribute("data-variant") !== pick.value;
+  }
+  function applyAll() {
+    var forms = document.querySelectorAll("form.compose-form");
+    for (var i = 0; i < forms.length; i++) applyRequires(forms[i]);
+    var picks = document.querySelectorAll(".variant-pick");
+    for (var j = 0; j < picks.length; j++) applyVariants(picks[j].parentElement);
+  }
+  document.addEventListener("change", function (e) {
+    if (e.target.hasAttribute && e.target.hasAttribute("data-variant-pick")) applyVariants(e.target.closest("details"));
+  });
+  applyAll();
+  document.addEventListener("change", function (e) {
+    if (e.target.form && e.target.form.classList.contains("compose-form")) applyRequires(e.target.form);
+  });
+  document.addEventListener("reset", function (e) {
+    var form = e.target;
+    if (form.classList && form.classList.contains("compose-form")) setTimeout(function () { applyRequires(form); }, 0);
+  });
+
+  document.addEventListener("change", function (e) {
+    var box = e.target;
+    if (box.type !== "checkbox" || !box.checked) return;
+    var set = box.closest("fieldset[data-max]");
+    if (!set) return;
+    var max = Number(set.dataset.max);
+    if (set.querySelectorAll("input[type=checkbox]:checked").length > max) box.checked = false;
+  });
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest(".vocab-add");
+    if (!btn) return;
+    var area = btn.closest("form").querySelector("textarea[name=effects]");
+    if (!area) return;
+    var list;
+    try { list = JSON.parse(area.value || "[]"); } catch (err) { list = null; }
+    if (!Array.isArray(list)) return; // leave a hand-edited list alone
+    list.push(JSON.parse(btn.dataset.effect));
+    area.value = JSON.stringify(list, null, 2);
+  });
+
+  window.addEventListener("focus", function () {
+    if (!document.querySelector("main section.yours")) return;
+    fetch(location.href, { headers: { accept: "text/html" }, credentials: "same-origin" })
+      .then(function (res) { return res.ok ? res.text() : null; })
+      .then(function (text) { if (text) swapIn(text, null); })
+      .catch(function () {});
+  });
+})();
 `.trim();
+
+
+/**
+ * A content hash of the stylesheet and script, put in their URLs by the
+ * layout (`/assets/app.css?v=…`). A new build therefore always fetches its
+ * own CSS, never a cached copy from the last build — a stale stylesheet with
+ * new markup is what once rendered board tokens full size and pushed the
+ * Supply marker off its track. Versioned URLs can then be cached for good.
+ */
+export const ASSET_VERSION = createHash('sha256').update(APP_CSS).update(APP_JS).digest('hex').slice(0, 12);

@@ -74,7 +74,7 @@ describe('GET / — the inbox page', () => {
     expect(page.status).toBe(200);
     expect(page.html).toContain('Nothing is waiting on you.');
     expect(page.html).toContain('Waiting on others');
-    expect(page.html).toContain('seat 0'); // seat 0 is setting up
+    expect(page.html).toContain('The Chancellor — setting up'); // seat 0, named as the table names them
     expect(page.html).toContain('setting up');
   });
 
@@ -91,5 +91,14 @@ describe('GET / — the inbox page', () => {
     const js = await fetch(`${base}/assets/app.js`);
     expect(js.status).toBe(200);
     expect(js.headers.get('content-type')).toContain('javascript');
+  });
+
+  it('caches the current versioned assets for good, and revalidates anything else', async () => {
+    const { ASSET_VERSION } = await import('../../src/client/assets.js');
+    for (const f of ['app.css', 'app.js']) {
+      expect((await fetch(`${base}/assets/${f}?v=${ASSET_VERSION}`)).headers.get('cache-control')).toContain('immutable');
+      expect((await fetch(`${base}/assets/${f}`)).headers.get('cache-control')).toBe('no-cache');
+      expect((await fetch(`${base}/assets/${f}?v=oldbuild`)).headers.get('cache-control')).toBe('no-cache');
+    }
   });
 });

@@ -21,6 +21,7 @@ import { ART_DIR } from '../../src/oath/cards/art.js';
 import { project } from '../../src/oath/game/project.js';
 import { oath } from '../../src/oath/game/index.js';
 import type { GameAction } from '../../src/engine/types.js';
+import type { Affordance } from '../../src/oath/game/affordances.js';
 import { FIXTURES, CARD_ID_ANYWHERE, learn, openingState, nameOf } from '../oath/game/audit-lib.js';
 
 // An empty asset dir → every face is a placeholder. That is the repo today,
@@ -42,7 +43,11 @@ describe.each(FIXTURES)('board HTML leak sweep — $name', ({ fixture, setupChoi
         const seen = known.get(seat)!;
         learn(state, seat, seen);
         const model = boardModel(project(state, seat), { gameId: 'g', seat, names });
-        const htmlOut = boardPage(model, { art });
+        // Unit 11: the composer renders the seat's affordances INTO the page
+        // (option values are ids), so the sweep covers it too.
+        const compose =
+          seat === null ? undefined : { entries: oath.affordances!(state, seat) as Affordance[], seq: 0, back: '/games/g' };
+        const htmlOut = boardPage(model, { art, compose });
         for (const m of htmlOut.matchAll(CARD_ID_ANYWHERE)) {
           if (!seen.has(m[0])) leaks.push(`${after}: ${nameOf(seat)} saw ${m[0]} in the board HTML`);
         }

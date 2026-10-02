@@ -4,13 +4,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { ASSET_VERSION } from '../../src/client/assets.js';
 import { inboxPage } from '../../src/client/pages/inbox.js';
 import type { InboxModel } from '../../src/client/model.js';
 
 const base: InboxModel = {
   empty: false,
   waitingOnYou: [{ id: 'turn:0:1', prompt: 'It is your turn.', url: '/games/g/decisions/turn:0:1', age: '2 hours' }],
-  waitingOnOthers: [{ seat: 2, label: 'in a Campaign' }],
+  waitingOnOthers: [{ seat: 2, who: 'the Yellow Exile', label: 'in a Campaign' }],
   boardUrl: '/games/g',
   historyUrl: '/games/g/history',
 };
@@ -23,14 +24,16 @@ describe('inboxPage', () => {
     expect(out).toContain('2 hours');
     expect(out).toContain('href="/games/g"'); // board
     expect(out).toContain('href="/games/g/history"'); // history
-    expect(out).toContain('seat 2 — in a Campaign');
+    expect(out).toContain('The Yellow Exile — in a Campaign'); // named as the table names them
   });
 
   it('is a full document with the shell (stylesheet, deferred script, skip link, seat)', () => {
     const out = inboxPage(base, { seat: 3, gameId: 'g' });
     expect(out.startsWith('<!doctype html>')).toBe(true);
-    expect(out).toContain('<link rel="stylesheet" href="/assets/app.css">');
-    expect(out).toContain('<script src="/assets/app.js" defer></script>');
+    // Versioned by content, so a new build never pairs with a cached old stylesheet.
+    expect(out).toContain(`<link rel="stylesheet" href="/assets/app.css?v=${ASSET_VERSION}">`);
+    expect(out).toContain(`<script src="/assets/app.js?v=${ASSET_VERSION}" defer></script>`);
+    expect(ASSET_VERSION).toMatch(/^[0-9a-f]{12}$/);
     expect(out).toContain('class="skip-link"');
     expect(out).toContain('seat 3');
   });
