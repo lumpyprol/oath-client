@@ -216,6 +216,10 @@ export interface CampaignModel {
   defender: string; // seat number as text, or "bandits"
   targets: string[]; // human target descriptions, no hidden ids
   attackDice: number;
+  /** Who joined the defence as Allies (Law §5.5.2), by seat title. Public. */
+  allies: string[];
+  /** The defending force, part by part, in words ("the Chancellor's board 6 (Ally)"). Empty before the roll. */
+  forceFrom: string[];
   /** Why the attack pool is not what was chosen, e.g. "3 chosen, −1 Mountain" (Law §11.4); null when unchanged. */
   attackDiceWhy: string | null;
   defenseDice: number;
@@ -430,6 +434,16 @@ export function boardModel(view: OathView, meta: { gameId: string; seat: number 
           }
         }),
         attackDice: view.campaign.attackDice,
+        allies: (view.campaign.allies ?? []).map((s) => seatTitle(view.players, s)),
+        forceFrom: (view.campaign.battle?.forceFrom ?? []).map((f) => {
+          if (f.kind === 'bandits') return `${f.count} bandit${f.count === 1 ? '' : 's'}`;
+          const who = `the ${seatTitle(view.players, f.seat)}`;
+          const ally = (view.campaign!.allies ?? []).includes(f.seat) ? ' (Ally)' : '';
+          const n = `${f.count} warband${f.count === 1 ? '' : 's'}`;
+          return f.kind === 'board'
+            ? `${n} on ${who}'s board${ally}`
+            : `${n} of ${who}'s on ${siteName(f.siteId)}${ally}`;
+        }),
         attackDiceWhy:
           view.campaign.attackDiceChosen !== undefined && view.campaign.attackDiceChanges?.length
             ? `${view.campaign.attackDiceChosen} chosen, ${view.campaign.attackDiceChanges.join(', ')}`

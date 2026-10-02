@@ -330,6 +330,10 @@ export function titleDefenseDice(
 const DeclarePayloadSchema = z.object({
   defender: z.union([z.number().int().min(0), z.literal('bandits')]),
   targets: z.array(TargetSchema).min(1),
+  // P4 unit 11: further targets as their own field, so a form can offer the
+  // required at-your-site target and any number of extras separately (Law
+  // §5.5.2: "any number of targets"). Merged into `targets` below.
+  alsoTargets: z.array(TargetSchema).optional(),
   attackDice: z.number().int().min(0),
 });
 
@@ -356,7 +360,8 @@ function bannerFullId(short: 'peoples-favor' | 'darkest-secret'): string {
 function computeDeclaration(state: OathState, attackerSeat: number, payload: unknown) {
   const parsed = DeclarePayloadSchema.safeParse(payload);
   if (!parsed.success) throw new IllegalAction('campaign.declare: malformed payload');
-  const { defender, attackDice, targets } = parsed.data;
+  const { defender, attackDice } = parsed.data;
+  const targets = [...parsed.data.targets, ...(parsed.data.alsoTargets ?? [])];
   const attacker = state.players[attackerSeat];
   const attackerSite = pawnSiteOf(state, attackerSeat);
 
@@ -828,7 +833,7 @@ function boardContributors(state: OathState, c: CampaignState): number[] {
  * all — a Chancellor attacking a Citizen suspends that Citizen, so that
  * Campaign has no Imperial defender and therefore no Allies.
  */
-function mandatoryAllies(state: OathState, attackerSeat: number, defenderSeat: number | 'bandits'): number[] {
+export function mandatoryAllies(state: OathState, attackerSeat: number, defenderSeat: number | 'bandits'): number[] {
   if (defenderSeat === 'bandits') return [];
   const exclusion = imperialExclusionFor(state, attackerSeat, defenderSeat);
   if (!imperialForce(state, exclusion).includes(defenderSeat)) return [];
@@ -951,6 +956,12 @@ export interface BattleTotals {
   shields: number;
   /** Defense from the defending force (its warbands, or the bandits). */
   force: number;
+  /**
+   * Where the force comes from (Ben: call it out), as the reducer counts it:
+   * each seat's warbands at a site or on its board, or the bandits. Public:
+   * these are warbands on the map and on boards.
+   */
+  forceFrom: ({ kind: 'site'; seat: number; siteId: string; count: number } | { kind: 'board'; seat: number; count: number } | { kind: 'bandits'; count: number })[];
   defense: number;
 }
 
@@ -963,8 +974,13 @@ export interface BattleTotals {
 export function battleTotals(state: OathState, c: CampaignState): BattleTotals | null {
   if (!c.attackFaces || !c.defenseFaces) return null;
   const { swords, skulls } = attackTotal(c.attackFaces);
-  const parts = defenseParts(state, c, defendingForce(state, c));
-  return { swords, skulls, shields: parts.shields, force: parts.force, defense: parts.shields + parts.force };
+  const force = defendingForce(state, c);
+  const parts = defenseParts(state, c, force);
+  const forceFrom: BattleTotals['forceFrom'] =
+    c.defenderSeat === 'bandits'
+      ? parts.force > 0 ? [{ kind: 'bandits', count: parts.force }] : []
+      : force.filter((e) => e.count > 0).map((e) => ({ ...e }));
+  return { swords, skulls, shields: parts.shields, force: parts.force, forceFrom, defense: parts.shields + parts.force };
 }
 
 /** Glossary "Kill": to the personal bank of the matching colour (purple -> the Chancellor). */

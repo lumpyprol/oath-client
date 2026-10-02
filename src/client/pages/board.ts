@@ -695,7 +695,7 @@ export function boardPage(
               <div class="dice-row"><span class="dice-label">Defense</span>
                 <span class="dice">${c.defenseFaces.map((f) => die(f))}</span>
                 ${c.battle
-                  ? html`<span class="dice-total">${c.battle.shields} from shields + ${c.battle.force} from the defending ${c.defender === 'bandits' ? 'bandits' : 'force'} = ${c.battle.defense}</span>`
+                  ? html`<span class="dice-total">${c.battle.shields} from shields + ${c.battle.force} from the defending ${c.defender === 'bandits' ? 'bandits' : 'force'}${c.forceFrom.length ? ` (${c.forceFrom.join(', ')})` : ''} = ${c.battle.defense}</span>`
                   : ''}
               </div>
               ${c.battle ? html`<p class="battle-score">Attack <strong>${c.battle.swords}</strong> vs defense <strong>${c.battle.defense}</strong> — the attack must be greater to win (Law §5.5.5).</p>` : ''}

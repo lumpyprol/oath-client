@@ -71,6 +71,7 @@ import {
   battleTotals,
   defenseTotal,
   defendingForce,
+  mandatoryAllies,
   eligibleAllyVolunteers,
   casualtyChooser,
 } from './actions/campaign.js';
@@ -758,6 +759,16 @@ export function siteAttackModifier(siteName: string): string {
   return '';
 }
 
+/** "Defending on boards: 4 on the Red Citizen's, 6 on the Chancellor's (Ally). " — or nothing. */
+function boardNoteFor(state: OathState, allies: number[]) {
+  return (force: { kind: string; seat?: number; count: number }[]): string => {
+    const boards = force.filter((e) => e.kind === 'board');
+    if (boards.length === 0) return '';
+    const parts = boards.map((e) => `${e.count} on the ${seatTitle(state.players, e.seat!)}'s${allies.includes(e.seat!) ? ' (Ally)' : ''}`);
+    return `Defending warbands on boards, whatever you target here: ${parts.join(', ')} (Law §5.5.4). `;
+  };
+}
+
 function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
   const p = state.players[seat];
   const site = pawnSiteOf(state, seat);
@@ -780,6 +791,30 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
     }
     const rulesYourSite = defender === 'bandits' ? true : rulers.includes(defender);
 
+    // The defending warbands each target brings (Ben, 2026-10-02), counted
+    // by the battle's own defendingForce over a provisional campaign — the
+    // Allies that must join included — so the form says what the dice
+    // alone do not.
+    const boardNote = boardNoteFor(state, defender === 'bandits' ? [] : mandatoryAllies(state, seat, defender));
+    const forceFor = (targets: unknown[]) =>
+      defendingForce(state, {
+        attackerSeat: seat,
+        defenderSeat: defender,
+        targets,
+        allies: defender === 'bandits' ? [] : mandatoryAllies(state, seat, defender),
+      } as unknown as CampaignState);
+    const boardsIn = (force: ReturnType<typeof forceFor>) => force.filter((e) => e.kind === 'board').reduce((a, e) => a + e.count, 0);
+    const atSite = (siteId: string, alongside: unknown[] = []): string => {
+      if (defender === 'bandits') return ', 1 bandit';
+      const n = forceFor([{ kind: 'site', siteId }])
+        .filter((e) => e.kind === 'site' && e.siteId === siteId)
+        .reduce((a, e) => a + e.count, 0);
+      // A board joins when its owner's pawn stands at a targeted site
+      // (§5.5.4): what targeting THIS site adds in boards, beyond the first target.
+      const boards = boardsIn(forceFor([...alongside, { kind: 'site', siteId }])) - boardsIn(forceFor(alongside));
+      return `, ${n} defending warband${n === 1 ? '' : 's'}${alongside.length && boards > 0 ? ` + ${boards} on boards (pawns there)` : ''}`;
+    };
+
     // Legal SOLO targets (each a complete one-target declaration, Law §5.5.2
     // with the "at least one target at your site" / "must target the ruled
     // site" clauses). Multi-target declarations are the client's to assemble.
@@ -789,7 +824,7 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
       // so the site is the only solo-legal target.
       soloTargets.push({
         value: [{ kind: 'site', siteId: attackerSite }],
-        label: `${byId(attackerSite).name} — ${SITE_DEFENSE_DICE} defense die${siteAttackModifier(byId(attackerSite).name)}`,
+        label: `${byId(attackerSite).name} — ${SITE_DEFENSE_DICE} defense die${atSite(attackerSite)}${siteAttackModifier(byId(attackerSite).name)}`,
       });
     } else if (pawnHere) {
       // Pawn present but not ruling: the at-your-site targets are solo-legal.
@@ -814,6 +849,41 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
     }
     if (soloTargets.length === 0) continue;
 
+    // §5.5.2: "any number of targets" — beyond the one at your site, any
+    // other at-your-site target (when their pawn is here) and any other site
+    // they rule, anywhere. Each extra may not repeat the first target, which
+    // `requires` says, and the harness checks both ways (Ben, 2026-10-02).
+    const extras: { value: unknown; label: string }[] = [];
+    if (pawnHere) {
+      extras.push({ value: { kind: 'pawnFavor' }, label: `their pawn & favor — ${PAWN_FAVOR_DICE} defense dice` });
+      for (const banner of state.banners) {
+        if (banner.holder === defender) {
+          extras.push({ value: { kind: 'banner', bannerId: banner.id.slice('banner:'.length) }, label: `${byId(banner.id).name} — ${banner.tokens} defense dice` });
+        }
+      }
+      for (const relicId of state.players[defender as number].relics) {
+        extras.push({ value: { kind: 'relic', relicId }, label: `${byId(relicId).name} — ${(byId(relicId) as Relic).defenseDice} defense dice` });
+      }
+      if (state.grandScepter === defender) {
+        extras.push({ value: { kind: 'scepter' }, label: `the Grand Scepter — ${SCEPTER_DEFENSE_DICE} defense dice` });
+      }
+    }
+    if (defender !== 'bandits') {
+      for (const other of state.sites) {
+        if (other.id === attackerSite || other.facedown) continue;
+        if (!rulersOf(state, other.id, exclude).includes(defender)) continue;
+        extras.push({
+          value: { kind: 'site', siteId: other.id },
+          label: `${byId(other.id).name} — ${SITE_DEFENSE_DICE} defense die${atSite(other.id, (soloTargets[0]?.value as unknown[]) ?? [])}${siteAttackModifier(byId(other.id).name)}`,
+        });
+      }
+    }
+    const key = (v: unknown) => JSON.stringify(v);
+    const alsoOptions: Option[] = extras.map((x) => {
+      const firsts = soloTargets.map((t) => t.value).filter((v) => key(v) !== key([x.value]));
+      return firsts.length === soloTargets.length ? x : { ...x, requires: { field: 'targets', values: firsts } };
+    });
+
     out.push({
       type: 'campaign.declare',
       fields: [
@@ -822,10 +892,12 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
           kind: 'choose-one',
           options: [{ value: defender, label: defender === 'bandits' ? 'the bandits' : seatTitle(state.players, defender) }],
         },
-        { name: 'targets', kind: 'choose-one', options: soloTargets },
+        { name: 'targets', label: 'target at your site', kind: 'choose-one', options: soloTargets },
+        ...(alsoOptions.length ? [{ name: 'alsoTargets', label: 'also target (any number, Law §5.5.2)', kind: 'choose-many' as const, options: alsoOptions }] : []),
         { name: 'attackDice', label: 'attack dice (before any Plains/Mountain change)', kind: 'count', min: 0, max: p.warbands.board },
       ],
       note:
+        boardNote(forceFor((soloTargets[0]?.value as unknown[]) ?? [])) +
         `Costs ${CAMPAIGN_COST} Supply. The defender's title adds ` +
         `${titleDefenseDice(state, seat, defender)} defense dice (Law §2.11); ` +
         `Plains +1 / Mountain -1 attack die (§11.4). Defense per target is shown above.`,
@@ -938,6 +1010,7 @@ function victoryEntry(
     const defenderAt = state.players[c.defenderSeat].pawnSite;
     fields.push({
       name: 'banishTo',
+      label: 'Banish their pawn: make them travel to a site of your choice, spending no Supply (Law §5.5.7.3)',
       kind: 'choose-one',
       options: [
         { value: null, label: 'Leave their pawn where it is' },
@@ -952,7 +1025,15 @@ function victoryEntry(
           })),
       ],
     });
-    fields.push({ name: 'burnFavor', kind: 'flag' });
+    // Say what burning does and how much (Ben): half their favor, rounded
+    // down, into the shared bank — Glossary "Burn" (Law §5.5.7.3).
+    const theirs = state.players[c.defenderSeat].favor;
+    const burnt = Math.floor(theirs / 2);
+    fields.push({
+      name: 'burnFavor',
+      kind: 'flag',
+      label: `Burn half their favor: ${burnt} of the ${seatTitle(state.players, c.defenderSeat)}'s ${theirs} go to the shared bank (rounded down, Law §5.5.7.3)`,
+    });
   }
   return {
     type: 'campaign.resolve',

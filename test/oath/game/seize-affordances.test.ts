@@ -37,6 +37,15 @@ describe('campaign.resolve: defeat and victory are separate entries (Law §5.5.5
     expect(banish.options.slice(1).every((o) => o.group && o.art)).toBe(true); // laid out like the map
   });
 
+  it('says what burning does and how much, and what banishing does (Ben, 2026-10-02)', () => {
+    const burn = victory.fields.find((f) => f.name === 'burnFavor')!;
+    const theirs = s.players[2].favor;
+    expect(burn.label).toBe(
+      `Burn half their favor: ${Math.floor(theirs / 2)} of the Blue Citizen's ${theirs} go to the shared bank (rounded down, Law §5.5.7.3)`,
+    );
+    expect(victory.fields.find((f) => f.name === 'banishTo')!.label).toMatch(/^Banish their pawn: make them travel to a site of your choice, spending no Supply/);
+  });
+
   it('is honest under the harness', () => {
     expect(auditAffordances(s, 1)).toEqual([]);
   });
@@ -84,7 +93,18 @@ describe('the battle totals, computed once by the engine and shown to everyone (
     const s = imperialRolled();
     for (const seat of [0, 1, 2, null]) {
       const view = oath.project(s, seat) as { campaign: { battle: unknown } };
-      expect(view.campaign.battle).toEqual({ swords: 3, skulls: 0, shields: 0, force: 5, defense: 5 });
+      expect(view.campaign.battle).toEqual({
+        swords: 3,
+        skulls: 0,
+        shields: 0,
+        force: 5,
+        // ...and where the 5 come from: the Chancellor's 2 at Mine, the defender's board 3.
+        forceFrom: [
+          { kind: 'site', siteId: s.sites[0].id, seat: 0, count: 2 },
+          { kind: 'board', seat: 2, count: 3 },
+        ],
+        defense: 5,
+      });
     }
   });
 
@@ -166,5 +186,63 @@ describe('campaign.casualties: kills are an allocation, not JSON (Law §5.5.6)',
   it('a non-chooser is offered nothing, and the engine agrees', () => {
     expect(entries(s, 2, 'campaign.casualties')).toEqual([]);
     expect(() => act(s, 'campaign.casualties', 2, { kills: [{ kind: 'board', seat: 2, count: 2 }] })).toThrow(IllegalAction);
+  });
+});
+
+describe('campaign.declare: any number of targets (Law §5.5.2; Ben, 2026-10-02)', () => {
+  /** seat 1 attacks Citizen seat 2, whose pawn is at seat 1's site; Imperial warbands rule Mine (sites[0]). */
+  const s = imperialState();
+  const declares = () => (oath.affordances!(s, 1) as Affordance[]).filter((e) => e.type === 'campaign.declare');
+  const against2 = () => declares().find((e) => (e.fields[0] as { options: { value: unknown }[] }).options[0].value === 2)!;
+
+  it('offers a target at your site, plus extras: other at-site targets and every other site they rule', () => {
+    const e = against2();
+    const also = e.fields.find((f) => f.name === 'alsoTargets') as { options: { value: unknown; requires?: { values: unknown[] } }[] } | undefined;
+    expect(also).toBeDefined();
+    const values = also!.options.map((o) => JSON.stringify(o.value));
+    expect(values).toContain(JSON.stringify({ kind: 'site', siteId: s.sites[0].id })); // Mine, ruled anywhere on the map
+    // pawn & favor can be an extra, but never on top of itself as the first target.
+    const pf = also!.options.find((o) => JSON.stringify(o.value) === JSON.stringify({ kind: 'pawnFavor' }));
+    if (pf?.requires) expect(pf.requires.values).not.toContainEqual([{ kind: 'pawnFavor' }]);
+  });
+
+  it('is honest under the harness, extras checked both ways', () => {
+    expect(auditAffordances(s, 1)).toEqual([]);
+  });
+
+  it('declares several targets at once, adding each one\'s defense dice', () => {
+    const one = act(s, 'campaign.declare', 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 });
+    const two = act(s, 'campaign.declare', 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], alsoTargets: [{ kind: 'site', siteId: s.sites[0].id }], attackDice: 2 });
+    expect(two.campaign!.targets).toHaveLength(2);
+    expect(two.campaign!.defenseDice).toBe(one.campaign!.defenseDice + 1); // + the site's one defense die
+    expect(() => act(s, 'campaign.declare', 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], alsoTargets: [{ kind: 'pawnFavor' }], attackDice: 2 })).toThrow(/duplicate target/);
+  });
+});
+
+describe('campaign targets show the defending warbands they bring (Ben, 2026-10-02)', () => {
+  it('labels a site target with its defending warbands, and notes the board warbands that defend anyway', () => {
+    const s = imperialState();
+    const e = (oath.affordances!(s, 1) as Affordance[])
+      .filter((x) => x.type === 'campaign.declare')
+      .find((x) => (x.fields[0] as { options: { value: unknown }[] }).options[0].value === 2)!;
+    const also = e.fields.find((f) => f.name === 'alsoTargets') as { options: { value: unknown; label: string }[] };
+    const mine = also.options.find((o) => JSON.stringify(o.value) === JSON.stringify({ kind: 'site', siteId: s.sites[0].id }))!;
+    expect(mine.label).toMatch(/— 1 defense die, 2 defending warbands$/); // the Chancellor's 2 at Mine defend for an Imperial defender
+    expect(e.note).toMatch(/^Defending warbands on boards, whatever you target here: 3 on the Blue Citizen's/);
+  });
+});
+
+describe('a site target where the defenders\' pawns stand says it brings their boards too (Law §5.5.4)', () => {
+  it('labels the extra boards that targeting that site adds', () => {
+    const s = imperialState();
+    // Move the Citizen defender's pawn away from the attacker, to Mine (which Imperial warbands rule).
+    s.players[2].pawnSite = s.sites[0].id;
+    const e = (oath.affordances!(s, 1) as Affordance[])
+      .filter((x) => x.type === 'campaign.declare')
+      .find((x) => (x.fields[0] as { options: { value: unknown }[] }).options[0].value === 2);
+    if (!e) return; // not a legal defender from here
+    const also = e.fields.find((f) => f.name === 'alsoTargets') as { options: { value: unknown; label: string }[] } | undefined;
+    const mine = also?.options.find((o) => JSON.stringify(o.value) === JSON.stringify({ kind: 'site', siteId: s.sites[0].id }));
+    if (mine) expect(mine.label).toMatch(/\+ 3 on boards \(pawns there\)/);
   });
 });

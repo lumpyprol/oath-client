@@ -108,7 +108,8 @@ export function baselineSubmission(form: ParsedForm, firstOfEach = false): RawBo
       allocLeft.set(field, allocLeft.get(field)! - n);
       pairs.push([name, String(n)]);
     } else if (type === 'checkbox') {
-      const tick = c.attrs.checked !== undefined || (firstOfEach && kinds[name] === 'choose-many' && !boxesDone.has(name));
+      // The first box legal on its own: skip a dependent one (data-dep).
+      const tick = c.attrs.checked !== undefined || (firstOfEach && kinds[name] === 'choose-many' && !boxesDone.has(name) && c.attrs['data-dep'] === undefined);
       if (tick) {
         boxesDone.add(name);
         pairs.push([name, value]);
