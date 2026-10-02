@@ -293,6 +293,21 @@ describe('replay', () => {
     expect(fromSnapshot.state).toEqual(full);
   });
 
+  it('D67: a game loads from its newest snapshot, so a later rules change never re-judges the log', () => {
+    const { gameId, seq } = playScriptedGame();
+    const head = store.loadState(toy, gameId).state;
+    // The same game under "new rules" that refuse every action it logged.
+    const stricter: typeof toy = {
+      ...toy,
+      reduce: () => {
+        throw new IllegalActionClass('not under the new rules');
+      },
+    };
+    const loaded = store.loadState(stricter, gameId);
+    expect(loaded.seq).toBe(seq);
+    expect(loaded.state).toEqual(head);
+  });
+
   it('rebuilds the same state after snapshots are wiped', () => {
     const { gameId } = playScriptedGame();
     const before = store.loadState(toy, gameId).state;

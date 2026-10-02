@@ -168,6 +168,12 @@ time. It runs once when an action is submitted and again on every replay —
 after a restart, from a snapshot, after a rollback. Anything that could differ
 between runs is decided once and persisted before the reducer sees it.
 
+**Logged play stands (D67).** A snapshot is written after every action and a
+game loads from its newest one, so a later rules fix applies going forward
+and never re-judges an action already played. Re-folding the whole log is
+still deterministic under the current rules, and is what the replay tests
+check, but a live game does not depend on it.
+
 **Randomness is decided once and stored.** The shuffle happens in `setup()`
 at creation and is stored in a table that is never served. Dice roll in
 `prepare()` at append time and the results go into the action payload. Draws
@@ -221,8 +227,8 @@ collides with game vocabulary.
 | `games` | id, kind, seats, created_at, complete | complete flag only |
 | `players` | seat, name, token (per-player secret) | write-once |
 | `setups` | opening position incl. deck order; **never served** | write-once |
-| `actions` | append-only log; sole source of truth with `setups` | append; truncated only by rollback |
-| `snapshots` | fold cache | disposable; `DELETE FROM` is always safe |
+| `actions` | append-only log; the record of what was played | append; truncated only by rollback |
+| `snapshots` | the state after every action; a live game loads from its newest one (D67) | written per action, dropped past a rollback; deleting them forces a full re-fold under the CURRENT rules |
 
 ### Action shape
 
@@ -1080,6 +1086,13 @@ they go.
   default, and standing-response-eligible (D52's machinery is built for
   exactly this reuse).
 
+**Rules versions (D67, deferred here).** v1 freezes a game's past by
+snapshotting every action, which leaves the fold itself unpinned: a full
+re-fold runs the current rules. v2 pins each game to the rules version it
+started on (the reducers it was played under), so a re-fold, a rollback
+across a rules change, or an audit reproduces exactly what was played. That
+matters most once v2 starts changing what cards DO.
+
 **Not in scope for v2.** The append-only log, fold, snapshots, rollback,
 optimistic concurrency, projection, and the chronicle/seed interop are
 all v1 and unchanged. So is the structural endgame (D35).
@@ -1160,6 +1173,7 @@ with `reversed by`.
 | D64 | 09-13 | P4: **a dry-run submit.** `POST /api/games/:id/actions?dryRun=1` runs `prepare` + `reduce` inside a transaction that is always rolled back, returning the would-be view/pending/affordances or the exact error. No log entry, no `seq` bump. Dice rolled in a dry run are explicitly flagged speculative and are NOT the ones the real submit will produce | v1's bargain is that card powers are declared, so the composer's hardest job is telling a player their effects are infeasible before it costs a log entry. The store already runs `reduce` inside a transaction, so this is a flag, not a mechanism. It must return byte-identical errors to the real path, which is why D59's leak sweep is unit 1 and this is unit 7 | active |
 | D65 | 09-13 | P4 acceptance evidence: the phase has **one unit that is not TDD and says so** (the visual pass). Its gate is human judgement, backed by two mechanical proxies — a class-name conformance test between templates and stylesheet, and a scripted viewport check (`scrollWidth <= clientWidth` at 1280x800 and 1920x1080 — desktop only since D66) driven by the browser tools outside `npm test`. The "playable from a desktop browser" criterion is ticked with a date and a browser, as P0's deployment criterion was | Pretending a CSS pass is test-driven would make the phase's green suite mean less, not more. Naming the one place tests do not reach is cheaper than discovering later that a tick was decoration | active |
 | D66 | 09-30 | **v1 is desktop only.** The client targets desktop and laptop browsers (minimum ~1280px wide); phones and tablets are out of scope — nothing is laid out, sized or tested for narrow or touch screens. Supersedes D29 (tablet/laptop primary, phone inbox) and reverses Q11's in-P4 phone support. The visual pass's viewport proxy checks 1280x800 and 1920x1080 instead of 1024x768 and 380x800 | Ben's call once the real board existed: it is laid out at true card scale on a wide map with full-size player boards, placards and advisers, and shrinking that to a phone would mean a second layout for a group that plays at desks anyway. Dropping it removes the phase's one piece of responsive work and a whole class of verify steps. Server-rendered pages (D57) keep the door open: a phone layout later is a stylesheet, not a second client | active |
+| D67 | 10-01 | **Logged play stands.** A snapshot is written after EVERY action and a game loads from its newest one, so a rules correction applies going forward and never re-judges what was already played. Deleting snapshots is still safe for a game played under the current rules (a full re-fold reproduces it), but no longer "always" safe across a rules change. **v2: version the rules per game** (each game pinned to the reducers it started on), so a re-fold and a rollback across a rules change reproduce exactly what was played | The local test game became unloadable on 2026-10-01: the §7.2 restriction data made a logged Forgotten-Vault-as-adviser play illegal, and replay re-ran it under the new rules. Options weighed: snapshot every action (chosen for v1: one constant, no new mechanism), version the rules per game (cleanest; for v2), or roll each broken live game back by hand on deploy (rejected: manual, and loses play). Storage cost is one state row per action, small for an async game's length | active |
 
 ---
 
@@ -1240,7 +1254,7 @@ with `reversed by`.
 | action | One log entry: something a player (or the system) did |
 | setup | The stored opening position, including deck order; never served |
 | fold | Rebuilding state by applying actions in order over the setup |
-| snapshot | A cached fold result; disposable |
+| snapshot | The saved state after an action. A game loads from its newest (D67) |
 | pending decision | Something the game is waiting on a specific seat for |
 | effect | A small tagged state change (`spend-favor`, `move-warbands`, …) the reducer applies; the shared currency of declared and enforced powers |
 | declared power | A `power.use` whose effects the player composed |

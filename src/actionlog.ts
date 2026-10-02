@@ -2,8 +2,16 @@ import { randomUUID } from 'node:crypto';
 import { db, transaction, dryRunTransaction } from './db.js';
 import { StaleSeq, type GameAction, type GameDefinition } from './engine/types.js';
 
-/** Snapshot cadence. Purely a performance knob. */
-const SNAPSHOT_EVERY = 25;
+/**
+ * Snapshot cadence: EVERY action (D67). A game loads from its newest
+ * snapshot, so the state a logged action produced stands as it was played —
+ * a later rules fix applies going forward and never re-judges the log.
+ * (At 25 a fix that made an old action illegal made the game unloadable:
+ * the local test game broke this way on 2026-10-01.) Folding from scratch
+ * still works, and the replay tests still prove it under the current rules,
+ * but it is no longer how a live game loads.
+ */
+const SNAPSHOT_EVERY = 1;
 
 interface ActionRow {
   game_id: string;

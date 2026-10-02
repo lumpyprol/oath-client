@@ -4,3 +4,5 @@ dist/
 assets/
 .DS_Store
 .claude/settings.local.json
+*.db-shm
+*.db-wal
