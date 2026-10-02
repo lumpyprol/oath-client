@@ -1033,7 +1033,9 @@ conformance now cover the composer. Deviations, each deliberate:
   seizure choices stashed for a casualty step were not checked until that
   step, so a bad one would have stuck the game. And banishing to a facedown
   site did not reveal it (RULINGS 2026-10-01). `wake.resolve` steps and
-  `power.use` effects remain the only `free` (JSON) fields.
+  `power.use` effects remain the only `free` (JSON) fields. (Superseded
+  2026-10-02: the Wake is fields too, see below; `power.use` effects are
+  now the only `free` field.)
 - Battle totals come from the engine (Ben: show both sides at Resolve). The
   projected campaign carries `battle` (swords, skulls, shields, defending
   force, defense) from `battleTotals`, the same functions `campaign.resolve`
@@ -1066,6 +1068,90 @@ conformance now cover the composer. Deviations, each deliberate:
   layout over the finished page, touches text only. It leaves alone
   attributes, existing links, <option>, <textarea>, <title>, <script> and
   <style>.
+- A Citizenship offer is answered in ONE form: a new engine action,
+  `citizenship.respond { answer: 'accept' | 'decline' }`, that runs the
+  existing accept/decline (both still valid: logged games, the JSON API).
+  It renders open inside "Awaiting a decision", which now sits above
+  "Your move" next to the campaign box. The offer decision resolves only
+  `citizenship.respond`; INTERRUPTS.md and the oracle table follow.
+- A warband request is answered the same way: `warbands.respond { answer:
+  'allow' | 'deny' }`, in "Awaiting a decision". No other decision had more
+  than one resolver.
+- Every Rest/Major/Minor action is always shown (Ben). When it cannot be
+  taken it is greyed and inert, with the server's reason (`unavailable`:
+  `computeUnavailable` beside the describers). The reason is "Not your turn:
+  waiting on the …", the decision that blocks it ("Finish your Search
+  first"), or the action's own precondition ("Costs 2 Supply; you have 1").
+  Actions keep a fixed order. A test holds, at every prefix of both
+  fixtures and for every seat: offered and greyed together cover every
+  always-shown action, they never overlap, and a greyed Rest is one the
+  engine refuses. The Imperial minor actions are the exception (Ben): the
+  Grand Scepter's three show only to its holder, and self-exile only to
+  Citizens (`shownTo`). Exiles never see them.
+- The Wake Phase is ordinary fields (Ben: it was a JSON box): `step1`, and
+  on the Mob side `step2`, each offering exactly the §4.1.1 choices legal
+  at that moment, plus `take` for a §4.1.4 Opportunity Site. Step 2's
+  options say which first steps they may follow (`requires`), worked out
+  by applying each first step as the reducer will. The engine accepts the
+  flat fields, and the nested `steps` shape stays valid. The harness now
+  checks the Wake (it skipped the JSON one), including a built Mob two-step
+  Wake the fixtures never reach.
+- The People's Favor holder is ALWAYS asked at their Wake (Ben), even when
+  the Law leaves one option. The engine used to apply a forced step
+  silently, so the step appeared on some turns and not others. The frozen
+  3-player fixture gained the two answers it now needs (each the one forced
+  option the engine used to apply). It still ends the same way, seat 0
+  winning. Test drivers answer a forced Wake via `wakeAnswer`.
+- When discarding is the only move for a facedown adviser, the option says
+  so and why ("a Citizen cannot reveal a Vision"). The action reads
+  "Facedown adviser: play or discard" (Law §6.1's own name).
+- The Reference section shows the War Exhaustion card (`victoryref.png`,
+  Law §3.4) beside the Goal Reference. The "Banks & supply" list at the
+  foot of the board is gone (Ben).
+- Every campaign answer (ally, permit, respond, then resolve and
+  casualties) renders open in the campaign box (Ben).
+- The status line names whose turn it is and every other seat the game is
+  waiting on, with the kind of decision ("waiting on the Chancellor (in a
+  Campaign)", or "waiting on you"). It comes from `buildBoard`'s `waiting`,
+  the same public kinds the inbox shows.
+- The campaign box names the Allies defending (Law §5.5.2). An Ally's board
+  warbands were always in the defending force, but nothing said so. The defense line also lists where the force comes from ("the
+  Chancellor's board 6 (Ally)"). It uses `battle.forceFrom`, the parts
+  exactly as the reducer counts them.
+- Campaigns take any number of targets (Law §5.5.2). The form had offered
+  only one-target declarations; a comment left multi-target ones "to the
+  client", and none was ever built. Now there is `targets` (the one at your
+  site) plus `alsoTargets` (choose-many): other at-site targets and every
+  other site the defender rules, each extra `requires`-guarded against
+  repeating the first. The engine merges `alsoTargets` into `targets`.
+- Trade's card choices state what each would pay, worked out as the reducer
+  will: favor for a secret (1 + matching faceup advisers, capped by that
+  suit's bank), or secrets for 2 favor (1 per matching adviser). Ben's
+  matching adviser's extra favor had been invisible.
+- "Campaign: declare" reads "Campaign" and "Turn: rest" reads "Rest".
+- An offered action with no legal choice in a required field (every option
+  disabled — Muster with no favor) is drawn greyed with the server's own
+  reason, not as a form to open and find empty.
+- Campaign targets show the defending warbands each brings: at the site,
+  plus the boards that join when a pawn stands at a targeted site, all from
+  `defendingForce` over a provisional campaign. A victory's seizure fields
+  say what they do: burning shows "N of their F favor go to the shared bank".
+  Banishing explains "make them travel, spending no Supply".
+- GAP, open: battle plans (§5.5.3, §7.5) cannot be declared during a
+  campaign. Power: use is not offered, or legal, inside a campaign's
+  windows, so the attacker, defender and Allies have no way to declare one.
+- Engine fix (RULINGS 2026-10-02, D41 amended): a Citizen's purple comes
+  from the Chancellor's bank, both when they join (board and map warbands
+  replaced, board first, as far as the bank goes) and when they Muster.
+  The old reading took the purple pool as always fully allocated, so a
+  joining Exile lost every warband and a Citizen's Muster gained nothing.
+- Engine fix (RULINGS 2026-10-02): recovering the Darkest Secret pays from
+  your own ready secrets before taking one of the old stake back (§5.4.2
+  comes before §5.4.4). The banner's stake can no longer fund its own cost.
+- Display: a banner's stake is drawn as its real token with a count on the
+  art's printed token spot. Held relics show at full size under the board.
+  A Citizen's warbands are purple on the map and in the stats row, while
+  their pawn keeps the seat colour.
 - The server closes its database on SIGTERM/SIGINT, checkpointing the WAL
   into the main file. Until then every write lived only in the -wal log
   beside it, and a local test game was lost on 2026-10-02 when its log
