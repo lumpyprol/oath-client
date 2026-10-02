@@ -82,3 +82,17 @@ describe.skipIf(!existsSync(ART_DIR))('real asset directory', () => {
     expect(missingAssets(manifest, ART_DIR)).toEqual([]);
   });
 });
+
+describe('vision art (hand-mapped — the renders do not follow cards.lua order)', () => {
+  it('maps each vision to the file whose face shows it (read off the faces, 2026-10-01)', async () => {
+    const { ART_MANIFEST } = await import('../../../src/oath/cards/art.js');
+    const visions = Object.fromEntries(Object.entries(ART_MANIFEST).filter(([k]) => k.startsWith('vision:')).map(([k, v]) => [k, v.file]));
+    expect(visions).toEqual({
+      'vision:faith': 'visions_01.png',
+      'vision:rebellion': 'visions_02.png',
+      'vision:sanctuary': 'visions_03.png',
+      'vision:conquest': 'visions_04.png',
+      'vision:conspiracy': 'visions_05.png',
+    });
+  });
+});

@@ -723,19 +723,19 @@
     "file": "relics_20.png"
   },
   "vision:sanctuary": {
-    "file": "visions_01.png"
+    "file": "visions_03.png"
   },
   "vision:rebellion": {
     "file": "visions_02.png"
   },
   "vision:conspiracy": {
-    "file": "visions_03.png"
+    "file": "visions_05.png"
   },
   "vision:faith": {
-    "file": "visions_04.png"
+    "file": "visions_01.png"
   },
   "vision:conquest": {
-    "file": "visions_05.png"
+    "file": "visions_04.png"
   },
   "edifice:sprawling-rampart": {
     "file": "edificeFront_01.png"

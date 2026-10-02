@@ -93,6 +93,23 @@ const BANNER_FILES: Record<string, string> = {
 };
 
 /**
+ * The vision renders do NOT follow cards.lua's `ttscardid` order. cards.lua
+ * lists Dynasty (now Sanctuary), Rebellion, Conspiracy, Faith, Conquest as
+ * 12000-12004, but the sliced files hold Faith, Rebellion, Sanctuary,
+ * Conquest, Conspiracy — read off the card faces themselves (Ben spotted
+ * Sanctuary showing as Faith, 2026-10-01). So visions are hand-mapped, like
+ * the banners; every other deck was checked against its faces and follows
+ * the join.
+ */
+const VISION_FILES: Record<string, string> = {
+  'vision:faith': 'visions_01.png',
+  'vision:rebellion': 'visions_02.png',
+  'vision:sanctuary': 'visions_03.png',
+  'vision:conquest': 'visions_04.png',
+  'vision:conspiracy': 'visions_05.png',
+};
+
+/**
  * Non-card assets the art route may serve: the board mat, the site back
  * (`lands3_08.png` — the deck's unused 24th slot, the facedown-site face),
  * the player boards, the wooden pieces (warbands, pawns) and the tokens
@@ -194,7 +211,11 @@ export function generateArtManifest(db: CardDatabase): ArtManifest {
   for (const d of db.denizens) put(d.id, maps.cards, d.saveId);
   for (const s of db.sites) put(s.id, maps.sites, s.saveId);
   for (const r of db.relics) put(r.id, maps.cards, r.saveId);
-  for (const v of db.visions) put(v.id, maps.cards, v.saveId);
+  for (const v of db.visions) {
+    const file = VISION_FILES[v.id];
+    if (file === undefined) throw new Error(`art: no vision image mapped for ${v.id}`);
+    manifest[v.id] = { file };
+  }
   for (const e of db.edifices) {
     put(e.id, maps.cards, e.faces.edifice.saveId);
     put(`${e.id}#ruin`, maps.cards, e.faces.edifice.saveId, { ruin: true });
