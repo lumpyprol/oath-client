@@ -74,6 +74,21 @@ describe('adviser.play — to your site (Law §6.1 "as if you searched" → §5.
   });
 });
 
+describe("adviser.play — when discarding is the only move, the form says so (Ben, 2026-10-02)", () => {
+  it("a Citizen's facedown Vision offers only 'Discard it', with why", () => {
+    const s = baseState();
+    const visionId = cards.visions[1].id;
+    s.worldDeck = s.worldDeck.filter((id) => id !== visionId);
+    s.worldDeck.push(s.players[1].advisers[0].id);
+    s.players[1].advisers[0] = { id: visionId, facedown: true, favor: 0, secrets: 0 };
+    s.players[1].citizenship = 'citizen'; // only the role matters to the describer
+    const entry = (oath.affordances!(s, 1) as { type: string; fields: { name: string; options?: { value: unknown; label: string }[] }[] }[])
+      .find((e) => e.type === 'adviser.play')!;
+    const as = entry.fields.find((f) => f.name === 'as')!.options!;
+    expect(as).toEqual([{ value: 'discard', label: 'Discard it (the only option: a Citizen cannot reveal a Vision (Law §5.1.4.3))' }]);
+  });
+});
+
 describe('adviser.play — faceup (Law §6.1 via §5.1.4)', () => {
   it('turns a facedown denizen over in place: same slot, same count, and NO favor', () => {
     const s = baseState();

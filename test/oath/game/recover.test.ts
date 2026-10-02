@@ -217,6 +217,20 @@ describe("recover — the People's Favor (Law §5.4.2 / §5.4.4)", () => {
 });
 
 describe('recover — the Darkest Secret (Law §5.4.2 / §5.4.4)', () => {
+  it('pays from secrets you already hold: the stake you take back cannot fund it (corrected 2026-10-02)', () => {
+    const s = baseState();
+    s.players[1].secrets = { ready: 1, flipped: 0 }; // holds 1; the unclaimed banner holds 1
+    const banner = s.banners.find((b) => b.id === DARKEST_SECRET_ID)!;
+    expect(banner.tokens).toBe(1);
+    // Paying 2 needs 2 of your own: refused, even though taking the old 1 back would have made 2.
+    expect(() => recover(s, 1, { target: 'banner', bannerId: 'darkest-secret', pay: 2 })).toThrow(IllegalAction);
+    // ...and the form never offers it: there is no affordable Darkest Secret entry at all.
+    const offered = (oath.affordances!(s, 1) as { type: string; fields: { name: string; options?: { value: unknown }[] }[] }[])
+      .filter((e) => e.type === 'recover')
+      .some((e) => e.fields.some((f) => f.name === 'bannerId' && f.options?.some((o) => o.value === 'darkest-secret')));
+    expect(offered).toBe(false);
+  });
+
   it('pays MORE secrets than the stake; recoverer takes 1 old secret, new stake is what you paid', () => {
     const s = baseState();
     s.players[1].secrets = { ready: 5, flipped: 0 };

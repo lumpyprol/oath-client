@@ -198,3 +198,28 @@ describe('trade — shared legality', () => {
     expect(out.turn.activeSeat).toBe(1);
   });
 });
+
+describe('Trade pays 1 + matching advisers in favor, or the matches in secrets — and the form says so (Ben, 2026-10-02)', () => {
+  it('with one matching faceup adviser: 2 favor for a secret, 1 secret for 2 favor', () => {
+    const { s, cardId, suit } = ready(1);
+    s.players[1].secrets = { ready: 1, flipped: 0 };
+    s.players[1].favor = 2;
+    s.sharedBank.favor -= 2;
+    s.favorBanks[suit] = Math.max(s.favorBanks[suit], 2);
+    const bank = s.favorBanks[suit];
+
+    const forFavor = trade(structuredClone(s), 1, { cardId, for: 'favor' });
+    expect(forFavor.players[1].favor).toBe(2 + 2); // 1 + 1 matching adviser
+    expect(forFavor.favorBanks[suit]).toBe(bank - 2);
+
+    const forSecrets = trade(structuredClone(s), 1, { cardId, for: 'secrets' });
+    expect(forSecrets.players[1].secrets.ready).toBe(1 + 1); // 1 per matching adviser, none for the base
+    expect(forSecrets.players[1].favor).toBe(0); // the 2 placed on the card
+
+    // The form states exactly those amounts on the card it would trade with.
+    const entry = (oath.affordances!(s, 1) as { type: string; fields: { name: string; options?: { value: unknown; label: string }[] }[] }[])
+      .find((e) => e.type === 'trade')!;
+    const label = entry.fields.find((f) => f.name === 'cardId')!.options!.find((o) => o.value === cardId)!.label;
+    expect(label).toMatch(/: 2 favor for a secret, or 1 secret for 2 favor, with 1 matching faceup adviser$/);
+  });
+});

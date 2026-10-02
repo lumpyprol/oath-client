@@ -50,12 +50,14 @@ import {
   type OathState,
   type PlayerState,
   type SiteState,
+  type CampaignState,
 } from './state.js';
 import type { Relic } from '../cards/schema.js';
 import { isRestricted, restrictionKnown } from './restrictions.js';
 import { rulersOf, chancellorSeatOf, imperialExclusionFor } from './rule.js';
 import { consultStanding } from './standing.js';
 import { worldDeckCost } from './actions/search.js';
+import { matchingFaceupAdvisers } from './actions/trade.js';
 import { darkestSecretRecoverable, relicRecoverCost } from './actions/recover.js';
 import { hasAccess, reliquaryPowerId } from './actions/power.js';
 import { exileFavorCost, selfExileFavorCost } from './actions/citizenship.js';
@@ -268,13 +270,32 @@ function describeTrade(state: OathState, seat: number): Affordance[] {
     {
       type: 'trade',
       fields: [
-        { name: 'cardId', kind: 'choose-one', options: targets.map((c) => ({ value: c.id, label: byId(c.id).name, art: c.id })) },
+        {
+          name: 'cardId',
+          kind: 'choose-one',
+          // What each card would pay, worked out the way the reducer will
+          // (Ben: a matching adviser's extra favor was invisible): 1 + each
+          // matching faceup adviser, capped by that suit's bank (§9.3).
+          options: targets.map((c) => {
+            const suit = (byId(c.id) as { suit: Suit }).suit;
+            const matches = matchingFaceupAdvisers(p, suit);
+            const favor = Math.min(1 + matches, state.favorBanks[suit]);
+            const suitName = `${suit[0].toUpperCase()}${suit.slice(1)}`;
+            const why = matches ? `, with ${matches} matching faceup adviser${matches === 1 ? '' : 's'}` : '';
+            const capped = favor < 1 + matches ? ` (the ${suitName} bank has only ${state.favorBanks[suit]})` : '';
+            return {
+              value: c.id,
+              label: `${byId(c.id).name} (${suitName}): ${favor} favor${capped} for a secret, or ${matches} secret${matches === 1 ? '' : 's'} for 2 favor${why}`,
+              art: c.id,
+            };
+          }),
+        },
         {
           name: 'for',
           kind: 'choose-one',
           options: [
-            { value: 'favor', label: 'gain favor (place 1 secret)', ...(canFavor ? {} : { disabled: forReason(false, true)! }) },
-            { value: 'secrets', label: 'gain secrets (place 2 favor)', ...(canSecrets ? {} : { disabled: forReason(false, false)! }) },
+            { value: 'favor', label: 'gain favor: place 1 secret (Law §5.3.2)', ...(canFavor ? {} : { disabled: forReason(false, true)! }) },
+            { value: 'secrets', label: 'gain secrets: place 2 favor (Law §5.3.2)', ...(canSecrets ? {} : { disabled: forReason(false, false)! }) },
           ],
         },
       ],
@@ -341,13 +362,10 @@ function describeRecover(state: OathState, seat: number): Affordance[] {
   const dsHolder = darkest.holder;
   // §5.4.1: only from yourself, an unclaimed banner, or a holder whose site has an unmatched card.
   const dsAllowed = dsHolder === null || dsHolder === seat || darkestSecretRecoverable(state, dsHolder);
-  // §5.4.4: you first TAKE back part of the old stake, THEN pay — so the
-  // secrets you take fund part of the payment. From yourself or an
-  // unclaimed banner you take all `tokens`; from another holder you take 1.
-  // The reducer applies the take before the pay, so the real ceiling on
-  // `pay` is your ready secrets PLUS what you take back.
-  const received = dsHolder === null || dsHolder === seat ? darkest.tokens : 1;
-  const dsMaxPay = p.secrets.ready + received;
+  // §5.4.2 pays BEFORE §5.4.4 takes one of the old stake back, so the
+  // payment must come from your own ready secrets alone (corrected
+  // 2026-10-02; the old reading let the banner's stake fund it).
+  const dsMaxPay = p.secrets.ready;
   if (dsAllowed && p.supply >= 1 && dsMaxPay >= darkest.tokens + 1) {
     out.push({
       type: 'recover',
@@ -436,6 +454,19 @@ function describeAdviserPlay(state: OathState, seat: number): Affordance[] {
     if (!isVision && !isRestricted(cardId, 'adviser') && site && site.cards.includes(null)) {
       // With the site's face, so it is plain WHICH site (Ben, 2026-10-01).
       asOptions.push({ value: 'site', label: `Play to your site (${byId(site.id).name})`, art: site.id });
+    }
+    // When discarding is the ONLY move, say so and why (Ben: a Citizen's
+    // facedown Vision looked like it was being "played").
+    if (asOptions.length === 1) {
+      const role = p.citizenship === 'chancellor' ? 'the Chancellor' : 'a Citizen';
+      const why = isConspiracy
+        ? "the Conspiracy's faceup play is declared with Power: use (Law §5.1.4.4)"
+        : isVision
+          ? `${role} cannot reveal a Vision (Law §5.1.4.3)`
+          : isRestricted(cardId, 'site')
+            ? 'it may only be played to a site, and yours has no room (Law §7.2.1)'
+            : 'it has nowhere it may be played now';
+      asOptions[0] = { value: 'discard', label: `Discard it (the only option: ${why})` };
     }
     const note = restrictionKnown(cardId)
       ? undefined

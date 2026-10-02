@@ -208,6 +208,16 @@ function recover(state: OathState, action: GameAction): OathState {
           "recover: can't take the Darkest Secret — every card at the holder's site matches an adviser (Law §5.4.1)",
         );
       }
+      // Law §5.4.2 (Step 2, pay) comes BEFORE §5.4.4 (Step 4, take one of
+      // the old stake): the payment comes from secrets you already hold, so
+      // it is applied first and cannot be funded by the banner's own stake
+      // (corrected 2026-10-02 — Ben's Dan paid 2 holding 1).
+      effects.push({
+        kind: 'secret',
+        from: { kind: 'seatSecrets', seat },
+        to: { kind: 'bannerSecrets' },
+        amount: pay,
+      });
       const fromSelfOrUnclaimed = holder === null || holder === seat;
       if (fromSelfOrUnclaimed) {
         effects.push({
@@ -232,12 +242,6 @@ function recover(state: OathState, action: GameAction): OathState {
           });
         }
       }
-      effects.push({
-        kind: 'secret',
-        from: { kind: 'seatSecrets', seat },
-        to: { kind: 'bannerSecrets' },
-        amount: pay,
-      });
       post.push((s) => {
         s.banners.find((x) => x.id === DARKEST_SECRET_ID)!.holder = seat;
       });
