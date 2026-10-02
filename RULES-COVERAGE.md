@@ -151,7 +151,7 @@ as fine", so a review that re-reads our own notes is worthless.
 | 5.5.6 | Resolve defeat; the Chancellor allocates an Imperial force's losses | **DONE** `applyDefeat`, `campaign.casualties` |
 | 5.5.7 | Attacker's victory: placements, Imperial consolidation, relics/banners, banish and burn | **DONE** `applySeizure`, `survivorBoardOf`, `applyVictorySpoils` — P3 unit 4 folded the choice-bearing parts into `campaign.resolve`'s payload (D50) |
 | 5.5.8 | Battle-plan triggers | **DEFER** → v2, with §5.5.3 |
-| 5.6.1–5.6.2 | Travel cost table; move and reveal | **DONE** `map.ts travelCost`, `travel.ts`. Site-specific cost modifiers (§11.3/11.6/11.7) → v2, declarable since unit 16d's `supply` effect |
+| 5.6.1–5.6.2 | Travel cost table; move and reveal | **DONE** `map.ts travelCost`, `travel.ts`. Site travel powers (§11.3/11.6/11.7/11.8, Buried Giant, The Hidden Place) enforced 2026-10-02 in `travel-rules.ts`; Shrouded Wood's ruler-chooses clause still → v2 |
 
 ## §6 Minor Actions
 

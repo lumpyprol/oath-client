@@ -218,7 +218,7 @@ describe('the 409 path: re-render with the fresh state, never an error page', ()
     const res = await post(tabA.attrs.action, body, cookie);
     expect(res.status).toBe(200);
     expect(res.html).toContain('class="banner stale"');
-    expect(res.html).toMatch(/Your Travel no longer fits:<\/p>\s*<ul><li>(your site choice is no longer offered|“[^”]+” is no longer allowed for site: [^<]+)<\/li>/);
+    expect(res.html).toMatch(/Your Travel no longer fits:<\/p>\s*<ul><li>(your Destination choice is no longer offered|“[^”]+” is no longer allowed for Destination: [^<]+)<\/li>/);
   });
 
   it('the JSON API keeps its own 409 contract, unchanged', async () => {

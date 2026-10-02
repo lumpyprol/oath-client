@@ -12,12 +12,12 @@
  *          the deck holds), and place `favor`/`secrets` from the shared
  *          bank onto the site (favor §9.3-clamped, secrets unlimited).
  *
- * NOT enforced — card text, so v1 players declare these via `power.use`
- * and the engine only ever charges the base cost (HLD D28; the v2
- * "Engine-enforced card powers" section carries the running list):
- *   - Site-power cost modifiers: Coast (§11.3), Charming Valley (§11.6),
- *     Shrouded Wood (§11.7), and "spend no Supply" powers (§7.6.2).
- *   - Narrow Pass's forced-destination rule (§11.8).
+ * Site powers that change Travel (Coast §11.3, Charming Valley §11.6,
+ * Shrouded Wood §11.7, Narrow Pass §11.8, Buried Giant, The Hidden Place)
+ * are enforced by `travelRoute` (travel-rules.ts), which the Travel form
+ * reads too. `pay: 'secret'` is Buried Giant's flipped secret. Still NOT
+ * enforced: Shrouded Wood's "an enemy ruler picks your destination", and
+ * denizen/relic travel powers (declared via `power.use`, HLD D28).
  *
  * Supply spent by decrementing on the applyEffects output (the unit 7
  * convention).
@@ -27,7 +27,7 @@ import { z } from 'zod';
 import { byId } from '../../cards/index.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
-import { travelCost } from '../map.js';
+import { travelRoute } from '../travel-rules.js';
 import type { OathState } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
@@ -38,13 +38,18 @@ import { requireActiveSeat, type Handler } from '../turn.js';
 // `siteIndex` is a position in the map's fixed slot order (`state.sites`,
 // unchanged in length or order all game — see `project()`), which is
 // public at every index whether or not that slot has been revealed yet.
-const TravelPayloadSchema = z.object({ siteIndex: z.number().int().min(0) });
+// `pay` (2026-10-02): 'secret' flips a ready secret at Buried Giant instead
+// of spending Supply. Absent = Supply, so earlier logged travels replay.
+const TravelPayloadSchema = z.object({
+  siteIndex: z.number().int().min(0),
+  pay: z.enum(['supply', 'secret']).optional(),
+});
 
 function travel(state: OathState, action: GameAction): OathState {
   const seat = requireActiveSeat(state, action);
   const parsed = TravelPayloadSchema.safeParse(action.payload);
   if (!parsed.success) throw new IllegalAction('travel: malformed payload');
-  const { siteIndex } = parsed.data;
+  const { siteIndex, pay = 'supply' } = parsed.data;
   const player = state.players[seat];
 
   const dest = state.sites[siteIndex];
@@ -60,16 +65,16 @@ function travel(state: OathState, action: GameAction): OathState {
   if (!from) throw new IllegalAction('travel: your pawn is not on a real site');
   const siteId = dest.id; // real, server-side — safe to use below whether or not this seat's view can see it
 
-  const cost = travelCost(from.region, dest.region); // Law §5.6.1
-  if (player.supply < cost) {
-    throw new IllegalAction(`travel: costs ${cost} Supply, you have ${player.supply} (Law §5.6.1)`);
-  }
+  const route = travelRoute(state, seat, siteIndex, pay); // Law §5.6.1 + site powers
+  if (route.blocked) throw new IllegalAction(`travel: ${route.blocked}`);
 
   const effects = arrivalEffects(state, siteIndex);
 
   const next = applyEffects(state, seat, effects);
   next.players[seat].pawnSite = siteId; // Law §5.6.2
-  next.players[seat].supply -= cost;
+  next.players[seat].supply -= route.cost;
+  next.players[seat].secrets.ready -= route.secrets; // flipped facedown: no use paying costs (Law §4.3)
+  next.players[seat].secrets.flipped += route.secrets;
   return next;
 }
 

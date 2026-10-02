@@ -43,6 +43,7 @@ import type { PendingDecision } from '../../engine/types.js';
 import { byId } from '../cards/index.js';
 import type { Site, Suit } from '../cards/schema.js';
 import { travelCost } from './map.js';
+import { BURIED_GIANT, shroudedRulers, travelRoute } from './travel-rules.js';
 import {
   ADVISER_LIMIT,
   CONSPIRACY_ID,
@@ -166,25 +167,64 @@ function describeTravel(state: OathState, seat: number): Affordance[] {
   const player = state.players[seat];
   const from = pawnSiteOf(state, seat);
   if (!from) return [];
+  // Every route is priced by `travelRoute` — Law §5.6.1 plus the site powers
+  // (Coast, Charming Valley, Shrouded Wood, Narrow Pass, Buried Giant, The
+  // Hidden Place) — the same function the reducer charges with.
+  const offerSecret = from.id === BURIED_GIANT && player.secrets.ready > 0;
+  const routes = state.sites.map((site, i) =>
+    site.id === player.pawnSite
+      ? null // "already on that site" is illegal, never an option
+      : { supply: travelRoute(state, seat, i, 'supply'), secret: offerSecret ? travelRoute(state, seat, i, 'secret') : null },
+  );
+  const bySupply = routes.some((r) => r && !r.supply.blocked);
+  const bySecret = routes.some((r) => r?.secret && !r.secret.blocked);
+  const payField = offerSecret && bySecret; // only Supply → no choice to make, the field is left out
   const options: Option[] = [];
   state.sites.forEach((site, i) => {
-    if (site.id === player.pawnSite) return; // "already on that site" is illegal, never an option
-    const cost = travelCost(from.region, site.region); // Law §5.6.1 — the ONE definition
+    const r = routes[i];
+    if (!r) return;
+    const okSupply = bySupply && !r.supply.blocked;
+    const okSecret = payField && !r.secret!.blocked;
+    const shown = okSupply || !okSecret ? r.supply : r.secret!;
     // Grouped by region so the form reads like the board: one column each.
     const option: Option = {
       value: i,
       label: site.facedown ? 'Facedown site' : byId(site.id).name,
-      cost: { supply: cost },
+      cost: { supply: shown.cost, ...(shown.secrets ? { secrets: shown.secrets } : {}) },
       group: REGION_LABEL[site.region],
       art: site.facedown ? 'site-back' : site.id,
     };
-    if (player.supply < cost) {
-      option.disabled = `costs ${cost} Supply, you have ${player.supply} (Law §5.6.1)`;
+    if (shown.why.length) option.label += ` (${shown.why.join('; ')})`;
+    if (!okSupply && !okSecret) option.disabled = r.supply.blocked;
+    else if (payField && okSupply !== okSecret && bySupply) {
+      option.requires = { field: 'pay', values: [okSupply ? 'supply' : 'secret'] };
     }
     options.push(option);
   });
   if (options.every((o) => o.disabled)) return []; // can't move at all → no entry
-  return [{ type: 'travel', fields: [{ name: 'siteIndex', kind: 'choose-one', options }] }];
+  const fields: Field[] = [];
+  if (payField) {
+    fields.push({
+      name: 'pay',
+      kind: 'choose-one',
+      label: 'Pay with',
+      options: [
+        ...(bySupply ? [{ value: 'supply', label: 'Supply, as usual' }] : []),
+        { value: 'secret', label: 'Buried Giant: flip one ready secret facedown — spend no Supply and ignore Narrow Pass' },
+      ],
+    });
+  }
+  fields.push({ name: 'siteIndex', kind: 'choose-one', label: 'Destination', options });
+  const choosers = shroudedRulers(state, seat);
+  return [
+    {
+      type: 'travel',
+      fields,
+      ...(choosers.length
+        ? { note: `Shrouded Wood is ruled by ${choosers.map((c) => seatTitle(state.players, c)).join(' / ')}: by Law §11.7 they choose where you go. Not enforced yet; agree it with them.` }
+        : {}),
+    },
+  ];
 }
 
 function describeStanding(state: OathState, seat: number): Affordance[] {
