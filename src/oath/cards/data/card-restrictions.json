@@ -1,19 +1,455 @@
 {
-  "_provenance": "Restriction banners (Law \u00a77.2), keyed by cards.lua saveId in the 'card' numbering. PARTIAL BY DESIGN (unit 19, Q12/D46): a card ABSENT from this file has NOT been read, and stays unenforced \u2014 absence never means 'unrestricted'. An empty array means read and carrying no banner. Values: 'site' (the tree restriction, \u00a77.2.1 \u2014 playable/movable only to a site), 'adviser' (the person restriction, \u00a77.2.1 \u2014 only to a player's advisers), 'locked' (the chain, \u00a77.2.2 \u2014 once played, cannot be discarded, moved or swapped). A card may carry more than one. The data is in no machine-readable source: the publisher's own card CDN has no restriction field, because the banner is iconography printed under the suit symbol (\u00a72.6.2), so each entry here was read off the card face at https://cardcdn.buriedgiant.com/cards/oath/en-US/<name>.webp. ANCHORS: Council Seat (saveId 122) shows a chain over a PERSON, and Ancient Forge (saveId 208) a chain over a TREE \u2014 between them they are the positive control \u2014 it shows a chain over a person badge directly beneath its suit, i.e. both 'locked' and 'adviser', which is what establishes where the banner sits and what its absence looks like on the others. Visions carry none structurally: \u00a72.6.2 places the banner under the SUIT, and a Vision has no suit (\u00a72.7). Keep (a DENIZEN) carries the same chain-over-tree as Ancient Forge, and is the one the tests use for the tree path: an edifice can never be drawn into a hand (\u00a72.9 \u2014 edifices only enter play through the Chronicle, \u00a78.3.1), so an edifice's tree banner is unreachable from card.play by construction.",
+  "_provenance": "Restriction banners (Law §7.2), keyed by cards.lua saveId in the 'card' numbering. COMPLETE as of 2026-10-01 (P4 unit 11): every denizen and edifice was read off its own card face in the licensed art set (assets/art), where the banner is the black shield under the suit symbol (§2.6.2). 'site' is the tree restriction (§7.2.1: playable or movable only to a site), 'adviser' is the person restriction (§7.2.1: only to a player's advisers), and 'locked' is the chain (§7.2.2: once played, cannot be discarded, moved or swapped). A card may carry more than one. An empty array means the card was read and carries no banner. Method: the shield region of every face was matched against four anchors (Garrison = tree, Gossip = person, Keep = chain + tree, Faithful Friend = chain + person), and the tree-or-person call was cross-checked by icon colour (green tree, blue person). Every card was then checked by eye on labelled contact sheets. The 7 entries from the original unit 19 reading (Keep 4, Council Seat 122, Ancient Forge 208, and the empty 107/124/210/214) all agree. Visions carry no banner structurally: §2.6.2 puts the banner under the SUIT, and a Vision has no suit (§2.7). Ben spotted the gap when Forgotten Vault (tree) was offered as an adviser.",
+  "0": [],
+  "1": [],
+  "2": [],
+  "3": [],
   "4": [
     "locked",
     "site"
   ],
-  "107": [],
-  "122": [
-    "locked",
+  "5": [],
+  "6": [
+    "site"
+  ],
+  "7": [],
+  "8": [],
+  "9": [
+    "site"
+  ],
+  "10": [],
+  "11": [],
+  "12": [
+    "site"
+  ],
+  "13": [],
+  "14": [
+    "adviser",
+    "locked"
+  ],
+  "15": [],
+  "16": [
     "adviser"
   ],
+  "17": [
+    "site"
+  ],
+  "18": [],
+  "19": [],
+  "20": [
+    "adviser"
+  ],
+  "21": [],
+  "22": [],
+  "23": [],
+  "24": [],
+  "25": [],
+  "26": [
+    "site"
+  ],
+  "27": [
+    "adviser",
+    "locked"
+  ],
+  "28": [],
+  "29": [
+    "site"
+  ],
+  "30": [],
+  "31": [],
+  "32": [],
+  "33": [
+    "site"
+  ],
+  "34": [],
+  "35": [
+    "adviser"
+  ],
+  "36": [],
+  "37": [],
+  "38": [],
+  "39": [
+    "adviser"
+  ],
+  "40": [
+    "adviser"
+  ],
+  "41": [
+    "site"
+  ],
+  "42": [],
+  "43": [
+    "adviser",
+    "locked"
+  ],
+  "44": [],
+  "45": [
+    "site"
+  ],
+  "46": [
+    "site"
+  ],
+  "47": [],
+  "48": [],
+  "49": [
+    "site"
+  ],
+  "50": [],
+  "51": [],
+  "52": [
+    "site"
+  ],
+  "53": [],
+  "54": [
+    "adviser"
+  ],
+  "55": [],
+  "56": [],
+  "57": [
+    "site"
+  ],
+  "58": [],
+  "59": [],
+  "60": [],
+  "61": [],
+  "62": [],
+  "63": [
+    "site"
+  ],
+  "64": [],
+  "65": [
+    "adviser"
+  ],
+  "66": [],
+  "67": [],
+  "68": [
+    "adviser"
+  ],
+  "69": [],
+  "70": [],
+  "71": [
+    "adviser",
+    "locked"
+  ],
+  "72": [
+    "adviser",
+    "locked"
+  ],
+  "73": [
+    "adviser",
+    "locked"
+  ],
+  "74": [
+    "site"
+  ],
+  "75": [
+    "site"
+  ],
+  "76": [],
+  "77": [
+    "adviser"
+  ],
+  "78": [],
+  "79": [
+    "adviser",
+    "locked"
+  ],
+  "80": [],
+  "81": [],
+  "82": [],
+  "83": [],
+  "84": [
+    "adviser",
+    "locked"
+  ],
+  "85": [
+    "adviser",
+    "locked"
+  ],
+  "86": [],
+  "87": [
+    "adviser",
+    "locked"
+  ],
+  "88": [
+    "locked",
+    "site"
+  ],
+  "89": [
+    "adviser"
+  ],
+  "90": [],
+  "91": [
+    "adviser",
+    "locked"
+  ],
+  "92": [
+    "site"
+  ],
+  "93": [
+    "locked",
+    "site"
+  ],
+  "94": [
+    "adviser"
+  ],
+  "95": [
+    "adviser"
+  ],
+  "96": [
+    "adviser",
+    "locked"
+  ],
+  "97": [
+    "adviser"
+  ],
+  "98": [
+    "site"
+  ],
+  "99": [
+    "site"
+  ],
+  "100": [
+    "adviser"
+  ],
+  "101": [],
+  "102": [],
+  "103": [],
+  "104": [],
+  "105": [],
+  "106": [
+    "adviser"
+  ],
+  "107": [],
+  "108": [],
+  "109": [
+    "site"
+  ],
+  "110": [
+    "adviser",
+    "locked"
+  ],
+  "111": [
+    "site"
+  ],
+  "112": [
+    "site"
+  ],
+  "113": [],
+  "114": [
+    "site"
+  ],
+  "115": [],
+  "116": [],
+  "117": [
+    "site"
+  ],
+  "118": [
+    "site"
+  ],
+  "119": [],
+  "120": [
+    "adviser",
+    "locked"
+  ],
+  "121": [],
+  "122": [
+    "adviser",
+    "locked"
+  ],
+  "123": [],
   "124": [],
+  "125": [],
+  "126": [],
+  "127": [],
+  "128": [
+    "locked",
+    "site"
+  ],
+  "129": [],
+  "130": [
+    "adviser"
+  ],
+  "131": [
+    "site"
+  ],
+  "132": [
+    "adviser",
+    "locked"
+  ],
+  "133": [],
+  "134": [],
+  "135": [],
+  "136": [],
+  "137": [
+    "site"
+  ],
+  "138": [],
+  "139": [
+    "adviser"
+  ],
+  "140": [
+    "site"
+  ],
+  "141": [
+    "adviser"
+  ],
+  "142": [
+    "adviser"
+  ],
+  "143": [
+    "site"
+  ],
+  "144": [
+    "adviser",
+    "locked"
+  ],
+  "145": [],
+  "146": [],
+  "147": [
+    "adviser",
+    "locked"
+  ],
+  "148": [
+    "site"
+  ],
+  "149": [],
+  "150": [
+    "site"
+  ],
+  "151": [
+    "adviser",
+    "locked"
+  ],
+  "152": [],
+  "153": [],
+  "154": [],
+  "155": [],
+  "156": [
+    "adviser"
+  ],
+  "157": [],
+  "158": [
+    "site"
+  ],
+  "159": [
+    "site"
+  ],
+  "160": [
+    "adviser"
+  ],
+  "161": [
+    "site"
+  ],
+  "162": [],
+  "163": [],
+  "164": [
+    "adviser"
+  ],
+  "165": [
+    "adviser",
+    "locked"
+  ],
+  "166": [],
+  "167": [
+    "adviser"
+  ],
+  "168": [
+    "site"
+  ],
+  "169": [
+    "adviser"
+  ],
+  "170": [
+    "adviser"
+  ],
+  "171": [],
+  "172": [],
+  "173": [
+    "locked",
+    "site"
+  ],
+  "174": [],
+  "175": [
+    "adviser"
+  ],
+  "176": [
+    "adviser"
+  ],
+  "177": [
+    "site"
+  ],
+  "178": [],
+  "179": [],
+  "180": [],
+  "181": [
+    "adviser"
+  ],
+  "182": [
+    "site"
+  ],
+  "183": [
+    "adviser"
+  ],
+  "184": [
+    "adviser",
+    "locked"
+  ],
+  "185": [
+    "adviser"
+  ],
+  "186": [],
+  "187": [],
+  "188": [],
+  "189": [],
+  "190": [],
+  "191": [
+    "site"
+  ],
+  "192": [
+    "adviser",
+    "locked"
+  ],
+  "193": [
+    "locked",
+    "site"
+  ],
+  "194": [
+    "site"
+  ],
+  "195": [
+    "adviser",
+    "locked"
+  ],
+  "196": [],
+  "197": [],
+  "198": [
+    "locked",
+    "site"
+  ],
+  "200": [
+    "locked",
+    "site"
+  ],
+  "202": [
+    "locked",
+    "site"
+  ],
+  "204": [
+    "locked",
+    "site"
+  ],
+  "206": [
+    "locked",
+    "site"
+  ],
   "208": [
     "locked",
     "site"
   ],
   "210": [],
+  "211": [],
+  "212": [],
+  "213": [],
   "214": []
 }

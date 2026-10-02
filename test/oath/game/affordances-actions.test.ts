@@ -52,25 +52,16 @@ describe('recover — the two relic-slot label forms (unit 3 payoff)', () => {
   });
 });
 
-describe('the §7.2-restriction-unknown note (D46)', () => {
-  it('card.play surfaces a self-policed note for a card restrictions.ts never read', () => {
+describe('the §7.2-restriction-unknown note (D46) is gone: every card has been read', () => {
+  it('card.play never says a card was never transcribed', () => {
     const s = baseState(); // seat 1 active
-    // A restriction-unknown card that is in the world deck (not already in
-    // play), so moving it to the hand keeps the one-zone invariant.
-    const unknown = s.worldDeck.find((id) => id.startsWith('denizen:') && !restrictionKnown(id))!;
-    expect(restrictionKnown(unknown)).toBe(false);
-    s.worldDeck = s.worldDeck.filter((id) => id !== unknown);
-    s.players[1].hand = [unknown];
+    const card = s.worldDeck.find((id) => id.startsWith('denizen:'))!;
+    expect(restrictionKnown(card)).toBe(true);
+    s.worldDeck = s.worldDeck.filter((id) => id !== card);
+    s.players[1].hand = [card];
     s.players[1].handDrawnAt = s.actionCount;
     checkInvariants(s);
-
-    const entries = aff(s, 1).filter((e) => e.type === 'card.play');
-    const forUnknown = entries.filter((e) => {
-      const hi = e.fields.find((f) => f.name === 'handIndex');
-      return hi && hi.kind === 'choose-one' && hi.options[0].value === 0;
-    });
-    expect(forUnknown.length).toBeGreaterThan(0);
-    for (const e of forUnknown) expect(e.note).toMatch(/7\.2|self-policed/);
+    for (const e of aff(s, 1).filter((x) => x.type === 'card.play')) expect(e.note ?? '').not.toMatch(/never transcribed/);
     expect(auditAffordances(s, 1)).toEqual([]);
   });
 });

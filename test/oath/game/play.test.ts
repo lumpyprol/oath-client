@@ -5,6 +5,7 @@ import { oath } from '../../../src/oath/game/index.js';
 import { IllegalAction, type GameAction } from '../../../src/engine/types.js';
 import { discardRegion } from '../../../src/oath/game/map.js';
 import { baseState } from './helpers.js';
+import { restrictionsOf } from '../../../src/oath/game/restrictions.js';
 
 /** Drive `card.play` straight through the assembled reducer. */
 function play(state: OathState, actor: number | null, payload: unknown): OathState {
@@ -19,10 +20,12 @@ function play(state: OathState, actor: number | null, payload: unknown): OathSta
   return oath.reduce(state, action);
 }
 
-/** baseState with a denizen and a vision in the active seat's (seat 1) hand. */
+/** baseState with an UNRESTRICTED denizen and a vision in the active seat's (seat 1) hand. */
 function withHand() {
   const s = baseState();
-  const denizenId = s.worldDeck.shift()!; // a denizen (top of deck)
+  // A denizen with no §7.2 banner, so every destination is open to it.
+  const denizenId = s.worldDeck.find((id) => id.startsWith('denizen:') && restrictionsOf(id)?.length === 0)!;
+  s.worldDeck = s.worldDeck.filter((id) => id !== denizenId);
   const visionId = s.worldDeck.pop()!; // a vision (deck ends with visions)
   expect(denizenId.startsWith('denizen:')).toBe(true);
   expect(visionId.startsWith('vision:')).toBe(true);

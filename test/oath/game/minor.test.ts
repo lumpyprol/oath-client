@@ -27,6 +27,11 @@ function act(state: OathState, type: string, actor: number | null, payload: unkn
 describe('adviser.play — faceup (Law §6.1 via §5.1.4)', () => {
   it('turns a facedown denizen over in place: same slot, same count, and NO favor', () => {
     const s = baseState();
+    // baseState's facedown adviser (Martial Culture) is site-only, so swap in
+    // a denizen with no §7.2 banner, which may turn faceup as an adviser.
+    const plain = s.worldDeck.find((id) => id.startsWith('denizen:') && restrictionsOf(id)?.length === 0)!;
+    s.worldDeck = s.worldDeck.filter((id) => id !== plain).concat(s.players[1].advisers[0].id);
+    s.players[1].advisers[0].id = plain;
     const cardId = s.players[1].advisers[0].id;
     const favorBefore = s.players[1].favor;
     const banksBefore = { ...s.favorBanks };
@@ -441,15 +446,15 @@ describe('§7.2 restriction banners (unit 19, scoped data — Q12/D46)', () => {
     expect(out.players[1].advisers.some((a) => a.id === COUNCIL_SEAT)).toBe(false);
   });
 
-  it('an UNREAD card is unenforced, not assumed unrestricted', () => {
-    // Nothing in the data file, so the engine has no opinion and allows it —
-    // the partial-transcription contract (D46).
+  it('every denizen and edifice has been read (complete since 2026-10-01; D46 partial data closed)', () => {
+    const unread = [...cards.denizens, ...cards.edifices].filter((c) => restrictionsOf(c.id) === null).map((c) => c.id);
+    expect(unread).toEqual([]);
+  });
+
+  it('a card with no banner is open to every destination', () => {
     const base = baseState();
-    const unread = base.worldDeck.find(
-      (id) => id.startsWith('denizen:') && restrictionsOf(id) === null,
-    )!;
-    expect(restrictionsOf(unread)).toBeNull();
-    const s = inHand(unread);
+    const plain = base.worldDeck.find((id) => id.startsWith('denizen:') && restrictionsOf(id)?.length === 0)!;
+    const s = inHand(plain);
     checkInvariants(act(s, 'card.play', 1, { handIndex: 0, as: 'site' }));
   });
 });

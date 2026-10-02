@@ -16,13 +16,12 @@
  * as a FACEDOWN adviser; the restriction only bites if §6.1 later tries to
  * turn it faceup, and at that point the card can only be discarded.
  *
- * PARTIAL DATA, on purpose. The banners exist in no machine-readable
- * source — the publisher's own card CDN carries no restriction field,
- * because the banner is printed iconography — so `card-restrictions.json`
- * holds only the cards actually read off their faces. `restrictionsOf`
- * returns null for anything unread, and every caller treats null as "no
- * opinion" and allows the move, exactly as the engine did before this
- * existed. The engine never pretends to know a restriction it has not read.
+ * COMPLETE DATA (2026-10-01, P4 unit 11). Unit 19 read only a handful of
+ * faces; the rest stayed unenforced (D46). With the licensed art in hand,
+ * every denizen and edifice was read off its own face (see the data file's
+ * provenance). `restrictionsOf` still returns null for anything absent, and
+ * every caller still treats null as "no opinion", but no real card is
+ * absent any more, and a test holds it there.
  */
 
 import restrictionData from '../cards/data/card-restrictions.json' with { type: 'json' };
