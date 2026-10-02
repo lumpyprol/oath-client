@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupChoices } from './helpers.js';
+import { setupChoices, wakeAnswer } from './helpers.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-decisions-')), 'test.db');
 
@@ -77,6 +77,17 @@ async function newGame(): Promise<Ctx> {
       method: 'POST',
       token: ctx.tokens[seat],
       body: JSON.stringify({ prevSeq: ctx.seq, type: 'setup.choose', payload }),
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    ctx.seq = r.body.seq as number;
+  }
+  // The People's Favor holder is now always asked at their Wake: answer the opening one.
+  const wake = wakeAnswer(store.loadState(oath, ctx.gameId).state as never);
+  if (wake) {
+    const r = await api(`/games/${ctx.gameId}/actions`, {
+      method: 'POST',
+      token: ctx.tokens[wake.seat],
+      body: JSON.stringify({ prevSeq: ctx.seq, type: 'wake.resolve', payload: wake.payload }),
     });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     ctx.seq = r.body.seq as number;

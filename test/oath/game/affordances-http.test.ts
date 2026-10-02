@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupChoices } from './helpers.js';
+import { setupChoices, wakeAnswer } from './helpers.js';
 
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'oath-affordances-')), 'test.db');
 
@@ -65,6 +65,16 @@ async function newGame() {
     });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     seq = r.body.seq as number;
+  }
+  // The People's Favor holder is now always asked at their Wake: answer the opening one.
+  const wake = wakeAnswer(store.loadState(oath, gameId).state as never);
+  if (wake) {
+    const r = await api(`/games/${gameId}/actions`, {
+      method: 'POST',
+      token: tokens[wake.seat],
+      body: JSON.stringify({ prevSeq: seq, type: 'wake.resolve', payload: wake.payload }),
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
   }
   return { gameId, tokens };
 }

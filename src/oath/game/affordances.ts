@@ -38,9 +38,10 @@
  */
 
 import { seatTitle } from './seats.js';
+import { wakeOptions, applyWakeStep, type WakeStep } from './victory.js';
 import type { PendingDecision } from '../../engine/types.js';
 import { byId } from '../cards/index.js';
-import type { Site } from '../cards/schema.js';
+import type { Site, Suit } from '../cards/schema.js';
 import { travelCost } from './map.js';
 import {
   ADVISER_LIMIT,
@@ -654,24 +655,67 @@ function describeSetupChoose(state: OathState, seat: number): Affordance[] {
 function describeWakeResolve(state: OathState, seat: number): Affordance[] {
   if (!state.wake || state.wake.seat !== seat) return [];
   const w = state.wake;
-  const parts = [
-    w.stepsRemaining > 0 ? `${w.stepsRemaining} People's Favor step(s) (§4.1.1)` : null,
-    w.opportunity !== null ? `an Opportunity Site take (§4.1.4)` : null,
-  ].filter((s) => s !== null);
-  return [
-    {
-      type: 'wake.resolve',
-      fields: [
-        {
-          name: 'steps',
-          kind: 'free',
-          schema:
-            "WakeStep[] of length stepsRemaining (each { choice: 'place' } or { choice: 'return', bank: <suit> }), plus an optional { take: { take: 'favor'|'secret'|'none' } } when an Opportunity Site is owed",
-        },
+  const fields: Field[] = [];
+
+  // §4.1.1 as ordinary fields (Ben: the Wake was a JSON box). Each step's
+  // options are exactly what the Law allows at that moment (wakeOptions,
+  // the reducer's own predicate). Step 2's depend on step 1, so each of its
+  // options says which first steps it may follow (`requires`), worked out
+  // by applying each first step the way the reducer will.
+  const optionsAt = (st: OathState): Option[] | null => {
+    const o = wakeOptions(st, seat);
+    if (!o.canPlace && !o.canReturn) return null; // nothing possible (§9.2): any answer is moot
+    const place: Option = { value: { choice: 'place' }, label: "Place 1 of your favor on the People's Favor" };
+    const returns = o.banks.map((bank) => ({
+      value: { choice: 'return', bank },
+      label: `Move 1 favor from it to the ${bank[0].toUpperCase()}${bank.slice(1)} bank (an emptiest one)`,
+    }));
+    return o.mustPlace ? [place] : o.mustReturn ? returns : [place, ...returns];
+  };
+  if (w.stepsRemaining >= 1) {
+    const first = optionsAt(state) ?? [{ value: { choice: 'place' }, label: 'Nothing to do' }];
+    fields.push({ name: 'step1', label: "People's Favor (Law §4.1.1)", kind: 'choose-one', options: first });
+    if (w.stepsRemaining >= 2) {
+      const key = (v: unknown) => JSON.stringify(v);
+      const second = new Map<string, { option: Option; after: unknown[] }>();
+      for (const o1 of first) {
+        const after = applyWakeStep(structuredClone(state), seat, o1.value as WakeStep);
+        const opts = optionsAt(after) ?? first.map((o) => ({ ...o, label: 'Nothing more to do' })).slice(0, 1);
+        for (const o2 of opts) {
+          const k = key(o2.value);
+          const entry = second.get(k) ?? { option: o2, after: [] };
+          entry.after.push(o1.value);
+          second.set(k, entry);
+        }
+      }
+      fields.push({
+        name: 'step2',
+        label: "People's Favor again: the Mob side repeats it (Law §4.1.1.II)",
+        kind: 'choose-one',
+        options: [...second.values()].map(({ option, after }) =>
+          after.length === first.length ? option : { ...option, requires: { field: 'step1', values: after } },
+        ),
+      });
+    }
+  }
+
+  // §4.1.4: a favor or secret from the Opportunity Site you stand on, if it has one.
+  if (w.opportunity !== null) {
+    const site = state.sites.find((x) => x.id === w.opportunity)!;
+    const name = byId(site.id).name;
+    fields.push({
+      name: 'take',
+      label: `Take from ${name} (Law §4.1.4)`,
+      kind: 'choose-one',
+      options: [
+        ...(site.favor > 0 ? [{ value: 'favor', label: `Take 1 favor (${site.favor} there)` }] : []),
+        ...(site.secrets > 0 ? [{ value: 'secret', label: `Take 1 secret (${site.secrets} there)` }] : []),
+        { value: 'none', label: 'Take nothing' },
       ],
-      note: `Resolve your Wake Phase: ${parts.join(', then ')}.`,
-    },
-  ];
+    });
+  }
+
+  return [{ type: 'wake.resolve', fields, note: 'Your Wake Phase (Law §4.1).' }];
 }
 
 // § Campaign (Law §5.5). declare is a major action (on your turn); the rest

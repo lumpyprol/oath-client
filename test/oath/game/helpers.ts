@@ -9,6 +9,7 @@
 
 import { expect } from 'vitest';
 import type { GameAction } from '../../../src/engine/types.js';
+import { oath as oathDef } from '../../../src/oath/game/index.js';
 import { cards, byId } from '../../../src/oath/cards/index.js';
 import {
   type OathState,
@@ -268,4 +269,26 @@ export function containsId(value: unknown, id: string): boolean {
 /** Assert `id` appears nowhere in `value` — see `containsId` for why not toContain. */
 export function expectHidden(value: unknown, id: string): void {
   expect(containsId(value, id), `${id} leaked into the projection`).toBe(false);
+}
+
+/**
+ * The answer to a pending Wake that offers NO real choice (null otherwise) — the People's
+ * Favor holder is now always ASKED (P4 unit 11), so a game that starts with
+ * the Chancellor holding it opens with a Wake to answer. Its first legal
+ * option for each step, and "none" for an Opportunity Site take. Null when
+ * no Wake is pending.
+ */
+export function wakeAnswer(state: OathState): { seat: number; payload: Record<string, unknown> } | null {
+  if (!state.wake) return null;
+  const seat = state.wake.seat;
+  const entry = (oathDef.affordances!(state, seat) as { type: string; fields: { name: string; options?: { value: unknown }[] }[] }[]).find(
+    (e) => e.type === 'wake.resolve',
+  );
+  if (!entry) return null;
+  // Only a Wake with no real choice (what the engine used to resolve itself);
+  // a genuine choice stays for the caller to make.
+  if (entry.fields.some((f) => f.name !== 'take' && (f.options?.length ?? 0) > 1)) return null;
+  const payload: Record<string, unknown> = {};
+  for (const f of entry.fields) payload[f.name] = f.name === 'take' ? 'none' : f.options![0].value;
+  return { seat, payload };
 }

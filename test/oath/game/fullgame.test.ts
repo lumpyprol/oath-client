@@ -7,7 +7,7 @@ import type { Server } from 'node:http';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { checkInvariants, type OathState } from '../../../src/oath/game/state.js';
 import { restrictionKnown } from '../../../src/oath/game/restrictions.js';
-import { setupChoices } from './helpers.js';
+import { setupChoices, wakeAnswer } from './helpers.js';
 import { attackTotal } from '../../../src/oath/game/actions/campaign.js';
 import type { AttackFace } from '../../../src/oath/game/state.js';
 
@@ -80,6 +80,10 @@ const played = new Set<string>();
 
 /** Take one action as `seat`, asserting it was accepted and stayed legal. */
 async function act(ctx: Ctx, seat: number, type: string, payload: unknown = {}) {
+  // The People's Favor holder is now always ASKED at their Wake (P4 unit 11),
+  // even when the Law leaves one option: answer it before the script's move.
+  const pendingWake = type === 'wake.resolve' ? null : wakeAnswer(rawState(ctx));
+  if (pendingWake && pendingWake.seat === seat) await act(ctx, seat, 'wake.resolve', pendingWake.payload);
   const r = await api(`/games/${ctx.gameId}/actions`, {
     method: 'POST',
     token: ctx.tokens[seat],

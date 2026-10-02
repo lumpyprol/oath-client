@@ -40,6 +40,18 @@
     },
     {
       "seq": 4,
+      "type": "wake.resolve",
+      "actor": 0,
+      "payload": {
+        "steps": [
+          {
+            "choice": "place"
+          }
+        ]
+      }
+    },
+    {
+      "seq": 5,
       "type": "search",
       "actor": 0,
       "payload": {
@@ -47,7 +59,7 @@
       }
     },
     {
-      "seq": 5,
+      "seq": 6,
       "type": "card.play",
       "actor": 0,
       "payload": {
@@ -56,13 +68,13 @@
       }
     },
     {
-      "seq": 6,
+      "seq": 7,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}
     },
     {
-      "seq": 7,
+      "seq": 8,
       "type": "muster",
       "actor": 1,
       "payload": {
@@ -70,7 +82,7 @@
       }
     },
     {
-      "seq": 8,
+      "seq": 9,
       "type": "travel",
       "actor": 1,
       "payload": {
@@ -78,7 +90,7 @@
       }
     },
     {
-      "seq": 9,
+      "seq": 10,
       "type": "campaign.declare",
       "actor": 1,
       "payload": {
@@ -97,7 +109,7 @@
       }
     },
     {
-      "seq": 10,
+      "seq": 11,
       "type": "campaign.resolve",
       "actor": 1,
       "payload": {
@@ -113,13 +125,13 @@
       }
     },
     {
-      "seq": 11,
+      "seq": 12,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 12,
+      "seq": 13,
       "type": "trade",
       "actor": 2,
       "payload": {
@@ -128,7 +140,7 @@
       }
     },
     {
-      "seq": 13,
+      "seq": 14,
       "type": "power.use",
       "actor": 2,
       "payload": {
@@ -151,7 +163,7 @@
       }
     },
     {
-      "seq": 14,
+      "seq": 15,
       "type": "recover",
       "actor": 2,
       "payload": {
@@ -160,13 +172,13 @@
       }
     },
     {
-      "seq": 15,
+      "seq": 16,
       "type": "turn.rest",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 16,
+      "seq": 17,
       "type": "wake.resolve",
       "actor": 0,
       "payload": {
@@ -178,7 +190,7 @@
       }
     },
     {
-      "seq": 17,
+      "seq": 18,
       "type": "warbands.move",
       "actor": 0,
       "payload": {
@@ -187,7 +199,7 @@
       }
     },
     {
-      "seq": 18,
+      "seq": 19,
       "type": "citizenship.offer",
       "actor": 0,
       "payload": {
@@ -196,13 +208,13 @@
       }
     },
     {
-      "seq": 19,
+      "seq": 20,
       "type": "citizenship.accept",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 20,
+      "seq": 21,
       "type": "power.use",
       "actor": 0,
       "payload": {
@@ -212,13 +224,13 @@
       }
     },
     {
-      "seq": 21,
+      "seq": 22,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}
     },
     {
-      "seq": 22,
+      "seq": 23,
       "type": "adviser.play",
       "actor": 1,
       "payload": {
@@ -227,13 +239,13 @@
       }
     },
     {
-      "seq": 23,
+      "seq": 24,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 24,
+      "seq": 25,
       "type": "campaign.declare",
       "actor": 2,
       "payload": {
@@ -248,7 +260,7 @@
       }
     },
     {
-      "seq": 25,
+      "seq": 26,
       "type": "campaign.respond",
       "actor": 0,
       "payload": {
@@ -260,7 +272,7 @@
       }
     },
     {
-      "seq": 26,
+      "seq": 27,
       "type": "campaign.resolve",
       "actor": 2,
       "payload": {
@@ -268,13 +280,13 @@
       }
     },
     {
-      "seq": 27,
+      "seq": 28,
       "type": "turn.rest",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 28,
+      "seq": 29,
       "type": "wake.resolve",
       "actor": 0,
       "payload": {
@@ -286,43 +298,56 @@
       }
     },
     {
-      "seq": 29,
-      "type": "turn.rest",
-      "actor": 0,
-      "payload": {}
-    },
-    {
       "seq": 30,
       "type": "turn.rest",
-      "actor": 1,
+      "actor": 0,
       "payload": {}
     },
     {
       "seq": 31,
       "type": "turn.rest",
-      "actor": 2,
+      "actor": 1,
       "payload": {}
     },
     {
       "seq": 32,
       "type": "turn.rest",
-      "actor": 0,
+      "actor": 2,
       "payload": {}
     },
     {
       "seq": 33,
+      "type": "wake.resolve",
+      "actor": 0,
+      "payload": {
+        "steps": [
+          {
+            "choice": "return",
+            "bank": "order"
+          }
+        ]
+      }
+    },
+    {
+      "seq": 34,
+      "type": "turn.rest",
+      "actor": 0,
+      "payload": {}
+    },
+    {
+      "seq": 35,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 34,
+      "seq": 36,
       "type": "turn.rest",
       "actor": 2,
       "payload": {}
     },
     {
-      "seq": 35,
+      "seq": 37,
       "type": "wake.resolve",
       "actor": 0,
       "payload": {
@@ -335,19 +360,19 @@
       }
     },
     {
-      "seq": 36,
+      "seq": 38,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}
     },
     {
-      "seq": 37,
+      "seq": 39,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 38,
+      "seq": 40,
       "type": "turn.rest",
       "actor": 2,
       "payload": {
@@ -355,7 +380,7 @@
       }
     },
     {
-      "seq": 39,
+      "seq": 41,
       "type": "wake.resolve",
       "actor": 0,
       "payload": {
@@ -368,19 +393,19 @@
       }
     },
     {
-      "seq": 40,
+      "seq": 42,
       "type": "turn.rest",
       "actor": 0,
       "payload": {}
     },
     {
-      "seq": 41,
+      "seq": 43,
       "type": "turn.rest",
       "actor": 1,
       "payload": {}
     },
     {
-      "seq": 42,
+      "seq": 44,
       "type": "turn.rest",
       "actor": 2,
       "payload": {

@@ -390,10 +390,10 @@ function leastFavorBanks(state: OathState): Suit[] {
   return SUITS.filter((suit) => state.favorBanks[suit] === min);
 }
 
-type WakeStep = { choice: 'place' } | { choice: 'return'; bank: Suit };
+export type WakeStep = { choice: 'place' } | { choice: 'return'; bank: Suit };
 
 /** Law §4.1.1.I's legality, in one place: what this seat may or must do now. */
-function wakeOptions(state: OathState, seat: number) {
+export function wakeOptions(state: OathState, seat: number) {
   const banner = peoplesFavor(state);
   const canPlace = state.players[seat].favor > 0;
   const canReturn = banner.tokens > 0;
@@ -414,7 +414,7 @@ function forcedWakeStep(state: OathState, seat: number): WakeStep | null {
   return null;
 }
 
-function applyWakeStep(state: OathState, seat: number, step: WakeStep): OathState {
+export function applyWakeStep(state: OathState, seat: number, step: WakeStep): OathState {
   return step.choice === 'place'
     ? applyEffects(state, seat, [
         { kind: 'favor', from: { kind: 'seatFavor', seat }, to: { kind: 'bannerFavor' }, amount: 1 },
@@ -520,7 +520,18 @@ export function beginWake(state: OathState, seat: number): OathState {
   const steps = banner.holder === seat ? (banner.mob ? 2 : 1) : 0;
   const opened = applyEffects(state, seat, []);
 
-  const { working: afterSteps, forced } = resolveForcedSteps(opened, seat, steps);
+  // The holder is always ASKED (Ben, 2026-10-02): even a step the Law
+  // forces is answered from the form, so the People's Favor step never
+  // appears on some turns and silently resolves itself on others. Only when
+  // nothing at all is possible (no favor to place, none on the banner) is
+  // there nothing to ask.
+  const possible = steps > 0 && (() => {
+    const o = wakeOptions(opened, seat);
+    return o.canPlace || o.canReturn;
+  })();
+  const { working: afterSteps, forced } = possible
+    ? { working: opened, forced: false }
+    : resolveForcedSteps(opened, seat, steps);
   if (!forced) {
     // A genuine §4.1.1 choice exists somewhere in the sequence — raise ONE
     // decision covering every step from the first. `opportunity` here is a
@@ -560,6 +571,29 @@ const WakeResolvePayloadSchema = z.object({
 });
 
 /**
+ * The same answer as FLAT fields, so a form can carry it (P4 unit 11, Ben):
+ * `step1`, `step2` (each a WakeStep) and `take` ('favor' | 'secret' |
+ * 'none'). The nested shape above stays accepted, so logged games replay.
+ */
+const WakeFlatPayloadSchema = z.object({
+  step1: WakeStepSchema.optional(),
+  step2: WakeStepSchema.optional(),
+  take: z.enum(['favor', 'secret', 'none']).optional(),
+});
+
+function wakePayload(payload: unknown): z.infer<typeof WakeResolvePayloadSchema> | null {
+  const nested = WakeResolvePayloadSchema.safeParse(payload);
+  if (nested.success) return nested.data;
+  const flat = WakeFlatPayloadSchema.safeParse(payload);
+  if (!flat.success) return null;
+  const { step1, step2, take } = flat.data;
+  return {
+    steps: [step1, step2].filter((x): x is z.infer<typeof WakeStepSchema> => x !== undefined),
+    ...(take ? { take: { take } } : {}),
+  };
+}
+
+/**
  * Unit 3: the WHOLE Wake Phase in one action — every §4.1.1 step this seat
  * owes, then (Law's own order) the win check, then, if the game didn't
  * just end, the §4.1.4 Opportunity Site take. Replaces the old
@@ -574,9 +608,9 @@ function wakeResolve(state: OathState, action: GameAction): OathState {
   if (seat !== wake.seat) {
     throw new IllegalAction("wake.resolve: only the waking seat resolves their own Wake Phase (Law §4.1)");
   }
-  const parsed = WakeResolvePayloadSchema.safeParse(action.payload);
-  if (!parsed.success) throw new IllegalAction('wake.resolve: malformed payload');
-  const { steps, take } = parsed.data;
+  const parsed = wakePayload(action.payload);
+  if (!parsed) throw new IllegalAction('wake.resolve: malformed payload');
+  const { steps, take } = parsed;
 
   if (steps.length !== wake.stepsRemaining) {
     throw new IllegalAction(

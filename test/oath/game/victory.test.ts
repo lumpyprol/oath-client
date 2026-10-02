@@ -165,26 +165,35 @@ describe("the Wake Phase's People's Favor maintenance (Law §4.1.1)", () => {
     return s;
   }
 
-  it('auto-resolves the forced place at exactly one favor, without asking (§4.1.1.I)', () => {
+  /** The wake.resolve form's step-1 options for seat 2. */
+  const step1 = (st: OathState) =>
+    ((oath.affordances!(st, 2) as { type: string; fields: { name: string; options?: { value: unknown }[] }[] }[])
+      .find((e) => e.type === 'wake.resolve')!.fields.find((f) => f.name === 'step1')!.options ?? []).map((o) => o.value);
+
+  it('ASKS even when the Law forces the step: at one favor, placing is the only option (§4.1.1.I; Ben, 2026-10-02)', () => {
     const s = holderWakes(1, 2);
     const out = rest(s, 1);
     checkInvariants(out);
-    expect(out.wake).toBeNull(); // nothing to ask
-    expect(out.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(2);
-    expect(out.players[2].favor).toBe(1);
+    expect(out.wake).toMatchObject({ seat: 2, stepsRemaining: 1 }); // asked, never silently applied
+    expect(step1(out)).toEqual([{ choice: 'place' }]);
+    const placed = act(out, 'wake.resolve', 2, { step1: { choice: 'place' } });
+    expect(placed.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(2);
+    expect(placed.players[2].favor).toBe(1);
   });
 
   it('...but a holder with NO favor must return instead, even at one (§4.1.1.I\'s "unless")', () => {
     const s = holderWakes(1, 0);
-    // One bank strictly lowest, so the return resolves itself too.
+    // One bank strictly lowest: one legal answer, still asked.
     s.favorBanks.beast = 0;
     s.sharedBank.favor += 3;
     checkInvariants(s);
     const out = rest(s, 1);
     checkInvariants(out);
-    expect(out.wake).toBeNull();
-    expect(out.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(0);
-    expect(out.favorBanks.beast).toBe(1);
+    expect(out.wake).toMatchObject({ seat: 2, stepsRemaining: 1 }); // asked even so
+    expect(step1(out)).toEqual([{ choice: 'return', bank: 'beast' }]);
+    const returned = act(out, 'wake.resolve', 2, { step1: { choice: 'return', bank: 'beast' } });
+    expect(returned.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(0);
+    expect(returned.favorBanks.beast).toBe(1);
   });
 
   it('raises a decision when placing and returning are both open, and applies the answer', () => {
@@ -782,8 +791,8 @@ describe('turn-structure gaps closed 2026-09-12', () => {
   it('the opening turn gets a Wake Phase too (Law §4.1), not just every turn after a Rest', () => {
     // A Oathkeeper of the People game: §1.13 gives the Chancellor the
     // People's Favor, so they owe §4.1.1 maintenance on turn one. The banner
-    // starts at one favor (§1.5), which forces a place — so it resolves
-    // itself rather than asking.
+    // starts at one favor (§1.5), which forces a place. Since 2026-10-02 the
+    // holder is ASKED even then (one legal option), never resolved silently.
     // P3 unit 8 moved this one step later: Law §1.23 precedes Law §4, so
     // the opening Wake now runs when the LAST seat completes setup rather
     // than inside `init`. The claim is unchanged — the opening turn does get
@@ -794,9 +803,12 @@ describe('turn-structure gaps closed 2026-09-12', () => {
     );
     checkInvariants(people);
     expect(people.setupChoices).toBeNull();
-    expect(people.wake).toBeNull(); // forced, so nothing is pending
-    expect(people.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(2);
-    expect(people.players[0].favor).toBe(1); // §1.11 gave them 2; one went on the banner
+    expect(people.wake).toMatchObject({ seat: 0, stepsRemaining: 1 }); // asked, with the one forced option
+    const placed = oath.reduce(structuredClone(people), {
+      gameId: 't', seq: people.actionCount + 1, type: 'wake.resolve', actor: 0, payload: { step1: { choice: 'place' } }, createdAt: '',
+    });
+    expect(placed.banners.find((b) => b.id === PEOPLES_FAVOR_ID)!.tokens).toBe(2);
+    expect(placed.players[0].favor).toBe(1); // §1.11 gave them 2; one went on the banner
 
     // A Supremacy game grants no banner, so there is nothing to resolve.
     const supremacy = completeSetup(oath, init(oathSetup(4, undefined)));
