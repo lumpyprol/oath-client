@@ -526,3 +526,20 @@ describe('the Imperial Reliquary powers are readable, covered or not (Ben, 2026-
     expect(html).toMatch(/<li class="covered"><b>Brutal<\/b>/);
   });
 });
+
+describe('a one-answer field that restates an earlier one is not asked again (Ben, 2026-10-03)', () => {
+  it('Recover the Darkest Secret: "Target" is asked, "Banner" rides hidden', () => {
+    const entry: Affordance = {
+      type: 'recover',
+      fields: [
+        { name: 'target', kind: 'choose-one', options: [{ value: 'banner', label: 'The Darkest Secret' }] },
+        { name: 'bannerId', kind: 'choose-one', options: [{ value: 'darkest-secret', label: 'Darkest Secret' }] },
+        { name: 'pay', kind: 'count', min: 1, max: 2 },
+      ],
+    };
+    const html = String(composer([entry], { gameId: 'g', seq: 1, back: '/' } as never));
+    expect(html.match(/type="radio"/g)).toHaveLength(1);
+    expect(html).toContain('<input type="hidden" name="bannerId" value="&quot;darkest-secret&quot;">');
+    expect(html).not.toMatch(/class="field-name">banner/i);
+  });
+});

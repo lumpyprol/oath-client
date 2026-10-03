@@ -328,10 +328,16 @@ function formOf(entry: Affordance, index: number, opts: ComposerOptions, picker:
     return f && 'options' in f ? f.options.find((o) => encodeValue(o.value) === encodeValue(value))?.label : undefined;
   };
   const kinds = Object.fromEntries(entry.fields.map((f) => [f.name, f.kind]));
+  // A one-answer field that only restates an earlier one-answer field of the
+  // same form ("Target: The Darkest Secret" then "Banner: Darkest Secret")
+  // rides hidden, picker or not (Ben: don't ask the same thing twice).
+  const singles = entry.fields.filter((f): f is ChooseField => f.kind === 'choose-one' && f.options.length === 1);
+  const repeats = (f: ChooseField) =>
+    singles.indexOf(f) > 0 && singles.slice(0, singles.indexOf(f)).some((g) => restates(g.options[0].label, f.options[0].label));
   const controls = entry.fields.map((f) => {
     switch (f.kind) {
       case 'choose-one':
-        return chooseOne(f, prefill, opts.artFor, picker ? fixedness(f, picker) : null, labelOf);
+        return chooseOne(f, prefill, opts.artFor, picker ? fixedness(f, picker) : repeats(f) ? 'hidden' : null, labelOf);
       case 'choose-many':
         return chooseMany(f, prefill, opts.artFor);
       case 'count':
