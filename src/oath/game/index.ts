@@ -33,6 +33,7 @@ import { STANDING_HANDLERS } from './actions/standing.js';
 import { SETUP_HANDLERS } from './actions/setup.js';
 import { VICTORY_HANDLERS, afterAction, prepareRest } from './victory.js';
 import { project } from './project.js';
+import { seatTitle } from './seats.js';
 import { computeAffordances, computeUnavailable } from './affordances.js';
 
 // Additive: each action module contributes its own `*_HANDLERS` map; this
@@ -217,6 +218,23 @@ export const oath: GameDefinition<OathState, OathSetup> = {
           `choose which of them takes the title (Law §2.11).`,
         resolves: ['oathkeeper.grant'],
       });
+    }
+    // Shrouded Wood's ruler choosing a traveller's destination (Law §11.7)
+    // locks the turn until answered: the pawn is mid-journey.
+    if (state.shroudedTravel) {
+      const t = state.shroudedTravel;
+      return [
+        ...citizenshipDecision,
+        {
+          id: `shrouded:${t.chooser}:${t.startedAt}`,
+          seat: t.chooser,
+          kind: 'shrouded',
+          prompt:
+            `The ${seatTitle(state.players, t.traveller)} is leaving Shrouded Wood, which you rule: ` +
+            `choose the site they travel to (Law §11.7).`,
+          resolves: ['travel.direct'],
+        },
+      ];
     }
     // An unresolved Wake Phase (unit 17) preempts the active seat's turn:
     // Law §4.1 is resolved in full before the Act Phase begins. Unit 3

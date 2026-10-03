@@ -55,6 +55,9 @@ function declareStateDefenderRulesYourSite(): OathState {
   const s = declareState();
   s.sites[5].warbands[2] = 1;
   s.players[2].warbands.bank -= 1; // source it (conservation)
+  // One faction per site (Law §6.5, §5.5.6): the attacker's garrison goes home.
+  s.players[1].warbands.bank += s.sites[5].warbands[1];
+  s.sites[5].warbands[1] = 0;
   return s;
 }
 

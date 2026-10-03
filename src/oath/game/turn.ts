@@ -52,6 +52,7 @@
  *         so the identity still holds.)
  */
 
+import { seatTitle } from './seats.js';
 import { byId } from '../cards/index.js';
 import { IllegalAction, type GameAction } from '../../engine/types.js';
 import { LEFTMOST_SUPPLY, type Citizenship, type OathState } from './state.js';
@@ -83,6 +84,12 @@ export function requireActiveSeat(
   if (!opts.wakeOk && state.wake) {
     throw new IllegalAction(
       `${action.type}: finish your Wake Phase first (Law §4.1) — it comes before the Act Phase`,
+    );
+  }
+  if (state.shroudedTravel) {
+    const t = state.shroudedTravel;
+    throw new IllegalAction(
+      `${action.type}: waiting on the ${seatTitle(state.players, t.chooser)} to choose where the ${seatTitle(state.players, t.traveller)}'s pawn goes from Shrouded Wood (Law §11.7)`,
     );
   }
   if (!opts.campaignOk && state.campaign) {

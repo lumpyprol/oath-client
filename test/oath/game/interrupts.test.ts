@@ -264,7 +264,26 @@ function setupChooseState(): { before: OathState; after: OathState } {
   return { before, after };
 }
 
+/** Leaving a Shrouded Wood an enemy rules (Law §11.7): the ruler picks the destination. */
+function shroudedState(): { before: OathState; after: OathState } {
+  const s = baseState();
+  const wood = s.sites[5];
+  s.sites[5] = { ...wood, id: 'site:shrouded-wood', cards: [null, null], relics: [] };
+  s.players[1].pawnSite = 'site:shrouded-wood';
+  s.players[1].warbands.bank += s.sites[5].warbands[1]; // one faction per site: seat 1's go home
+  s.sites[5].warbands = [0, 0, 2]; // the exile seat 2 rules it — an enemy of exile seat 1
+  s.players[2].warbands.board -= 2;
+  s.turn.activeSeat = 1;
+  checkInvariants(s);
+  const before = act(s, 'travel', 1, {});
+  checkInvariants(before);
+  const after = act(before, 'travel.direct', 2, { siteIndex: 0 });
+  checkInvariants(after);
+  return { before, after };
+}
+
 const handBuilt = [
+  shroudedState(),
   setupChooseState(),
   titleChoiceState(),
   warbandsRequestState(),
@@ -277,7 +296,7 @@ const handBuilt = [
 describe('INTERRUPTS.md is honest about the catalogue table', () => {
   it('parses at least the known built kinds', () => {
     expect([...catalogueKinds].sort()).toEqual(
-      ['campaign', 'citizenshipOffer', 'oathkeeper', 'play', 'setup', 'turn', 'wake', 'warbands'].sort(),
+      ['campaign', 'citizenshipOffer', 'oathkeeper', 'play', 'setup', 'shrouded', 'turn', 'wake', 'warbands'].sort(),
     );
     expect(catalogue.length).toBeGreaterThanOrEqual(9); // one row per distinct (kind, resolves) shape
   });

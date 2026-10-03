@@ -676,7 +676,7 @@ const AFTER_THE_ROLL = new Set([
 ]);
 
 /** Answers to an offer render with the offer, in "Awaiting a decision", open (Ben). */
-const WITH_THE_OFFER = new Set(['citizenship.respond', 'warbands.respond']);
+const WITH_THE_OFFER = new Set(['citizenship.respond', 'warbands.respond', 'travel.direct']);
 
 /** Forms drawn somewhere other than "Your move". */
 const DRAWN_ELSEWHERE = (type: string) => AFTER_THE_ROLL.has(type) || WITH_THE_OFFER.has(type);
@@ -711,7 +711,7 @@ function composeSection(model: BoardModel, c: ComposeView, art: ArtResolver, sit
       : c.entries.some((e) => AFTER_THE_ROLL.has(e.type))
         ? html`<p class="muted">Your campaign decision is in the campaign box above.</p>`
         : c.entries.some((e) => WITH_THE_OFFER.has(e.type))
-          ? html`<p class="muted">Your answer to the offer is in "Awaiting a decision" above.</p>`
+          ? html`<p class="muted">Your answer is in "Awaiting a decision" above.</p>`
         : html`<p class="muted">${c.entries.length ? 'Nothing else for you to do right now.' : 'Nothing for you to do right now.'}</p>`;
   const banner = c.banner
     ? html`<div class="banner ${c.banner.kind}" role="alert"><p>${c.banner.message}</p>
@@ -797,6 +797,9 @@ export function boardPage(
       : null,
     model.warbandRequest
       ? html`<li>Warband request: the ${model.seatTitles[model.warbandRequest.seat]} awaits the ${model.seatTitles[model.warbandRequest.approver]} (${model.warbandRequest.direction}, ${model.warbandRequest.count}).</li>`
+      : null,
+    model.shroudedTravel
+      ? html`<li>Shrouded Wood: the ${model.seatTitles[model.shroudedTravel.chooser]} chooses where the ${model.seatTitles[model.shroudedTravel.traveller]} ${model.shroudedTravel.via === 'banish' ? 'is banished to' : 'travels'} (Law §11.7).</li>`
       : null,
   ].filter(Boolean);
 

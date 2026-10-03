@@ -15,9 +15,10 @@
  * Site powers that change Travel (Coast §11.3, Charming Valley §11.6,
  * Shrouded Wood §11.7, Narrow Pass §11.8, Buried Giant, The Hidden Place)
  * are enforced by `travelRoute` (travel-rules.ts), which the Travel form
- * reads too. `pay: 'secret'` is Buried Giant's flipped secret. Still NOT
- * enforced: Shrouded Wood's "an enemy ruler picks your destination", and
- * denizen/relic travel powers (declared via `power.use`, HLD D28).
+ * reads too. `pay: 'secret'` is Buried Giant's flipped secret. Shrouded
+ * Wood's "an enemy ruler picks your destination" is a pending decision
+ * (`state.shroudedTravel`, answered by `travel.direct`). Still NOT enforced:
+ * denizen/relic travel powers (declared via `power.use`, HLD D28; v2).
  *
  * Supply spent by decrementing on the applyEffects output (the unit 7
  * convention).
@@ -27,7 +28,8 @@ import { z } from 'zod';
 import { byId } from '../../cards/index.js';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
-import { travelRoute } from '../travel-rules.js';
+import { SHROUDED_WOOD_COST, shroudedChooser, travelRoute } from '../travel-rules.js';
+import { seatTitle } from '../seats.js';
 import type { OathState } from '../state.js';
 import { requireActiveSeat, type Handler } from '../turn.js';
 
@@ -40,8 +42,10 @@ import { requireActiveSeat, type Handler } from '../turn.js';
 // public at every index whether or not that slot has been revealed yet.
 // `pay` (2026-10-02): 'secret' flips a ready secret at Buried Giant instead
 // of spending Supply. Absent = Supply, so earlier logged travels replay.
+// `siteIndex` is absent exactly when Shrouded Wood's enemy ruler chooses
+// the destination (Law §11.7): the traveller pays and `travel.direct` follows.
 const TravelPayloadSchema = z.object({
-  siteIndex: z.number().int().min(0),
+  siteIndex: z.number().int().min(0).optional(),
   pay: z.enum(['supply', 'secret']).optional(),
 });
 
@@ -51,6 +55,24 @@ function travel(state: OathState, action: GameAction): OathState {
   if (!parsed.success) throw new IllegalAction('travel: malformed payload');
   const { siteIndex, pay = 'supply' } = parsed.data;
   const player = state.players[seat];
+
+  // Law §11.7: leaving a Shrouded Wood an enemy rules, they choose where.
+  const chooser = shroudedChooser(state, seat);
+  if (chooser !== null) {
+    if (siteIndex !== undefined || pay !== 'supply') {
+      throw new IllegalAction(
+        `travel: the ${seatTitle(state.players, chooser)} rules Shrouded Wood and chooses where you go — name no destination (Law §11.7)`,
+      );
+    }
+    if (player.supply < SHROUDED_WOOD_COST) {
+      throw new IllegalAction(`travel: costs ${SHROUDED_WOOD_COST} Supply, you have ${player.supply} (Law §11.7)`);
+    }
+    const next = structuredClone(state);
+    next.players[seat].supply -= SHROUDED_WOOD_COST;
+    next.shroudedTravel = { traveller: seat, chooser, via: 'travel', startedAt: state.actionCount };
+    return next;
+  }
+  if (siteIndex === undefined) throw new IllegalAction('travel: choose a destination (Law §5.6.1)');
 
   const dest = state.sites[siteIndex];
   if (!dest) {
@@ -119,6 +141,35 @@ export function arrivalEffects(state: OathState, siteIndex: number): Effect[] {
   return effects;
 }
 
+const DirectPayloadSchema = z.object({ siteIndex: z.number().int().min(0) });
+
+/**
+ * `travel.direct` — Shrouded Wood's ruler names the destination (Law §11.7)
+ * for the pending `state.shroudedTravel`. Any other site: from Shrouded
+ * Wood the traveller ignores Narrow Pass and The Hidden Place, and the cost
+ * was already paid (or, for a banish, is none — §5.5.7.3).
+ */
+function direct(state: OathState, action: GameAction): OathState {
+  const t = state.shroudedTravel;
+  if (!t) throw new IllegalAction('travel.direct: no one is waiting on your choice of destination');
+  if (action.actor !== t.chooser) {
+    throw new IllegalAction(`travel.direct: the ${seatTitle(state.players, t.chooser)} chooses (Law §11.7)`);
+  }
+  const parsed = DirectPayloadSchema.safeParse(action.payload);
+  if (!parsed.success) throw new IllegalAction('travel.direct: malformed payload');
+  const { siteIndex } = parsed.data;
+  const dest = state.sites[siteIndex];
+  if (!dest) throw new IllegalAction(`travel.direct: no site at slot ${siteIndex} (Law §11.7)`);
+  if (dest.id === state.players[t.traveller].pawnSite) {
+    throw new IllegalAction('travel.direct: choose a site other than the one they are on (Law §5.6.1)');
+  }
+  const next = applyEffects(state, t.traveller, arrivalEffects(state, siteIndex));
+  next.players[t.traveller].pawnSite = dest.id; // Law §5.6.2
+  next.shroudedTravel = null;
+  return next;
+}
+
 export const TRAVEL_HANDLERS: Record<string, Handler> = {
   travel,
+  'travel.direct': direct,
 };

@@ -663,6 +663,7 @@ export function init(setup: OathSetup): OathState {
     warbandRequest: null,
     wake: null, // seat 0's Wake Phase is started below, once the state exists
     titleChoice: null,
+    shroudedTravel: null,
     actionCount: 0,
     complete: false,
     winner: null,

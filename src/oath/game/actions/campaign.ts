@@ -243,6 +243,8 @@ import {
 import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 import { consultStanding } from '../standing.js';
 import { arrivalEffects } from './travel.js';
+import { seatTitle } from '../seats.js';
+import { HIDDEN_PLACE, NARROW_PASS, shroudedChooser } from '../travel-rules.js';
 
 export const CAMPAIGN_COST = 2; // Supply (Law §5.5.1)
 export const PAWN_FAVOR_DICE = 2; // Law §5.5.2 (fixed, "as shown by the shield on their board")
@@ -1182,7 +1184,9 @@ const SeizeChoicesSchema = z.object({
   // persists) could be resubmitted with every known site id to map out
   // the whole board, facedown sites included, before anyone had traveled
   // there. Addressed by slot instead, exactly like `travel`.
-  banishTo: z.number().int().min(0).optional(),
+  // 'ruler' (2026-10-02): banish them from a Shrouded Wood an enemy of
+  // theirs rules — that ruler picks the site (Law §11.7 over §5.5.7.3).
+  banishTo: z.union([z.number().int().min(0), z.literal('ruler')]).optional(),
   burnFavor: z.boolean().default(false),
 });
 
@@ -1203,7 +1207,7 @@ const ResolvePayloadSchema = z.object({
   // them (one field per choice — affordances describe top-level fields). The
   // nested `seize` block stays accepted, so every logged game still replays.
   place: z.array(z.object({ siteId: z.string(), count: z.number().int().positive() })).optional(),
-  banishTo: z.number().int().min(0).nullable().optional(),
+  banishTo: z.union([z.number().int().min(0), z.literal('ruler')]).nullable().optional(),
   burnFavor: z.boolean().optional(),
 });
 
@@ -1385,7 +1389,7 @@ function casualties(state: OathState, action: GameAction): OathState {
 function applySeizure(
   state: OathState,
   c: CampaignState,
-  choices: { placements: { siteId: string; warbands: number }[]; banishTo?: number; burnFavor: boolean } | undefined,
+  choices: { placements: { siteId: string; warbands: number }[]; banishTo?: number | 'ruler'; burnFavor: boolean } | undefined,
 ): OathState {
   const seat = c.attackerSeat;
   const { placements, banishTo, burnFavor } = choices ?? { placements: [], burnFavor: false };
@@ -1420,15 +1424,28 @@ function applySeizure(
       'campaign.resolve: banishing the pawn or burning favor requires a pawnFavor target (Law §5.5.7)',
     );
   }
-  const banishSite = banishTo !== undefined ? state.sites[banishTo] : undefined;
-  if (banishTo !== undefined && !banishSite) {
+  const banishSite = typeof banishTo === 'number' ? state.sites[banishTo] : undefined;
+  if (typeof banishTo === 'number' && !banishSite) {
     throw new IllegalAction(
       `campaign.resolve: no site at slot ${banishTo} — the map has ${state.sites.length} (Law §5.5.7)`,
     );
   }
+  const defenderSeat = c.defenderSeat as number; // pawnFavorTargeted => a real seat (never bandits)
+  // Law §5.5.7.3: "If their pawn is at the Shrouded Wood site, its power
+  // takes precedence over your choice" — an enemy of theirs who rules it
+  // picks the site (§11.7), unless that is the attacker anyway.
+  const shrouded = banishTo !== undefined ? shroudedChooser(state, defenderSeat) : null;
+  const rulerChooses = shrouded !== null && shrouded !== seat;
+  if (banishTo === 'ruler' && !rulerChooses) {
+    throw new IllegalAction('campaign.resolve: no one else chooses where they go — name the site (Law §5.5.7.3)');
+  }
+  if (typeof banishTo === 'number' && rulerChooses) {
+    throw new IllegalAction(
+      `campaign.resolve: their pawn is at Shrouded Wood, which the ${seatTitle(state.players, shrouded)} rules — they choose where it goes (Law §11.7, §5.5.7.3)`,
+    );
+  }
 
   let working = applyEffects(state, seat, effects);
-  const defenderSeat = c.defenderSeat as number; // pawnFavorTargeted => a real seat (never bandits)
 
   if (burnFavor) {
     const amount = Math.floor(working.players[defenderSeat].favor / 2);
@@ -1440,8 +1457,11 @@ function applySeizure(
   }
   if (banishSite) {
     // §5.5.7.3 "make them travel": arriving reveals a facedown site (§5.6.2).
-    working = applyEffects(working, seat, arrivalEffects(working, banishTo!));
+    working = applyEffects(working, seat, arrivalEffects(working, banishTo as number));
     working.players[defenderSeat].pawnSite = banishSite.id;
+  }
+  if (rulerChooses) {
+    working.shroudedTravel = { traveller: defenderSeat, chooser: shrouded, via: 'banish', startedAt: state.actionCount };
   }
 
   working.campaign = null;

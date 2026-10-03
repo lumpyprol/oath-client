@@ -32,6 +32,7 @@ export const ACTION_RULES: Record<string, ActionRule> = {
   'campaign.resolve': { section: '5.5.7', summary: 'The attacker won: resolve each target (seize, ruin, take the title) in order.' },
   'campaign.casualties': { section: '5.5.6', summary: 'The loser kills half (rounded down) of the warbands in their force; choose which ones.' },
   travel: { section: '5.6', summary: 'Major action. Move your pawn to another site. From the Cradle: 1 within, 2 to Provinces, 4 to Hinterland. From the Provinces: 2 anywhere. From the Hinterland: 3 within, 2 to Provinces, 4 to Cradle. A facedown site is revealed when you arrive.' },
+  'travel.direct': { section: '11.7', summary: 'You rule Shrouded Wood and someone is leaving it: choose the site they travel to.' },
   'adviser.play': { section: '6.1', summary: 'Minor action. Turn a facedown adviser faceup, or discard it, as if you had just searched it.' },
   'power.use': { section: '6.2', summary: 'Minor action. Use an “Action:” power on a card you have access to, and declare what it does.' },
   'peek.relic': { section: '6.3', summary: 'Minor action. Look at a facedown relic at your site.' },

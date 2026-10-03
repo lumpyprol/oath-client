@@ -235,6 +235,9 @@ describe('unit 16a part 1 — the casualties phase is skipped when it cannot mat
     s.players[2].pawnSite = s.sites[2].id; // NOT the attacker's site, and not targeted
     s.sites[5].warbands[0] = 3; // a Chancellor garrison at the attacker's site
     s.players[0].warbands.bank = 12; // 12 + 3 board + 2 + 1 + 3 = 21 purple
+    // One faction per site (Law §6.5, §5.5.6): the attacker's own garrison goes home.
+    s.players[1].warbands.bank += s.sites[5].warbands[1];
+    s.sites[5].warbands[1] = 0;
     checkInvariants(s);
     const rolled = toRolled(s, {
       attacker: 1,

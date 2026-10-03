@@ -43,7 +43,7 @@ import type { PendingDecision } from '../../engine/types.js';
 import { byId } from '../cards/index.js';
 import type { Site, Suit } from '../cards/schema.js';
 import { travelCost } from './map.js';
-import { BURIED_GIANT, shroudedRulers, travelRoute } from './travel-rules.js';
+import { BURIED_GIANT, SHROUDED_WOOD_COST, shroudedChooser, travelRoute } from './travel-rules.js';
 import {
   ADVISER_LIMIT,
   CONSPIRACY_ID,
@@ -109,6 +109,8 @@ export interface Option {
    * listed value and refused for every other option of that field.
    */
   requires?: { field: string; values: unknown[] };
+  /** The Law section(s) behind this option's cost, shown after it: "Rocky Coast — 1 Supply (Law §11.3)". */
+  law?: string;
 }
 
 export type Field = (
@@ -170,6 +172,21 @@ function describeTravel(state: OathState, seat: number): Affordance[] {
   // Every route is priced by `travelRoute` — Law §5.6.1 plus the site powers
   // (Coast, Charming Valley, Shrouded Wood, Narrow Pass, Buried Giant, The
   // Hidden Place) — the same function the reducer charges with.
+  // Law §11.7: leaving a Shrouded Wood an enemy rules, they choose where —
+  // so there is no destination to pick, only the 2 Supply to pay.
+  const chooser = shroudedChooser(state, seat);
+  if (chooser !== null) {
+    if (player.supply < SHROUDED_WOOD_COST) return [];
+    return [
+      {
+        type: 'travel',
+        fields: [],
+        note:
+          `Leave Shrouded Wood for ${SHROUDED_WOOD_COST} Supply. The ${seatTitle(state.players, chooser)} rules it, ` +
+          `so they choose where you go (Law §11.7).`,
+      },
+    ];
+  }
   const offerSecret = from.id === BURIED_GIANT && player.secrets.ready > 0;
   const routes = state.sites.map((site, i) =>
     site.id === player.pawnSite
@@ -194,7 +211,7 @@ function describeTravel(state: OathState, seat: number): Affordance[] {
       group: REGION_LABEL[site.region],
       art: site.facedown ? 'site-back' : site.id,
     };
-    if (shown.why.length) option.label += ` (${shown.why.join('; ')})`;
+    if (shown.laws.length) option.law = shown.laws.map((l) => `§${l}`).join(', ');
     if (!okSupply && !okSecret) option.disabled = r.supply.blocked;
     else if (payField && okSupply !== okSecret && bySupply) {
       option.requires = { field: 'pay', values: [okSupply ? 'supply' : 'secret'] };
@@ -215,14 +232,40 @@ function describeTravel(state: OathState, seat: number): Affordance[] {
     });
   }
   fields.push({ name: 'siteIndex', kind: 'choose-one', label: 'Destination', options });
-  const choosers = shroudedRulers(state, seat);
+  return [{ type: 'travel', fields }];
+}
+
+/** A site option for a destination someone else picks (Law §11.7): any site but `except`. */
+function destinationOptions(state: OathState, except: string | null): Option[] {
+  return state.sites
+    .map((site, i) => ({ site, i }))
+    .filter(({ site }) => site.id !== except)
+    .map(({ site, i }) => ({
+      value: i,
+      label: site.facedown ? 'Facedown site' : byId(site.id).name,
+      group: REGION_LABEL[site.region],
+      art: site.facedown ? 'site-back' : site.id,
+    }));
+}
+
+/** Shrouded Wood's ruler names the traveller's destination (Law §11.7). */
+function describeTravelDirect(state: OathState, seat: number): Affordance[] {
+  const t = state.shroudedTravel;
+  if (!t || t.chooser !== seat) return [];
   return [
     {
-      type: 'travel',
-      fields,
-      ...(choosers.length
-        ? { note: `Shrouded Wood is ruled by ${choosers.map((c) => seatTitle(state.players, c)).join(' / ')}: by Law §11.7 they choose where you go. Not enforced yet; agree it with them.` }
-        : {}),
+      type: 'travel.direct',
+      fields: [
+        {
+          name: 'siteIndex',
+          kind: 'choose-one',
+          label: `Where the ${seatTitle(state.players, t.traveller)} goes`,
+          options: destinationOptions(state, state.players[t.traveller].pawnSite),
+        },
+      ],
+      note:
+        `You rule Shrouded Wood, so you choose where the ${seatTitle(state.players, t.traveller)} travels ` +
+        `(Law §11.7) — any other site; Narrow Pass and The Hidden Place don't apply from Shrouded Wood.`,
     },
   ];
 }
@@ -1048,21 +1091,21 @@ function victoryEntry(
   }
   if (c.targets.some((t) => t.kind === 'pawnFavor') && typeof c.defenderSeat === 'number') {
     const defenderAt = state.players[c.defenderSeat].pawnSite;
+    // §5.5.7.3: at Shrouded Wood, its power beats the attacker's choice — an
+    // enemy of theirs who rules it picks the site (§11.7).
+    const shrouded = shroudedChooser(state, c.defenderSeat);
+    const rulerChooses = shrouded !== null && shrouded !== c.attackerSeat;
     fields.push({
       name: 'banishTo',
-      label: 'Banish their pawn: make them travel to a site of your choice, spending no Supply (Law §5.5.7.3)',
+      label: rulerChooses
+        ? `Banish their pawn: they travel, spending no Supply — but from Shrouded Wood the ${seatTitle(state.players, shrouded)} chooses where (Law §5.5.7.3, §11.7)`
+        : 'Banish their pawn: make them travel to a site of your choice, spending no Supply (Law §5.5.7.3)',
       kind: 'choose-one',
       options: [
         { value: null, label: 'Leave their pawn where it is' },
-        ...state.sites
-          .map((site, i) => ({ site, i }))
-          .filter(({ site }) => site.id !== defenderAt)
-          .map(({ site, i }) => ({
-            value: i,
-            label: site.facedown ? 'Facedown site' : byId(site.id).name,
-            group: REGION_LABEL[site.region],
-            art: site.facedown ? 'site-back' : site.id,
-          })),
+        ...(rulerChooses
+          ? [{ value: 'ruler', label: `Banish them; the ${seatTitle(state.players, shrouded)} picks the site` }]
+          : destinationOptions(state, defenderAt)),
       ],
     });
     // Say what burning does and how much (Ben): half their favor, rounded
@@ -1247,6 +1290,7 @@ function describeOathkeeperGrant(state: OathState, seat: number): Affordance[] {
 const DESCRIBERS: Record<string, Describer> = {
   'turn.rest': describeRest,
   travel: describeTravel,
+  'travel.direct': describeTravelDirect,
   'standing.set': describeStanding,
   search: describeSearch,
   muster: describeMuster,
@@ -1378,6 +1422,7 @@ const BLOCKED_BY: Record<string, string> = {
   play: 'Finish your Search first: keep a card (Law §5.1.4).',
   campaign: 'Finish the campaign first (Law §5.5).',
   oathkeeper: 'Choose who takes the Oathkeeper title first (Law §2.11).',
+  shrouded: 'Choose where the traveller goes from Shrouded Wood first (Law §11.7).',
 };
 
 /** Why an action this seat's turn DOES allow still offers nothing: its own precondition. */
@@ -1461,6 +1506,13 @@ export function computeUnavailable(state: OathState, seat: number | null, pendin
     if (mine.some((d) => d.resolves.includes(type))) return { type, reason: whyNotNow(state, seat, type) };
     const blocker = mine.find((d) => BLOCKED_BY[d.kind]);
     if (blocker) return { type, reason: BLOCKED_BY[blocker.kind] };
+    const t = state.shroudedTravel;
+    if (t) {
+      return {
+        type,
+        reason: `Waiting on the ${seatTitle(state.players, t.chooser)} to choose where the ${seatTitle(state.players, t.traveller)} goes from Shrouded Wood (Law §11.7).`,
+      };
+    }
     if (turnHolder !== seat) return { type, reason: `Not your turn: waiting on the ${seatTitle(state.players, turnHolder)}.` };
     return { type, reason: 'Not possible right now.' };
   });

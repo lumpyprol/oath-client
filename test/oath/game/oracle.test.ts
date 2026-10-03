@@ -120,6 +120,7 @@ const TABLE: Record<string, FieldEntry[]> = {
     { field: 'siteId', classification: 'public' },
   ],
   travel: [{ field: 'siteIndex', classification: 'positional' }],
+  'travel.direct': [{ field: 'siteIndex', classification: 'positional' }],
   search: [],
   recover: [
     { field: 'relicIndex', classification: 'positional' },

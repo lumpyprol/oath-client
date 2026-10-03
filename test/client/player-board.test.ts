@@ -499,3 +499,13 @@ describe('an action with no legal choice is greyed, not a form to open and find 
     expect(major).toContain('value="travel"'); // a submittable action is still a form
   });
 });
+
+describe('a cost with its rule (Ben, 2026-10-02): "Rocky Coast — 1 Supply (Law §11.3)"', () => {
+  it('renders the Law section after the cost, linked', async () => {
+    const { composer } = await import('../../src/client/composer.js');
+    const html = String(
+      composer([{ type: 'travel', fields: [{ name: 'siteIndex', kind: 'choose-one', options: [{ value: 0, label: 'Rocky Coast', cost: { supply: 1 }, law: '§11.3' }] }] }], { gameId: 'g', seq: 1, back: '/' } as never),
+    );
+    expect(html.replace(/<[^>]+>/g, '')).toContain('Rocky Coast — 1 Supply (Law §11.3)');
+  });
+});

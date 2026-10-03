@@ -63,6 +63,7 @@ const TITLES: Record<string, string> = {
   'adviser.play': 'Facedown adviser: play or discard', // Law §6.1's own name
   'campaign.declare': 'Campaign', // Law §5.5's own name (Ben)
   'turn.rest': 'Rest', // Law §4.3's own name (Ben)
+  'travel.direct': 'Shrouded Wood: choose their destination', // Law §11.7
 };
 
 export function typeLabel(type: string): string {
@@ -88,11 +89,12 @@ function costText(opt: Option): string {
   const c = opt.cost;
   if (!c) return '';
   const parts = [
-    c.supply ? `${c.supply} supply` : null,
+    c.supply ? `${c.supply} Supply` : null,
     c.favor ? `${c.favor} favor` : null,
     c.secrets ? `${c.secrets} secret${c.secrets === 1 ? '' : 's'}` : null,
   ].filter((p) => p !== null);
-  return parts.length ? ` — ${parts.join(', ')}` : '';
+  const law = opt.law ? ` (Law ${opt.law})` : '';
+  return parts.length ? ` — ${parts.join(', ')}${law}` : law;
 }
 
 /** The JSON an option's control carries; also how a submitted value is matched back to an option. */

@@ -79,7 +79,8 @@ describe('Charming Valley (Law §11.6)', () => {
     put(s, 5, 'site:charming-valley');
     const dest = field(travelForm(s)!, 'siteIndex').options.find((o) => o.value === 2)!;
     expect(dest.cost).toEqual({ supply: 3 });
-    expect(dest.label).toContain('Charming Valley: +1 Supply');
+    expect(dest.label).toBe('Fertile Valley');
+    expect(dest.law).toBe('§11.6');
   });
 });
 
@@ -101,7 +102,7 @@ describe('Shrouded Wood (Law §11.7)', () => {
     expect(out.players[1].secrets).toEqual({ ready: 0, flipped: 0 });
   });
 
-  it('when an enemy rules it, the form says they choose (not enforced yet)', () => {
+  it('when an enemy rules it, the form says they choose', () => {
     const s = baseState();
     put(s, 5, 'site:shrouded-wood');
     s.sites[5].warbands = [0, 0, 2];

@@ -347,7 +347,7 @@ export interface CampaignState {
    * choices wait here and are applied by `campaign.casualties` once the
    * allocation lands. Absent on every path that finishes inside `resolve`.
    */
-  seize?: { placements: { siteId: string; warbands: number }[]; banishTo?: number; burnFavor: boolean };
+  seize?: { placements: { siteId: string; warbands: number }[]; banishTo?: number | 'ruler'; burnFavor: boolean };
   /** `actionCount` at declare — the pending-decision id's stable anchor. */
   declaredAt: number;
 }
@@ -437,6 +437,23 @@ export interface WakeState {
  * holder chooses one of those other players to take it." Non-locking, like
  * a Citizenship offer — the title simply stays put until answered.
  */
+/**
+ * Shrouded Wood's "If an enemy rules here, you travel to the site of the
+ * ruler's choice" (Law §11.7; Ben, 2026-10-02). Open from the travel (or the
+ * §5.5.7.3 banish) that leaves a Shrouded Wood an enemy rules until the
+ * chooser names the destination with `travel.direct`. It locks the
+ * traveller's turn: nothing else happens until the pawn has moved.
+ */
+export interface ShroudedTravel {
+  /** Whose pawn travels. */
+  traveller: number;
+  /** Who chooses where: the enemy ruler, or the Chancellor for the Empire. */
+  chooser: number;
+  /** Why: a Travel (Supply already spent) or a campaign's banish. */
+  via: 'travel' | 'banish';
+  startedAt: number;
+}
+
 export interface TitleChoice {
   /** The current title holder, who makes the choice. */
   holder: number;
@@ -515,6 +532,8 @@ export interface OathState {
   warbandRequest: WarbandRequest | null;
   wake: WakeState | null;
   titleChoice: TitleChoice | null;
+  /** Shrouded Wood's ruler choosing a traveller's destination (Law §11.7); absent in older saves. */
+  shroudedTravel?: ShroudedTravel | null;
   /** Incremented by every reduce; pending-decision ids derive from it. */
   actionCount: number;
   complete: boolean;
@@ -974,7 +993,23 @@ export function checkInvariants(state: OathState): void {
       fail('titleChoice: duplicate candidate');
     }
   }
-  if (state.complete && (state.wake || state.titleChoice)) {
+  // One faction per site (Ben, 2026-10-02): warbands only go onto a site
+  // their owner rules (Law §6.5), and a won site is emptied of the loser's
+  // force before the winner places (§5.5.6, §5.5.7.1) — so a site holds one
+  // Exile's warbands, or Imperial purple, never a mix.
+  for (const site of state.sites) {
+    const factions = new Set(
+      site.warbands.flatMap((n, seat) => (n > 0 ? [state.players[seat].citizenship === 'exile' ? `exile:${seat}` : 'empire'] : [])),
+    );
+    if (factions.size > 1) fail(`${site.id}: warbands of more than one faction (${[...factions].join(', ')}) — Law §6.5, §5.5.6`);
+  }
+  if (state.shroudedTravel) {
+    const t = state.shroudedTravel;
+    seatOk(t.traveller, 'shroudedTravel.traveller');
+    seatOk(t.chooser, 'shroudedTravel.chooser');
+    if (t.chooser === t.traveller) fail('shroudedTravel: the traveller cannot choose for themselves');
+  }
+  if (state.complete && (state.wake || state.titleChoice || state.shroudedTravel)) {
     fail('a completed game cannot still be asking for a decision');
   }
 

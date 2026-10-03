@@ -77,6 +77,7 @@ const KIND_LABEL: Record<string, string> = {
   citizenshipOffer: 'answering a Citizenship offer',
   warbands: 'answering a warband request',
   oathkeeper: 'choosing the Oathkeeper',
+  shrouded: 'choosing a destination from Shrouded Wood',
   setup: 'setting up',
 };
 
@@ -281,6 +282,8 @@ export interface BoardModel {
   campaign: CampaignModel | null;
   citizenshipOffer: { scepterSeat: number; exile: number } | null;
   warbandRequest: { seat: number; approver: number; direction: string; count: number } | null;
+  /** Shrouded Wood's ruler choosing where a pawn goes (Law §11.7). */
+  shroudedTravel: { traveller: number; chooser: number; via: 'travel' | 'banish' } | null;
   inboxUrl: string;
   historyUrl: string;
   /** The cards YOUR Search drew (Law §5.1), awaiting keep/discard — empty otherwise, and always empty for others. */
@@ -531,6 +534,9 @@ export function boardModel(
           direction: view.warbandRequest.direction,
           count: view.warbandRequest.count,
         }
+      : null,
+    shroudedTravel: view.shroudedTravel
+      ? { traveller: view.shroudedTravel.traveller, chooser: view.shroudedTravel.chooser, via: view.shroudedTravel.via }
       : null,
     inboxUrl: '/',
     historyUrl: `/games/${meta.gameId}/history`,

@@ -46,6 +46,7 @@ import {
   type CitizenshipOffer,
   type ReliquarySpace,
   type WarbandRequest,
+  type ShroudedTravel,
   type OathState,
   type PlayerState,
   type Region,
@@ -174,6 +175,8 @@ export interface OathView {
    * they are being asked to allow.
    */
   warbandRequest: WarbandRequest | null;
+  /** Shrouded Wood's ruler choosing a traveller's destination (Law §11.7): public, like the pawns. */
+  shroudedTravel: ShroudedTravel | null;
   complete: boolean;
   winner: number | null;
 }
@@ -277,6 +280,7 @@ export function project(state: OathState, seat: number | null): OathView {
         }
       : null,
     warbandRequest: state.warbandRequest ? { ...state.warbandRequest } : null,
+    shroudedTravel: state.shroudedTravel ? { ...state.shroudedTravel } : null,
     complete: state.complete,
     winner: state.winner,
   };
