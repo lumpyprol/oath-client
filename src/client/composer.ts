@@ -168,7 +168,7 @@ function chooseOne(field: ChooseField, prefill: Prefill, artFor?: ArtFor, fixed:
   if (field.options.some((o) => o.group)) {
     const groups: string[] = [];
     for (const o of field.options) if (!groups.includes(o.group ?? '')) groups.push(o.group ?? '');
-    return html`<fieldset class="field"><legend class="field-name">${heading(field)}</legend>
+    return html`<fieldset class="field"${optionalAttrs(field)}><legend class="field-name">${heading(field)}</legend>
       <div class="opt-groups">${groups.map(
         (g) => html`<div class="opt-group"><span class="group-name">${g}</span>${field.options.filter((o) => (o.group ?? '') === g).map(control)}</div>`,
       )}</div>
@@ -184,9 +184,17 @@ function chooseOne(field: ChooseField, prefill: Prefill, artFor?: ArtFor, fixed:
         })}
       </select></label>`;
   }
-  return html`<fieldset class="field"><legend class="field-name">${heading(field)}</legend>
+  return html`<fieldset class="field"${optionalAttrs(field)}><legend class="field-name">${heading(field)}</legend>
     ${field.options.map(control)}
   </fieldset>`;
+}
+
+/** `optionalWhen`: tells the script when this field's radios stop being required. */
+function optionalAttrs(field: ChooseField): Raw {
+  const w = 'optionalWhen' in field ? field.optionalWhen : undefined;
+  return w
+    ? raw(` data-optional-field="${escapeHtml(w.field)}" data-optional="${escapeHtml(JSON.stringify(w.values.map(encodeValue)))}"`)
+    : raw('');
 }
 
 function chooseMany(field: ChooseField, prefill: Prefill, artFor?: ArtFor): Raw {

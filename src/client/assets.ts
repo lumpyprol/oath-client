@@ -494,6 +494,24 @@ document.documentElement.classList.add("js");
       }
     }
   }
+  // A field that may be left empty while another holds certain values (an
+  // affordance's \`optionalWhen\`: Search's "keep none" needs no card).
+  function applyOptional(form) {
+    var fields = form.querySelectorAll("[data-optional-field]");
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      var ctl = form.elements[f.getAttribute("data-optional-field")];
+      var v = ctl ? ctl.value : "";
+      var optional = v !== "" && JSON.parse(f.getAttribute("data-optional")).indexOf(v) !== -1;
+      var inputs = f.querySelectorAll("input");
+      for (var j = 0; j < inputs.length; j++) {
+        if (inputs[j].hasAttribute("data-was-required") || inputs[j].required) {
+          inputs[j].setAttribute("data-was-required", "");
+          inputs[j].required = !optional;
+        }
+      }
+    }
+  }
   // A box of several forms for one action (Recover: a relic or a banner):
   // show only the one picked at the top.
   function applyVariants(box) {
@@ -503,7 +521,7 @@ document.documentElement.classList.add("js");
   }
   function applyAll() {
     var forms = document.querySelectorAll("form.compose-form");
-    for (var i = 0; i < forms.length; i++) applyRequires(forms[i]);
+    for (var i = 0; i < forms.length; i++) { applyRequires(forms[i]); applyOptional(forms[i]); }
     var picks = document.querySelectorAll(".variant-pick");
     for (var j = 0; j < picks.length; j++) applyVariants(picks[j].parentElement);
   }
@@ -512,11 +530,11 @@ document.documentElement.classList.add("js");
   });
   applyAll();
   document.addEventListener("change", function (e) {
-    if (e.target.form && e.target.form.classList.contains("compose-form")) applyRequires(e.target.form);
+    if (e.target.form && e.target.form.classList.contains("compose-form")) { applyRequires(e.target.form); applyOptional(e.target.form); }
   });
   document.addEventListener("reset", function (e) {
     var form = e.target;
-    if (form.classList && form.classList.contains("compose-form")) setTimeout(function () { applyRequires(form); }, 0);
+    if (form.classList && form.classList.contains("compose-form")) setTimeout(function () { applyRequires(form); applyOptional(form); }, 0);
   });
 
   document.addEventListener("change", function (e) {

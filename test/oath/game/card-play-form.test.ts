@@ -90,3 +90,24 @@ describe('the harness checks `requires` both ways (planted lies)', () => {
     expect(auditAffordances(state, seat, lie).join('\n')).toMatch(/as="discard" with handIndex=\d+: not listed, but reduce ACCEPTED it/);
   });
 });
+
+describe('keeping none needs no card (Ben, 2026-10-03)', () => {
+  it('discard with no card named bins the whole hand; any other play still needs one', () => {
+    const { state, seat } = midSearch();
+    const hand = [...state.players[seat].hand];
+    const out = act(state, 'card.play', seat, { as: 'discard' });
+    expect(out.players[seat].hand).toEqual([]);
+    const allDiscards = Object.values(out.discards).flat();
+    for (const id of hand) expect(allDiscards).toContain(id);
+    expect(() => act(state, 'card.play', seat, { as: 'facedown' })).toThrow(/choose the card/);
+  });
+
+  it('the form marks the card choice optional while "Keep none" is picked', async () => {
+    const { state, seat } = midSearch();
+    const entry = (oath.affordances!(state, seat) as Affordance[]).find((a) => a.type === 'card.play')!;
+    expect(entry.fields[0]).toMatchObject({ name: 'handIndex', optionalWhen: { field: 'as', values: ['discard'] } });
+    const { composer } = await import('../../../src/client/composer.js');
+    const html = String(composer([entry], { gameId: 'g', seq: 1, back: '/' } as never));
+    expect(html).toContain('data-optional-field="as" data-optional="[&quot;\\&quot;discard\\&quot;&quot;]"');
+  });
+});

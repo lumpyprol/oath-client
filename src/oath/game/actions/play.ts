@@ -50,7 +50,9 @@ import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
 
 const PlayPayloadSchema = z.object({
-  handIndex: z.number().int().min(0),
+  // Absent only with `as: 'discard'` — keeping none needs no card (Ben,
+  // 2026-10-03); it is then the whole hand, in order.
+  handIndex: z.number().int().min(0).optional(),
   // 'facedown' (P4 unit 11) is shorthand for `as: 'adviser', facedown: true`,
   // so a form can offer all of a card's destinations as ONE choice. The
   // long form stays accepted, so every logged game replays.
@@ -59,7 +61,7 @@ const PlayPayloadSchema = z.object({
   facedown: z.boolean().optional(),
   discardAdviserIndex: z.number().int().min(0).optional(),
 });
-type PlayPayload = Omit<z.infer<typeof PlayPayloadSchema>, 'as'> & { as: 'site' | 'adviser' | 'vision' | 'discard' };
+type PlayPayload = Omit<z.infer<typeof PlayPayloadSchema>, 'as' | 'handIndex'> & { handIndex: number; as: 'site' | 'adviser' | 'vision' | 'discard' };
 
 function regionOfSite(state: OathState, siteId: string): Region {
   const site = state.sites.find((s) => s.id === siteId);
@@ -71,8 +73,14 @@ function play(state: OathState, action: GameAction): OathState {
   const seat = requireActiveSeat(state, action, { midSearchOk: true });
   const parsed = PlayPayloadSchema.safeParse(action.payload);
   if (!parsed.success) throw new IllegalAction(`card.play: malformed payload`);
+  if (parsed.data.handIndex === undefined && parsed.data.as !== 'discard') {
+    throw new IllegalAction('card.play: choose the card to keep (Law §5.1.4)');
+  }
+  const handIndex = parsed.data.handIndex ?? 0; // keep none: binning card 0 then the rest is the whole hand, in order
   const payload: PlayPayload =
-    parsed.data.as === 'facedown' ? { ...parsed.data, as: 'adviser', facedown: true } : { ...parsed.data, as: parsed.data.as };
+    parsed.data.as === 'facedown'
+      ? { ...parsed.data, handIndex, as: 'adviser', facedown: true }
+      : { ...parsed.data, handIndex, as: parsed.data.as };
 
   const player = state.players[seat];
   const cardId = player.hand[payload.handIndex];

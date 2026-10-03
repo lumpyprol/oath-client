@@ -112,12 +112,16 @@ export interface Option {
    * listed value and refused for every other option of that field.
    */
   requires?: { field: string; values: unknown[] };
-  /** The Law section(s) behind this option's cost, shown after it: "Rocky Coast — 1 Supply (Law §11.3)". */
+  /** What sets this option's cost, shown after it: "Rocky Coast — 1 Supply (Law §11.3)". */
   law?: string;
 }
 
 export type Field = (
-  | { name: string; kind: 'choose-one' | 'choose-many'; options: Option[]; max?: number }
+  // `optionalWhen` (choose-one): the field may be left empty while another
+  // field of the entry holds one of `values` — Search's "keep none" needs no
+  // card (Ben, 2026-10-03). A client drops `required` then; the reducer
+  // accepts the field absent.
+  | { name: string; kind: 'choose-one' | 'choose-many'; options: Option[]; max?: number; optionalWhen?: { field: string; values: unknown[] } }
   // `deferred` marks a bound the reducer does NOT enforce at submit — a
   // permissioned warband move creates a request and validates the count
   // only when it is granted (Law §6.5). The bound is still the right thing
@@ -541,6 +545,7 @@ function describeCardPlay(state: OathState, seat: number): Affordance[] {
           name: 'handIndex',
           label: 'Keep which card (every card you do not pick is discarded)',
           kind: 'choose-one',
+          optionalWhen: { field: 'as', values: ['discard'] }, // keeping none needs no card
           // your OWN hand — ids legitimate (oracle table's 'own' row)
           options: p.hand.map((cardId, i) => ({ value: i, label: byId(cardId).name, art: cardId })),
         },
