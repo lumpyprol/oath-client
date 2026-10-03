@@ -957,27 +957,29 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
         extras.push({ value: { kind: 'scepter' }, label: `the Grand Scepter — ${SCEPTER_DEFENSE_DICE} defense dice` });
       }
     }
-    if (defender !== 'bandits') {
-      for (const other of state.sites) {
-        if (other.id === attackerSite || other.facedown) continue;
-        if (!rulersOf(state, other.id, exclude).includes(defender)) continue;
-        const extra: Option = {
-          value: { kind: 'site', siteId: other.id },
-          label: `${byId(other.id).name} — ${SITE_DEFENSE_DICE} defense die${atSite(other.id, (soloTargets[0]?.value as unknown[]) ?? [])}${siteAttackModifier(byId(other.id).name)}`,
-        };
-        // Law §11.8: from another region, a target in Narrow Pass's region
-        // brings Narrow Pass in too — or cannot be declared at all.
-        const pass = narrowPassRequirement(state, seat, defender, [{ kind: 'site', siteId: other.id }], exclude);
-        if (pass === 'added') extra.label += ' — Narrow Pass joins the targets (Law §11.8)';
-        if (pass === 'blocked') {
-          extra.disabled = `you would have to target Narrow Pass too, and the ${seatTitle(state.players, defender)} does not rule it (Law §11.8)`;
-        }
-        if (!hereIsHidden && targetsAtHiddenPlace(state, attackerSite, [{ kind: 'site', siteId: other.id }])) {
-          if (p.secrets.ready < 1) extra.disabled = 'targets at The Hidden Place need a ready secret to flip facedown, and you have none';
-          else extra.label += ' — flips one of your secrets facedown (The Hidden Place)';
-        }
-        extras.push(extra);
+    // Every other site they rule — for the bandits, every faceup site with
+    // no warbands (§10.21): they are one faction, so any of theirs can be a
+    // target, each adding a bandit to the defence (§2.8.3).
+    for (const other of state.sites) {
+      if (other.id === attackerSite || other.facedown) continue;
+      const otherRulers = rulersOf(state, other.id, exclude);
+      if (defender === 'bandits' ? otherRulers.length > 0 : !otherRulers.includes(defender)) continue;
+      const extra: Option = {
+        value: { kind: 'site', siteId: other.id },
+        label: `${byId(other.id).name} — ${SITE_DEFENSE_DICE} defense die${atSite(other.id, (soloTargets[0]?.value as unknown[]) ?? [])}${siteAttackModifier(byId(other.id).name)}`,
+      };
+      // Law §11.8: from another region, a target in Narrow Pass's region
+      // brings Narrow Pass in too — or cannot be declared at all.
+      const pass = narrowPassRequirement(state, seat, defender, [{ kind: 'site', siteId: other.id }], exclude);
+      if (pass === 'added') extra.label += ' — Narrow Pass joins the targets (Law §11.8)';
+      if (pass === 'blocked') {
+        extra.disabled = `you would have to target Narrow Pass too, and ${defender === 'bandits' ? 'the bandits do' : `the ${seatTitle(state.players, defender)} does`} not rule it (Law §11.8)`;
       }
+      if (!hereIsHidden && targetsAtHiddenPlace(state, attackerSite, [{ kind: 'site', siteId: other.id }])) {
+        if (p.secrets.ready < 1) extra.disabled = 'targets at The Hidden Place need a ready secret to flip facedown, and you have none';
+        else extra.label += ' — flips one of your secrets facedown (The Hidden Place)';
+      }
+      extras.push(extra);
     }
     const key = (v: unknown) => JSON.stringify(v);
     const alsoOptions: Option[] = extras.map((x) => {

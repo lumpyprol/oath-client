@@ -259,3 +259,29 @@ describe('The Hidden Place: declaring targets there flips a secret', () => {
     expect(oath.unavailable!(s, 1)).toContainEqual({ type: 'campaign.declare', reason: expect.stringMatching(/Hidden Place/) });
   });
 });
+
+describe('the bandits are one faction: any of their sites can be a target (Law §10.21, §5.5.2)', () => {
+  it('declaring against the bandits offers every other faceup site with no warbands', () => {
+    const s = baseState();
+    s.players[1].pawnSite = s.sites[1].id; // no warbands here: the bandits rule it
+    s.sites[6].facedown = true; // a facedown site rules nothing
+    const declare = (oath.affordances!(s, 1) as Affordance[]).find(
+      (a) => a.type === 'campaign.declare' && field(a, 'defender').options[0].value === 'bandits',
+    )!;
+    const also = field(declare, 'alsoTargets').options.map((o) => (o.value as { siteId: string }).siteId);
+    expect(also.sort()).toEqual([s.sites[3].id, s.sites[4].id, s.sites[7].id].sort());
+    expect(auditAffordances(s, 1)).toEqual([]);
+
+    const out = act(s, 'campaign.declare', 1, {
+      defender: 'bandits',
+      targets: [{ kind: 'site', siteId: s.sites[1].id }],
+      alsoTargets: [{ kind: 'site', siteId: s.sites[3].id }, { kind: 'site', siteId: s.sites[7].id }],
+      attackDice: 3, // −1 for targeting the Mountain (slot 7, Law §11.4)
+      attackFaces: ['sword', 'sword'],
+      defenseFaces: ['blank', 'blank', 'blank'],
+    });
+    expect(out.campaign!.targets).toHaveLength(3);
+    expect(out.campaign!.defenseDice).toBe(3); // one die per site (§2.8.3)
+    expect(oath.project(out, 1).campaign!.battle).toMatchObject({ force: 3 }); // a bandit per site
+  });
+});
