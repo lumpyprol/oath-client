@@ -151,7 +151,7 @@ as fine", so a review that re-reads our own notes is worthless.
 | 5.5.6 | Resolve defeat; the Chancellor allocates an Imperial force's losses | **DONE** `applyDefeat`, `campaign.casualties` |
 | 5.5.7 | Attacker's victory: placements, Imperial consolidation, relics/banners, banish and burn | **DONE** `applySeizure`, `survivorBoardOf`, `applyVictorySpoils` — P3 unit 4 folded the choice-bearing parts into `campaign.resolve`'s payload (D50) |
 | 5.5.8 | Battle-plan triggers | **DEFER** → v2, with §5.5.3 |
-| 5.6.1–5.6.2 | Travel cost table; move and reveal | **DONE** `map.ts travelCost`, `travel.ts`. Site travel powers (§11.3/11.6/11.7/11.8, Buried Giant, The Hidden Place) enforced 2026-10-02 in `travel-rules.ts`; Shrouded Wood's ruler-chooses clause still → v2 |
+| 5.6.1–5.6.2 | Travel cost table; move and reveal | **DONE** `map.ts travelCost`, `travel.ts`. Site travel powers (§11.3/11.6/11.7/11.8, Buried Giant, The Hidden Place) enforced 2026-10-02 in `travel-rules.ts`, Shrouded Wood's ruler choice as the `shrouded` decision; denizen/relic travel powers → v2 |
 
 ## §6 Minor Actions
 
@@ -225,7 +225,8 @@ as fine", so a review that re-reads our own notes is worthless.
 | --- | --- | --- |
 | 11.1 | Opportunity Sites | **DONE** `victory.ts OPPORTUNITY_SITES` (D47) |
 | 11.4 | Plains / Mountain attack die | **DONE** `campaign.ts declare` — identity-only and mandatory, so structural |
-| 11.2 Homeland, 11.3 Coast, 11.5 River, 11.6 Charming Valley, 11.7 Shrouded Wood, 11.8 Narrow Pass, 11.9 The Tribunal | **DEFER** → v2 site powers. All are declarable today; the Travel-cost ones only since unit 16d added the `supply` effect |
+| 11.3 Coast, 11.6 Charming Valley, 11.7 Shrouded Wood, 11.8 Narrow Pass | **DONE** 2026-10-02: `travel-rules.ts` (cost, forced destination), the `shrouded` decision (`travel.direct`), and `campaign.declare` (Narrow Pass target) |
+| 11.2 Homeland, 11.5 River, 11.9 The Tribunal | **DEFER** → v2 site powers. All are declarable today |
 
 ---
 

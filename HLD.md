@@ -981,12 +981,13 @@ engine does NOT enforce, to be picked up here.** Units 6–20 append as
 they go.
 
 - **Travel (unit 9):** ~~Coast cost = 1 (§11.3), Charming Valley +1 (§11.6),
-  Shrouded Wood cost = 2 (§11.7), Narrow Pass forced destination (§11.8)~~
-  — **enforced 2026-10-02** with Buried Giant and The Hidden Place
-  (`travel-rules.ts`, RULINGS 2026-10-02). Still deferred: Shrouded Wood's
-  enemy-ruler-chooses destination (§11.7), Narrow Pass's and The Hidden
-  Place's forced/limited Campaign targets (§11.8), and denizen/relic
-  "spend no Supply" travel powers (§7.6.2).
+  Shrouded Wood cost = 2 + forced destination (§11.7), Narrow Pass forced
+  destination and forced Campaign target (§11.8)~~ — **all enforced
+  2026-10-02**, with Buried Giant and The Hidden Place (`travel-rules.ts`,
+  the `shrouded` decision / `travel.direct`, and `campaign.declare`; RULINGS
+  2026-10-02). **Still v2:** denizen and relic powers that change Travel
+  ("spend no Supply", forced destinations, tolls — §7.6.2 and the card
+  texts), declared via `power.use` until then.
 - **card.play (unit 6):** the People's Favor holder's "discard a card at
   any site in your region, then play to any site in your region"
   (§5.1.4.1); the Conspiracy's faceup play — burn a secret to seize a

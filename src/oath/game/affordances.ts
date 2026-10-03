@@ -73,6 +73,8 @@ import {
   defenseTotal,
   defendingForce,
   mandatoryAllies,
+  narrowPassRequirement,
+  targetsAtHiddenPlace,
   eligibleAllyVolunteers,
   casualtyChooser,
 } from './actions/campaign.js';
@@ -931,12 +933,16 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
       }
     }
     if (soloTargets.length === 0) continue;
+    // The Hidden Place: targets there cost a ready secret, flipped facedown —
+    // standing on it, that is every target at your site.
+    const hereIsHidden = targetsAtHiddenPlace(state, attackerSite, [{ kind: 'pawnFavor' }]);
+    if (hereIsHidden && p.secrets.ready < 1) continue;
 
     // §5.5.2: "any number of targets" — beyond the one at your site, any
     // other at-your-site target (when their pawn is here) and any other site
     // they rule, anywhere. Each extra may not repeat the first target, which
     // `requires` says, and the harness checks both ways (Ben, 2026-10-02).
-    const extras: { value: unknown; label: string }[] = [];
+    const extras: Option[] = [];
     if (pawnHere) {
       extras.push({ value: { kind: 'pawnFavor' }, label: `their pawn & favor — ${PAWN_FAVOR_DICE} defense dice` });
       for (const banner of state.banners) {
@@ -955,10 +961,22 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
       for (const other of state.sites) {
         if (other.id === attackerSite || other.facedown) continue;
         if (!rulersOf(state, other.id, exclude).includes(defender)) continue;
-        extras.push({
+        const extra: Option = {
           value: { kind: 'site', siteId: other.id },
           label: `${byId(other.id).name} — ${SITE_DEFENSE_DICE} defense die${atSite(other.id, (soloTargets[0]?.value as unknown[]) ?? [])}${siteAttackModifier(byId(other.id).name)}`,
-        });
+        };
+        // Law §11.8: from another region, a target in Narrow Pass's region
+        // brings Narrow Pass in too — or cannot be declared at all.
+        const pass = narrowPassRequirement(state, seat, defender, [{ kind: 'site', siteId: other.id }], exclude);
+        if (pass === 'added') extra.label += ' — Narrow Pass joins the targets (Law §11.8)';
+        if (pass === 'blocked') {
+          extra.disabled = `you would have to target Narrow Pass too, and the ${seatTitle(state.players, defender)} does not rule it (Law §11.8)`;
+        }
+        if (!hereIsHidden && targetsAtHiddenPlace(state, attackerSite, [{ kind: 'site', siteId: other.id }])) {
+          if (p.secrets.ready < 1) extra.disabled = 'targets at The Hidden Place need a ready secret to flip facedown, and you have none';
+          else extra.label += ' — flips one of your secrets facedown (The Hidden Place)';
+        }
+        extras.push(extra);
       }
     }
     const key = (v: unknown) => JSON.stringify(v);
@@ -980,6 +998,7 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
         { name: 'attackDice', label: 'attack dice (before any Plains/Mountain change)', kind: 'count', min: 0, max: p.warbands.board },
       ],
       note:
+        (hereIsHidden ? 'Declaring targets here flips one of your ready secrets facedown (The Hidden Place). ' : '') +
         boardNote(forceFor((soloTargets[0]?.value as unknown[]) ?? [])) +
         `Costs ${CAMPAIGN_COST} Supply. The defender's title adds ` +
         `${titleDefenseDice(state, seat, defender)} defense dice (Law §2.11); ` +
@@ -1458,9 +1477,11 @@ function whyNotNow(state: OathState, seat: number, type: string): string {
         ? `Costs 1 Supply; you have ${p.supply} (Law §5.4.1).`
         : 'Nothing here or among the banners that you can afford to recover (Law §5.4).';
     case 'campaign.declare':
-      return p.supply < CAMPAIGN_COST
-        ? `Costs ${s(CAMPAIGN_COST)}; you have ${p.supply} (Law §5.5.1).`
-        : 'No one to campaign against: nobody else rules your site or stands at it (Law §5.5.1).';
+      if (p.supply < CAMPAIGN_COST) return `Costs ${s(CAMPAIGN_COST)}; you have ${p.supply} (Law §5.5.1).`;
+      if (site && targetsAtHiddenPlace(state, site.id, [{ kind: 'pawnFavor' }]) && p.secrets.ready < 1) {
+        return 'Targets at The Hidden Place need a ready secret to flip facedown, and you have none.';
+      }
+      return 'No one to campaign against: nobody else rules your site or stands at it (Law §5.5.1).';
     case 'adviser.play':
       return 'You have no facedown adviser (Law §6.1).';
     case 'power.use':

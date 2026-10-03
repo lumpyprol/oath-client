@@ -402,6 +402,25 @@ function computeDeclaration(state: OathState, attackerSeat: number, payload: unk
   }
   const defenderPawnHere = defender !== 'bandits' && state.players[defender].pawnSite === attackerSite;
 
+  // Law §11.8: a target in Narrow Pass's region, declared from another
+  // region, brings Narrow Pass in as a target too (the engine applies the
+  // "must"), unless you rule it; refused when it cannot be targeted.
+  const pass = narrowPassRequirement(state, attackerSeat, defender, targets, excludeImperial);
+  if (pass === 'blocked') {
+    throw new IllegalAction(
+      'campaign.declare: a target in its region means you must target Narrow Pass, and the defender does not rule it (Law §11.8)',
+    );
+  }
+  if (pass === 'added') targets.push({ kind: 'site', siteId: NARROW_PASS });
+  // The Hidden Place: "You cannot … declare campaign targets here unless you
+  // flip one secret on your board facedown" — one secret, however many targets.
+  const hiddenSecret = targetsAtHiddenPlace(state, attackerSite, targets) ? 1 : 0;
+  if (hiddenSecret > attacker.secrets.ready) {
+    throw new IllegalAction(
+      'campaign.declare: targets at The Hidden Place need a ready secret to flip facedown, and you have none',
+    );
+  }
+
   const seen = new Set<string>();
   let defenseDice = 0;
   let targetsYourSite = false; // satisfies the "at least one target at your site" clause
@@ -537,7 +556,45 @@ function computeDeclaration(state: OathState, attackerSeat: number, payload: unk
     ...(changes.length ? { attackDiceChosen: attackDice, attackDiceChanges: changes } : {}),
     defenseDice,
     allies: mandatoryAllies(state, attackerSeat, defender), // Law §5.5.2
+    hiddenSecret,
   };
+}
+
+type DeclaredTarget = z.infer<typeof TargetSchema>;
+
+/**
+ * Narrow Pass's campaign clause (Law §11.8): "if you declare any targets in
+ * this region and your pawn is in a different region, you must target this
+ * site unless you rule it." 'none' when it does not bite (or is already
+ * met), 'added' when Narrow Pass must join the targets and can, 'blocked'
+ * when it must but the defender does not rule it. Only site targets have a
+ * region of their own; every other kind sits at the attacker's site.
+ */
+export function narrowPassRequirement(
+  state: OathState,
+  attackerSeat: number,
+  defender: number | 'bandits',
+  targets: readonly DeclaredTarget[],
+  excludeImperial: number[],
+): 'none' | 'added' | 'blocked' {
+  const pass = state.sites.find((x) => x.id === NARROW_PASS && !x.facedown);
+  if (!pass) return 'none';
+  const attackerRegion = state.sites.find((x) => x.id === state.players[attackerSeat].pawnSite)!.region;
+  if (attackerRegion === pass.region) return 'none';
+  const regionOf = (siteId: string) => state.sites.find((x) => x.id === siteId)?.region;
+  const inRegion = targets.some((t) => t.kind === 'site' && regionOf(t.siteId) === pass.region);
+  if (!inRegion || targets.some((t) => t.kind === 'site' && t.siteId === NARROW_PASS)) return 'none';
+  const passRulers = rulersOf(state, NARROW_PASS, excludeImperial);
+  if (passRulers.includes(attackerSeat)) return 'none';
+  const defenderRules = defender === 'bandits' ? passRulers.length === 0 : passRulers.includes(defender);
+  return defenderRules ? 'added' : 'blocked';
+}
+
+/** Whether any target is AT a faceup Hidden Place (a site target there, or any other kind when you stand there). */
+export function targetsAtHiddenPlace(state: OathState, attackerSite: string, targets: readonly DeclaredTarget[]): boolean {
+  const hidden = state.sites.find((x) => x.id === HIDDEN_PLACE && !x.facedown);
+  if (!hidden) return false;
+  return targets.some((t) => (t.kind === 'site' ? t.siteId : attackerSite) === HIDDEN_PLACE);
 }
 
 function declare(state: OathState, action: GameAction): OathState {
@@ -545,6 +602,9 @@ function declare(state: OathState, action: GameAction): OathState {
   const decl = computeDeclaration(state, attackerSeat, action.payload);
 
   state.players[attackerSeat].supply -= CAMPAIGN_COST;
+  // The Hidden Place's price for declaring targets there (see computeDeclaration).
+  state.players[attackerSeat].secrets.ready -= decl.hiddenSecret;
+  state.players[attackerSeat].secrets.flipped += decl.hiddenSecret;
   const campaign: CampaignState = {
     attackerSeat,
     defenderSeat: decl.defender,

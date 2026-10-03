@@ -183,3 +183,79 @@ describe("Shrouded Wood's power beats the attacker's banish (Law §5.5.7.3)", ()
     expect(act(r, 'campaign.resolve', 1, { banishTo: 0 }).players[2].pawnSite).toBe(r.sites[0].id);
   });
 });
+
+describe('Narrow Pass: target it with anything in its region (Law §11.8)', () => {
+  /** Seat 1 (Hinterland, slot 5) against exile seat 2, who rules slot 3 and maybe Narrow Pass (slot 2), Provinces. */
+  function npState(defenderRulesPass: boolean): OathState {
+    const s = baseState();
+    put(s, 2, 'site:narrow-pass');
+    s.sites[2].warbands[0] = 0;
+    s.players[0].warbands.bank += 1;
+    garrison(s, 3, 2, 1);
+    if (defenderRulesPass) garrison(s, 2, 2, 1);
+    s.players[2].pawnSite = s.sites[5].id; // the defender stands at the attacker's site
+    checkInvariants(s);
+    return s;
+  }
+  const declare = { defender: 2, targets: [{ kind: 'pawnFavor' }], attackDice: 2 };
+
+  it('declaring a target in its region brings Narrow Pass in as a target', () => {
+    const s = npState(true);
+    const out = act(s, 'campaign.declare', 1, { ...declare, alsoTargets: [{ kind: 'site', siteId: s.sites[3].id }] });
+    expect(out.campaign!.targets).toContainEqual({ kind: 'site', siteId: 'site:narrow-pass' });
+    expect(out.campaign!.defenseDice).toBe(2 + 1 + 1); // pawn & favor, the target, Narrow Pass
+    const extra = field(entry(s, 1, 'campaign.declare')!, 'alsoTargets').options.find((o) => (o.value as { siteId?: string }).siteId === s.sites[3].id)!;
+    expect(extra.label).toMatch(/Narrow Pass joins the targets/);
+    expect(auditAffordances(s, 1)).toEqual([]);
+  });
+
+  it('and cannot be declared when the defender does not rule Narrow Pass', () => {
+    const s = npState(false);
+    expect(() => act(s, 'campaign.declare', 1, { ...declare, alsoTargets: [{ kind: 'site', siteId: s.sites[3].id }] })).toThrow(/Narrow Pass/);
+    const extra = field(entry(s, 1, 'campaign.declare')!, 'alsoTargets').options.find((o) => (o.value as { siteId?: string }).siteId === s.sites[3].id)!;
+    expect(extra.disabled).toMatch(/Narrow Pass/);
+    expect(auditAffordances(s, 1)).toEqual([]);
+  });
+
+  it('ruling Narrow Pass yourself lifts it', () => {
+    const s = npState(false);
+    garrison(s, 2, 1, 1);
+    const out = act(s, 'campaign.declare', 1, { ...declare, alsoTargets: [{ kind: 'site', siteId: s.sites[3].id }] });
+    expect(out.campaign!.targets).not.toContainEqual({ kind: 'site', siteId: 'site:narrow-pass' });
+  });
+});
+
+describe('The Hidden Place: declaring targets there flips a secret', () => {
+  it('a target at it flips one ready secret, and none means no', () => {
+    const s = baseState();
+    put(s, 3, 'site:hidden-place');
+    garrison(s, 3, 2, 1);
+    s.players[2].pawnSite = s.sites[5].id;
+    const declare = { defender: 2, targets: [{ kind: 'pawnFavor' }], alsoTargets: [{ kind: 'site', siteId: 'site:hidden-place' }], attackDice: 2 };
+    const out = act(s, 'campaign.declare', 1, declare);
+    expect(out.players[1].secrets).toEqual({ ready: 0, flipped: 1 });
+    const extra = () => field(entry(s, 1, 'campaign.declare')!, 'alsoTargets').options.find((o) => (o.value as { siteId?: string }).siteId === 'site:hidden-place')!;
+    expect(extra().label).toMatch(/flips one of your secrets/);
+    expect(auditAffordances(s, 1)).toEqual([]);
+
+    s.players[1].secrets = { ready: 0, flipped: 1 };
+    expect(() => act(s, 'campaign.declare', 1, declare)).toThrow(/Hidden Place/);
+    expect(extra().disabled).toMatch(/ready secret/);
+    expect(auditAffordances(s, 1)).toEqual([]);
+  });
+
+  it('standing on it, every campaign there costs a secret — one, however many targets', () => {
+    const s = baseState();
+    put(s, 5, 'site:hidden-place');
+    s.sites[5].warbands[1] = 2;
+    s.players[2].pawnSite = 'site:hidden-place';
+    s.players[2].relics = [s.players[2].relics[0]];
+    const out = act(s, 'campaign.declare', 1, { defender: 2, targets: [{ kind: 'pawnFavor' }], alsoTargets: [{ kind: 'relic', relicId: s.players[2].relics[0] }], attackDice: 2 });
+    expect(out.players[1].secrets).toEqual({ ready: 0, flipped: 1 });
+    expect(entry(s, 1, 'campaign.declare')!.note).toMatch(/The Hidden Place/);
+
+    s.players[1].secrets = { ready: 0, flipped: 1 };
+    expect(entry(s, 1, 'campaign.declare')).toBeUndefined();
+    expect(oath.unavailable!(s, 1)).toContainEqual({ type: 'campaign.declare', reason: expect.stringMatching(/Hidden Place/) });
+  });
+});
