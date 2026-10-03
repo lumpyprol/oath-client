@@ -177,6 +177,8 @@ export interface OathView {
   warbandRequest: WarbandRequest | null;
   /** Shrouded Wood's ruler choosing a traveller's destination (Law §11.7): public, like the pawns. */
   shroudedTravel: ShroudedTravel | null;
+  /** The last Stable Regime end-die check (Law §3.3): public — everyone sees the die. */
+  lastRoundEnd: { round: number; die: number | null; needed: number } | null;
   complete: boolean;
   winner: number | null;
 }
@@ -281,6 +283,7 @@ export function project(state: OathState, seat: number | null): OathView {
       : null,
     warbandRequest: state.warbandRequest ? { ...state.warbandRequest } : null,
     shroudedTravel: state.shroudedTravel ? { ...state.shroudedTravel } : null,
+    lastRoundEnd: state.lastRoundEnd ? { ...state.lastRoundEnd } : null,
     complete: state.complete,
     winner: state.winner,
   };

@@ -1,6 +1,7 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { boardModel } from '../../../src/client/model.js';
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   checkInvariants,
@@ -518,6 +519,27 @@ describe('the Stable Regime Win (Law §3.3)', () => {
       expect(`r${round} d${die} -> ${out.complete}`).toBe(`r${round} d${die} -> ${ends}`);
       if (ends) expect(out.winner).toBe(0);
     }
+  });
+
+  it('records the roll, or that there was none, for the board to show (Ben, 2026-10-02)', () => {
+    const rolled = rest(endOfRound(5), 2, { endDie: 1 });
+    expect(rolled.lastRoundEnd).toEqual({ round: 5, die: 1, needed: 6 });
+    const notes = boardModel(oath.project(rolled, 0), { gameId: 'g', seat: 0, names: ['a', 'b', 'c'] }).endDie;
+    expect(notes[0]).toBe('End of round 5: the end die rolled 1; the Chancellor needed a 6, so the game goes on (Law §3.3).');
+    expect(notes[1]).toMatch(/^End of this round: the Chancellor holds the Oathkeeper title, so a die is rolled — on 5 or more the game ends/);
+
+    const exile = endOfRound(5);
+    exile.banners[1].holder = 1;
+    exile.oathkeeper = 1;
+    const none = rest(exile, 2, {});
+    expect(none.lastRoundEnd).toEqual({ round: 5, die: null, needed: 6 });
+    expect(boardModel(oath.project(none, 0), { gameId: 'g', seat: 0, names: ['a', 'b', 'c'] }).endDie[0]).toMatch(/no end die — an Exile holds/);
+  });
+
+  it('warns before round 5 ends, and says nothing earlier', () => {
+    const notes = (s: OathState) => boardModel(oath.project(s, 0), { gameId: 'g', seat: 0, names: ['a', 'b', 'c'] }).endDie;
+    expect(notes(endOfRound(4))).toEqual([]);
+    expect(notes(endOfRound(5))).toEqual([expect.stringMatching(/End of this round: .* on a 6 the game ends and the Chancellor wins/)]);
   });
 
   it('does not check at all before round five', () => {

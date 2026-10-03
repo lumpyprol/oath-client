@@ -753,7 +753,8 @@ export function boardPage(
     ? html`<p class="status done">Game over — winner: ${model.winner === null ? 'a tie' : model.seatTitles[model.winner]}.</p>`
     : html`<p class="status">Round ${model.round} · ${model.activeSeat === model.seat ? 'your turn' : `the ${model.seatTitles[model.activeSeat]}'s turn`}${model.waitingOn.map(
         (w) => html` · <span class="waiting${w.you ? ' you' : ''}">waiting on ${w.you ? 'you' : `the ${w.title}`} (${w.what})</span>`,
-      )} · ${model.oathLabel} · Visions drawn: ${model.visionsDrawn}</p>`;
+      )} · ${model.oathLabel} · Visions drawn: ${model.visionsDrawn}</p>
+      ${model.endDie.map((n) => html`<p class="end-die">${n}</p>`)}`;
 
   const c = model.campaign;
   const campaign = c

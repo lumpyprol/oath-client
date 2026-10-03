@@ -10,6 +10,7 @@ import { findById } from '../oath/cards/index.js';
 import { seatColors, seatTitle } from '../oath/game/seats.js';
 import type { BattleTotals } from '../oath/game/actions/campaign.js';
 import type { DefenseFace } from '../oath/game/state.js';
+import { STABLE_REGIME_TARGET } from '../oath/game/victory.js';
 
 
 /** A pending decision as the inbox sees it — the engine's fields plus the HTTP layer's `since`/`url`. */
@@ -252,6 +253,12 @@ export interface BoardModel {
   /** The oath this game is played under (Law §2.10's Goal Reference shows its goals). */
   oath: string;
   oathLabel: string;
+  /**
+   * The Stable Regime end die (Law §3.3), in words: what the last round end
+   * rolled, and — during rounds 5-7 — what the end of this one will. Empty
+   * when neither applies.
+   */
+  endDie: string[];
   oathkeeper: number;
   usurper: boolean;
   visionsDrawn: number;
@@ -490,6 +497,7 @@ export function boardModel(
     activeSeat: view.turn.activeSeat,
     oath: view.oath,
     oathLabel: OATH_LABEL[view.oath] ?? view.oath,
+    endDie: endDieNotes(view, titles),
     oathkeeper: view.oathkeeper,
     usurper: view.usurper,
     visionsDrawn: view.visionsDrawn,
@@ -567,4 +575,29 @@ export function ownChanges(before: BoardModel, after: BoardModel, seat: number):
   return rows
     .map(([what, get]) => ({ what, before: String(get(a) ?? '—'), after: String(get(b) ?? '—') }))
     .filter((r) => r.before !== r.after);
+}
+
+/** Law §3.3's end die, as the board says it: the last result, then what this round's end will do. */
+function endDieNotes(view: OathView, titles: string[]): string[] {
+  const notes: string[] = [];
+  const last = view.lastRoundEnd;
+  // Shown through the round after it (it is the news of that round's start).
+  if (last && last.round === view.turn.round - 1) {
+    notes.push(
+      last.die === null
+        ? `End of round ${last.round}: no end die — an Exile holds the Oathkeeper title (Law §3.3).`
+        : `End of round ${last.round}: the end die rolled ${last.die}; the Chancellor needed ${last.needed === 6 ? 'a 6' : `${last.needed} or more`}, so the game goes on (Law §3.3).`,
+    );
+  }
+  const needed = STABLE_REGIME_TARGET[view.turn.round];
+  if (needed !== undefined && !view.complete) {
+    const keeper = view.oathkeeper;
+    const imperial = keeper !== null && view.players[keeper]?.citizenship !== 'exile';
+    notes.push(
+      imperial
+        ? `End of this round: the ${titles[keeper!]} holds the Oathkeeper title, so a die is rolled — on ${needed === 6 ? 'a 6' : `${needed} or more`} the game ends and the Chancellor wins (Law §3.3).`
+        : `End of this round: if the Chancellor or a Citizen holds the Oathkeeper title then, a die is rolled — on ${needed === 6 ? 'a 6' : `${needed} or more`} the Chancellor wins (Law §3.3).`,
+    );
+  }
+  return notes;
 }

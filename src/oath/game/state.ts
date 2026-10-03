@@ -532,6 +532,13 @@ export interface OathState {
   warbandRequest: WarbandRequest | null;
   wake: WakeState | null;
   titleChoice: TitleChoice | null;
+  /**
+   * The last round end that could have ended the game early (Law §3.3,
+   * rounds 5-7), so players see what happened: the die rolled (null when an
+   * Exile held the Oathkeeper title and nothing was rolled) and what it
+   * needed. Absent in older saves and before round 5 ends.
+   */
+  lastRoundEnd?: { round: number; die: number | null; needed: number } | null;
   /** Shrouded Wood's ruler choosing a traveller's destination (Law §11.7); absent in older saves. */
   shroudedTravel?: ShroudedTravel | null;
   /** Incremented by every reduce; pending-decision ids derive from it. */

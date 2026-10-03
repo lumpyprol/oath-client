@@ -44,6 +44,7 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
 .status.done { color: inherit; font-weight: 700; }
 .status .waiting { color: #d9a400; } /* an off-turn reaction the game is waiting on */
 .status .waiting.you { font-weight: 700; }
+.end-die { margin: -0.4rem 0 var(--gap); font-size: 0.9rem; } /* the Stable Regime end die (Law §3.3) */
 .spectator-note { font-style: italic; color: var(--muted); }
 .site-grid, .player-grid {
   display: grid; gap: var(--gap);

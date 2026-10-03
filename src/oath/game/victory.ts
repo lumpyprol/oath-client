@@ -133,7 +133,7 @@ const MOB_THRESHOLD = 6;
 /** Law §3.2: "at least three Visions have been drawn from the world deck." */
 const VISION_FLOOR = 3;
 /** Law §3.3: the minimum end-die roll that ends the game, by the round that just ended. */
-const STABLE_REGIME_TARGET: Record<number, number> = { 5: 6, 6: 5, 7: 3 };
+export const STABLE_REGIME_TARGET: Record<number, number> = { 5: 6, 6: 5, 7: 3 };
 const END_DIE: readonly number[] = [1, 2, 3, 4, 5, 6];
 /** Law §3.4: the last round; its end always ends the game. */
 const FINAL_ROUND = 8;
@@ -705,13 +705,18 @@ function roundEnd(state: OathState, endedRound: number, action: GameAction): Oat
   const target = STABLE_REGIME_TARGET[endedRound];
   if (target === undefined) return state;
   // §3.3: "roll the die IF the Chancellor or a Citizen is the Oathkeeper."
-  if (isExile(state, state.oathkeeper)) return state;
+  // Either way, record what happened so the board can say so (Ben).
+  if (isExile(state, state.oathkeeper)) {
+    state.lastRoundEnd = { round: endedRound, die: null, needed: target };
+    return state;
+  }
   const die = (action.payload as { endDie?: unknown } | null)?.endDie;
   if (typeof die !== 'number') {
     throw new IllegalAction(
       `turn.rest: round ${endedRound} ended with an Imperial Oathkeeper but no end die was rolled (Law §3.3)`,
     );
   }
+  state.lastRoundEnd = { round: endedRound, die, needed: target };
   return die >= target ? finish(state, successorOrChancellor(state)) : state;
 }
 
