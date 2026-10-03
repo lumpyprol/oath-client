@@ -80,7 +80,7 @@ describe('Charming Valley (Law §11.6)', () => {
     const dest = field(travelForm(s)!, 'siteIndex').options.find((o) => o.value === 2)!;
     expect(dest.cost).toEqual({ supply: 3 });
     expect(dest.label).toBe('Fertile Valley');
-    expect(dest.law).toBe('§11.6');
+    expect(dest.law).toBe('Law §11.6');
   });
 });
 
@@ -232,5 +232,68 @@ describe('The Hidden Place', () => {
     const opt = field(travelForm(s)!, 'siteIndex').options.find((o) => o.value === 6)!;
     expect(opt.cost).toEqual({ supply: 3, secrets: 1 });
     expect(auditAffordances(s, 1)).toEqual([]);
+  });
+});
+
+describe('Decadent, the Imperial Reliquary space, once uncovered (Law §2.3, §7.1.1)', () => {
+  /** The Chancellor (seat 0) active on Hinterland slot 5, with Decadent uncovered or not. */
+  function chancellorTravels(uncovered: boolean): OathState {
+    const s = baseState();
+    s.turn.activeSeat = 0;
+    s.players[0].pawnSite = s.sites[5].id;
+    if (uncovered) {
+      const space = s.reliquary.find((sp) => sp.modifier === 'decadent')!;
+      s.players[2].relics.push(space.relicId!); // taken by a new Citizen, say (§6.6.2)
+      space.relicId = null;
+    }
+    checkInvariants(s);
+    return s;
+  }
+  const go = (s: OathState, siteIndex: number) =>
+    oath.reduce(s, { gameId: 't', seq: s.actionCount + 1, type: 'travel', actor: 0, payload: { siteIndex }, createdAt: '' });
+  const option = (s: OathState, i: number) =>
+    ((oath.affordances!(s, 0) as Affordance[]).find((a) => a.type === 'travel')!.fields[0] as Extract<Field, { kind: 'choose-one' }>).options.find((o) => o.value === i)!;
+
+  it('to the Cradle from elsewhere spends no Supply', () => {
+    const s = chancellorTravels(true);
+    expect(go(s, 0).players[0].supply).toBe(4); // Hinterland → Cradle, normally 4
+    expect(option(s, 0)).toMatchObject({ cost: { supply: 0 }, law: 'Decadent' });
+  });
+
+  it('to the Hinterland costs 1 more', () => {
+    const s = chancellorTravels(true);
+    expect(go(s, 6).players[0].supply).toBe(0); // Hinterland → Hinterland, 3 + 1
+    expect(option(s, 6)).toMatchObject({ cost: { supply: 4 }, law: 'Decadent' });
+    expect(option(s, 2).law).toBeUndefined(); // the Provinces: unchanged
+    expect(auditAffordances(s, 0)).toEqual([]);
+  });
+
+  it('within the Cradle it changes nothing', () => {
+    const s = chancellorTravels(true);
+    s.players[0].pawnSite = s.sites[0].id;
+    expect(go(s, 1).players[0].supply).toBe(3);
+  });
+
+  it('applies only to the Chancellor, and only once uncovered', () => {
+    expect(go(chancellorTravels(false), 0).players[0].supply).toBe(0);
+    const exile = chancellorTravels(true);
+    exile.turn.activeSeat = 1;
+    expect(travel(exile, { siteIndex: 0 }).players[1].supply).toBe(0); // seat 1, Hinterland → Cradle: 4
+  });
+
+  it('from a Shrouded Wood the ruler chooses, the Chancellor pays for the site chosen', () => {
+    const s = chancellorTravels(true);
+    put(s, 5, 'site:shrouded-wood'); // seat 1, an Exile and so an enemy, rules it
+    s.players[0].supply = 2;
+    const waiting = oath.reduce(s, { gameId: 't', seq: s.actionCount + 1, type: 'travel', actor: 0, payload: {}, createdAt: '' });
+    const form = (oath.affordances!(waiting, 1) as Affordance[]).find((a) => a.type === 'travel.direct')!;
+    const opts = (form.fields[0] as Extract<Field, { kind: 'choose-one' }>).options;
+    expect(opts.find((o) => o.value === 0)).toMatchObject({ cost: { supply: 0 }, law: 'Law §11.7, Decadent' });
+    expect(opts.find((o) => o.value === 6)!.disabled).toMatch(/costs 3 Supply, they have 2/);
+    expect(auditAffordances(waiting, 1)).toEqual([]);
+    const sent = (i: number) => oath.reduce(waiting, { gameId: 't', seq: waiting.actionCount + 1, type: 'travel.direct', actor: 1, payload: { siteIndex: i }, createdAt: '' });
+    expect(sent(0).players[0].supply).toBe(2);
+    expect(sent(2).players[0].supply).toBe(0);
+    expect(() => sent(6)).toThrow(/they have 2/);
   });
 });

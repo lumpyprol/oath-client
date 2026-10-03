@@ -15,10 +15,13 @@
  *         facedown to spend no Supply (§7.6.2) and ignore Narrow Pass.
  *   The Hidden Place (card text) — you cannot travel here unless you flip one
  *         ready secret facedown.
+ *   Decadent (Imperial Reliquary, once uncovered; the Chancellor's) — to the
+ *         Cradle from elsewhere spends no Supply; to the Hinterland, +1.
  */
 
 import type { OathState } from './state.js';
 import { travelCost } from './map.js';
+import { chancellorHas } from './reliquary-text.js';
 
 export const COASTS: ReadonlySet<string> = new Set(['site:barren-coast', 'site:lush-coast', 'site:rocky-coast']);
 export const CHARMING_VALLEY = 'site:charming-valley';
@@ -39,7 +42,7 @@ export interface TravelRoute {
   secrets: number;
   /** Why this route is illegal, if it is — a Law-cited sentence. */
   blocked?: string;
-  /** The Law sections of the site powers that shaped this route, for the form's label (e.g. "11.3"). */
+  /** What shaped this route's cost, for the form's label: "Law §11.3", "Decadent". */
   laws: string[];
 }
 
@@ -55,14 +58,29 @@ export function travelRoute(state: OathState, seat: number, siteIndex: number, p
   if (from.id === SHROUDED_WOOD) {
     cost = SHROUDED_WOOD_COST;
     ignoreNarrow = ignoreHidden = true;
-    laws.push('11.7');
+    laws.push('Law §11.7');
   } else if (COASTS.has(from.id) && !dest.facedown && COASTS.has(dest.id)) {
     cost = 1;
     ignoreNarrow = true;
-    laws.push('11.3');
+    laws.push('Law §11.3');
   } else if (from.id === CHARMING_VALLEY) {
     cost += 1;
-    laws.push('11.6');
+    laws.push('Law §11.6');
+  }
+
+  // The Imperial Reliquary's Decadent space, once uncovered — a power the
+  // Chancellor always has and must use (Law §2.3, §7.1.1): "Spend no Supply
+  // if you're traveling to a site in the Cradle from a site in the Provinces
+  // or Hinterland. If you're traveling to a site in the Hinterland, increase
+  // the Travel cost by 1 Supply."
+  if (decadentApplies(state, seat)) {
+    if (dest.region === 'cradle' && from.region !== 'cradle') {
+      cost = 0; // "spend no Supply" ignores the cost and any increase (Law §7.6.2)
+      laws.push('Decadent');
+    } else if (dest.region === 'hinterland') {
+      cost += 1;
+      laws.push('Decadent');
+    }
   }
 
   let secrets = 0;
@@ -89,6 +107,11 @@ export function travelRoute(state: OathState, seat: number, siteIndex: number, p
     return { cost, secrets, laws, blocked: `costs ${cost} Supply, you have ${player.supply} (Law §5.6.1)` };
   }
   return { cost, secrets, laws };
+}
+
+/** Whether `seat` is the Chancellor with the Reliquary's Decadent space uncovered (Law §2.3, §7.1.1). */
+export function decadentApplies(state: OathState, seat: number): boolean {
+  return chancellorHas(state, seat, 'decadent');
 }
 
 /** Law §10.7: is `other` an enemy of `seat`? Imperial sees Exiles as enemies; an Exile, everyone. */

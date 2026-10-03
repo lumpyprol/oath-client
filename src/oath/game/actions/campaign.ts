@@ -245,6 +245,7 @@ import { consultStanding } from '../standing.js';
 import { arrivalEffects } from './travel.js';
 import { seatTitle } from '../seats.js';
 import { HIDDEN_PLACE, NARROW_PASS, shroudedChooser } from '../travel-rules.js';
+import { chancellorHas } from '../reliquary-text.js';
 
 export const CAMPAIGN_COST = 2; // Supply (Law §5.5.1)
 export const PAWN_FAVOR_DICE = 2; // Law §5.5.2 (fixed, "as shown by the shield on their board")
@@ -1094,6 +1095,16 @@ function survivorBoardOf(state: OathState, entry: ForceEntry): number {
  * assumed: a single-colour, single-owner force consolidates onto one board
  * either way.
  */
+/**
+ * How many warbands the defeated force kills (Law §5.5.6): half, rounded
+ * down — or, when the attacker has the Reliquary's Brutal space (the
+ * Chancellor's once uncovered), all of them: "If you're the attacker, the
+ * defeated player (even you) must kill all the warbands in their force."
+ */
+export function defeatQuota(state: OathState, c: CampaignState, total: number): number {
+  return chancellorHas(state, c.attackerSeat, 'brutal') ? total : Math.floor(total / 2);
+}
+
 function allocationMatters(state: OathState, force: ForceEntry[], quota: number): boolean {
   if (quota <= 0) return false;
   return new Set(force.map((e) => survivorBoardOf(state, e))).size > 1;
@@ -1332,12 +1343,12 @@ function resolve(state: OathState, action: GameAction): OathState {
     // §5.5.6: the attacker is the defeated party, and their force is just
     // their board — one destination, so the allocation can never matter.
     const own = attackingForce(working, c);
-    working = applyDefeat(working, c.attackerSeat, own, autoAllocate(own, Math.floor(forceTotal(own) / 2)));
+    working = applyDefeat(working, c.attackerSeat, own, autoAllocate(own, defeatQuota(state, c, forceTotal(own))));
     working.campaign = null;
     return working;
   }
 
-  const quota = Math.floor(forceTotal(force) / 2);
+  const quota = defeatQuota(state, c, forceTotal(force));
   if (allocationMatters(state, force, quota)) {
     // §5.5.6's aside: hand the choice over before doing anything else, so
     // the Law's step order (defeat, then §5.5.7's spoils) still holds. The

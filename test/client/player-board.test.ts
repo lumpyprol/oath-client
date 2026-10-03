@@ -504,8 +504,25 @@ describe('a cost with its rule (Ben, 2026-10-02): "Rocky Coast — 1 Supply (Law
   it('renders the Law section after the cost, linked', async () => {
     const { composer } = await import('../../src/client/composer.js');
     const html = String(
-      composer([{ type: 'travel', fields: [{ name: 'siteIndex', kind: 'choose-one', options: [{ value: 0, label: 'Rocky Coast', cost: { supply: 1 }, law: '§11.3' }] }] }], { gameId: 'g', seq: 1, back: '/' } as never),
+      composer([{ type: 'travel', fields: [{ name: 'siteIndex', kind: 'choose-one', options: [{ value: 0, label: 'Rocky Coast', cost: { supply: 1 }, law: 'Law §11.3' }] }] }], { gameId: 'g', seq: 1, back: '/' } as never),
     );
     expect(html.replace(/<[^>]+>/g, '')).toContain('Rocky Coast — 1 Supply (Law §11.3)');
+  });
+});
+
+describe('the Imperial Reliquary powers are readable, covered or not (Ben, 2026-10-03)', () => {
+  it('lists all four with their printed text, saying which the Chancellor has', () => {
+    const s = after(0);
+    const space = s.reliquary.find((sp) => sp.modifier === 'decadent')!;
+    s.players[2].relics.push(space.relicId!);
+    space.relicId = null;
+    const text = boardPage(boardModel(project(s, 1), { gameId: 'g', seat: 1, names })).replace(/<[^>]+>/g, '').replace(/&#39;/g, "'");
+    expect(text).toContain("Brutal (Campaign): If you're the attacker");
+    expect(text).toContain('Decadent (Travel): Spend no Supply');
+    expect(text).toContain('Careless (Trade): You gain one more favor');
+    expect(text).toContain('Greedy (Search): Draw two more cards.');
+    const html = boardPage(boardModel(project(s, 1), { gameId: 'g', seat: 1, names }));
+    expect(html).toMatch(/<li class="open"><b>Decadent<\/b>/);
+    expect(html).toMatch(/<li class="covered"><b>Brutal<\/b>/);
   });
 });

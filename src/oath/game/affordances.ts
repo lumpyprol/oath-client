@@ -43,7 +43,7 @@ import type { PendingDecision } from '../../engine/types.js';
 import { byId } from '../cards/index.js';
 import type { Site, Suit } from '../cards/schema.js';
 import { travelCost } from './map.js';
-import { BURIED_GIANT, SHROUDED_WOOD_COST, shroudedChooser, travelRoute } from './travel-rules.js';
+import { BURIED_GIANT, SHROUDED_WOOD_COST, decadentApplies, shroudedChooser, travelRoute } from './travel-rules.js';
 import {
   ADVISER_LIMIT,
   CONSPIRACY_ID,
@@ -57,8 +57,9 @@ import type { Relic } from '../cards/schema.js';
 import { isRestricted, restrictionKnown } from './restrictions.js';
 import { rulersOf, chancellorSeatOf, imperialExclusionFor } from './rule.js';
 import { consultStanding } from './standing.js';
-import { worldDeckCost } from './actions/search.js';
-import { matchingFaceupAdvisers } from './actions/trade.js';
+import { GREEDY_MAX_COST, worldDeckCost } from './actions/search.js';
+import { matchingFaceupAdvisers, tradePayout } from './actions/trade.js';
+import { chancellorHas } from './reliquary-text.js';
 import { darkestSecretRecoverable, relicRecoverCost } from './actions/recover.js';
 import { hasAccess, reliquaryPowerId } from './actions/power.js';
 import { exileFavorCost, selfExileFavorCost } from './actions/citizenship.js';
@@ -178,14 +179,16 @@ function describeTravel(state: OathState, seat: number): Affordance[] {
   // so there is no destination to pick, only the 2 Supply to pay.
   const chooser = shroudedChooser(state, seat);
   if (chooser !== null) {
-    if (player.supply < SHROUDED_WOOD_COST) return [];
+    const affordable = state.sites.some((x, i) => x.id !== player.pawnSite && !travelRoute(state, seat, i, 'supply').blocked);
+    if (!affordable) return [];
     return [
       {
         type: 'travel',
         fields: [],
         note:
-          `Leave Shrouded Wood for ${SHROUDED_WOOD_COST} Supply. The ${seatTitle(state.players, chooser)} rules it, ` +
-          `so they choose where you go (Law §11.7).`,
+          `Leave Shrouded Wood. The ${seatTitle(state.players, chooser)} rules it, so they choose where you go, ` +
+          `among the sites you can afford; you pay when they choose — ${SHROUDED_WOOD_COST} Supply (Law §11.7)` +
+          `${decadentApplies(state, seat) ? ', none to the Cradle and 1 more to the Hinterland (Decadent)' : ''}.`,
       },
     ];
   }
@@ -213,7 +216,7 @@ function describeTravel(state: OathState, seat: number): Affordance[] {
       group: REGION_LABEL[site.region],
       art: site.facedown ? 'site-back' : site.id,
     };
-    if (shown.laws.length) option.law = shown.laws.map((l) => `§${l}`).join(', ');
+    if (shown.laws.length) option.law = shown.laws.join(', ');
     if (!okSupply && !okSecret) option.disabled = r.supply.blocked;
     else if (payField && okSupply !== okSecret && bySupply) {
       option.requires = { field: 'pay', values: [okSupply ? 'supply' : 'secret'] };
@@ -262,7 +265,17 @@ function describeTravelDirect(state: OathState, seat: number): Affordance[] {
           name: 'siteIndex',
           kind: 'choose-one',
           label: `Where the ${seatTitle(state.players, t.traveller)} goes`,
-          options: destinationOptions(state, state.players[t.traveller].pawnSite),
+          options: destinationOptions(state, state.players[t.traveller].pawnSite).map((o) => {
+            if (t.via !== 'travel') return o;
+            // A Travel: they pay for the site you choose, so only what they can afford.
+            const r = travelRoute(state, t.traveller, o.value as number, 'supply');
+            return {
+              ...o,
+              cost: { supply: r.cost },
+              ...(r.laws.length ? { law: r.laws.join(', ') } : {}),
+              ...(r.blocked ? { disabled: `that site ${r.blocked.replace(/, you have/, ', they have')}` } : {}),
+            };
+          }),
         },
       ],
       note:
@@ -299,21 +312,32 @@ function describeSearch(state: OathState, seat: number): Affordance[] {
   if (!site) return [];
   const options: Option[] = [];
   const deckCost = worldDeckCost(state.visionsDrawn); // §5.1.1, off the Visions Drawn track — not restated
-  if (state.worldDeck.length > 0 && p.supply >= deckCost) {
-    options.push({ value: 'deck', label: `World deck — draw 3 (${deckCost} Supply)`, cost: { supply: deckCost } });
+  // The Reliquary's Greedy space: draw 2 more, but never spend over 2 Supply.
+  const greedy = chancellorHas(state, seat, 'greedy');
+  const draws = greedy ? `draw 5 (Greedy)` : 'draw 3';
+  const allowed = (cost: number) => p.supply >= cost && !(greedy && cost > GREEDY_MAX_COST);
+  if (state.worldDeck.length > 0 && allowed(deckCost)) {
+    options.push({ value: 'deck', label: `World deck — ${draws} (${deckCost} Supply)`, cost: { supply: deckCost } });
   }
   const discardCost = 2; // §5.1.1
-  if (state.discards[site.region].length > 0 && p.supply >= discardCost) {
+  if (state.discards[site.region].length > 0 && allowed(discardCost)) {
     options.push({
       value: 'discard',
-      label: `${site.region} discard — draw 3 (${discardCost} Supply)`,
+      label: `${site.region} discard — ${draws} (${discardCost} Supply)`,
       cost: { supply: discardCost },
     });
   }
   // §5.1.1: if you can afford no source, you cannot search at all — absent,
   // not a greyed form (the plan's deliberate contrast with muster).
   if (options.length === 0) return [];
-  return [{ type: 'search', fields: [{ name: 'from', kind: 'choose-one', options }] }];
+  const deckBarred = greedy && deckCost > GREEDY_MAX_COST && state.worldDeck.length > 0;
+  return [
+    {
+      type: 'search',
+      fields: [{ name: 'from', kind: 'choose-one', options }],
+      ...(deckBarred ? { note: `Greedy: the world deck would cost ${deckCost} Supply, and you cannot search for more than ${GREEDY_MAX_COST}.` } : {}),
+    },
+  ];
 }
 
 function describeMuster(state: OathState, seat: number): Affordance[] {
@@ -365,13 +389,18 @@ function describeTrade(state: OathState, seat: number): Affordance[] {
           options: targets.map((c) => {
             const suit = (byId(c.id) as { suit: Suit }).suit;
             const matches = matchingFaceupAdvisers(p, suit);
-            const favor = Math.min(1 + matches, state.favorBanks[suit]);
+            const pays = tradePayout(state, seat, suit); // the reducer's own arithmetic
+            const favor = pays.forSecret.favor;
             const suitName = `${suit[0].toUpperCase()}${suit.slice(1)}`;
             const why = matches ? `, with ${matches} matching faceup adviser${matches === 1 ? '' : 's'}` : '';
-            const capped = favor < 1 + matches ? ` (the ${suitName} bank has only ${state.favorBanks[suit]})` : '';
+            const capped = favor < pays.forSecret.wanted ? ` (the ${suitName} bank has only ${state.favorBanks[suit]})` : '';
+            const n = pays.forFavor.secrets;
+            const plusFavor = pays.forFavor.favor ? ` + ${pays.forFavor.favor} favor` : '';
             return {
               value: c.id,
-              label: `${byId(c.id).name} (${suitName}): ${favor} favor${capped} for a secret, or ${matches} secret${matches === 1 ? '' : 's'} for 2 favor${why}`,
+              label:
+                `${byId(c.id).name} (${suitName}): ${favor} favor${capped} for a secret, or ${n} secret${n === 1 ? '' : 's'}${plusFavor} for 2 favor${why}` +
+                (pays.careless ? ' (Careless: +1 favor, −1 secret)' : ''),
               art: c.id,
             };
           }),
@@ -1001,6 +1030,7 @@ function describeCampaignDeclare(state: OathState, seat: number): Affordance[] {
       ],
       note:
         (hereIsHidden ? 'Declaring targets here flips one of your ready secrets facedown (The Hidden Place). ' : '') +
+        (chancellorHas(state, seat, 'brutal') ? 'Brutal: whoever is defeated — even you — kills ALL the warbands in their force. ' : '') +
         boardNote(forceFor((soloTargets[0]?.value as unknown[]) ?? [])) +
         `Costs ${CAMPAIGN_COST} Supply. The defender's title adds ` +
         `${titleDefenseDice(state, seat, defender)} defense dice (Law §2.11); ` +
@@ -1457,6 +1487,9 @@ function whyNotNow(state: OathState, seat: number, type: string): string {
       if (state.worldDeck.length > 0) costs.push(worldDeckCost(state.visionsDrawn));
       if (site && state.discards[site.region].length > 0) costs.push(2);
       if (costs.length === 0) return 'There are no cards to draw (Law §5.1.2).';
+      if (chancellorHas(state, seat, 'greedy') && costs.every((c) => c > GREEDY_MAX_COST)) {
+        return `Greedy: you cannot search for more than ${GREEDY_MAX_COST} Supply, and the world deck costs ${Math.min(...costs)}.`;
+      }
       return `Costs at least ${s(Math.min(...costs))}; you have ${p.supply} (Law §5.1.1).`;
     }
     case 'muster':

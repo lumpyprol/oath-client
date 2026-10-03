@@ -1047,9 +1047,10 @@ they go.
   arithmetic still only reads the single recorded defender's own counts.
   **Superseded 09-11 by D44:** that last sentence described a live bug,
   not a safe deferral — unit 16a closed it the same day.
-  Also still deferred: the 4 reliquary modifiers' actual EFFECTS (Brutal/
-  Decadent/Careless/Greedy — RULINGS.md has the transcription) stay
-  declared, not enforced, same v1/v2 split as every other card power
+  ~~Also still deferred: the reliquary modifiers' actual EFFECTS~~ —
+  **all four enforced 2026-10-03** (Brutal/Decadent/Careless/Greedy,
+  `reliquary-text.ts#chancellorHas`; RULINGS 2026-10-03). Otherwise the
+  remaining powers stay declared, not enforced, same v1/v2 split as every other card power
   (D9/D28); and the Peek family (§6.3/§6.4), not built anywhere in this
   engine, still unnecessary since a pending offer's relic is public to
   the deciding party regardless.

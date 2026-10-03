@@ -24,6 +24,7 @@
  * (the unit 7 convention). Draws go through `draw` effects (unit 3).
  */
 
+import { chancellorHas } from '../reliquary-text.js';
 import { z } from 'zod';
 import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type CardZone, type Effect } from '../effects.js';
@@ -32,6 +33,8 @@ import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
 
 const DISCARD_COST = 2; // Supply (Law §5.1.1)
 const SEARCH_DRAW = 3; // Law §5.1.2
+export const GREEDY_EXTRA = 2; // the Reliquary's Greedy space
+export const GREEDY_MAX_COST = 2;
 const MAX_VISIONS_DRAWN = 5; // 5 Visions in the game; the track goes 0..5
 
 /** Law §5.1.1 / Visions Drawn track: Supply to draw from the world deck. */
@@ -68,11 +71,19 @@ function search(state: OathState, action: GameAction): OathState {
   if (player.supply < cost) {
     throw new IllegalAction(`search: costs ${cost} Supply, you have ${player.supply} (Law §5.1.1)`);
   }
+  // The Reliquary's Greedy space (the Chancellor's once uncovered): "Draw two
+  // more cards. (Stop after a Vision as normal.) You cannot search if you
+  // would spend more than 2 Supply."
+  const greedy = chancellorHas(state, seat, 'greedy');
+  if (greedy && cost > GREEDY_MAX_COST) {
+    throw new IllegalAction(`search: Greedy — you cannot search if you would spend more than ${GREEDY_MAX_COST} Supply (this costs ${cost})`);
+  }
+  const draw = SEARCH_DRAW + (greedy ? GREEDY_EXTRA : 0);
 
   // §5.1.2: how many to draw. From the world deck, stop early on a Vision.
   let n = 0;
   let drewVisionFromDeck = false;
-  while (n < SEARCH_DRAW && n < source.length) {
+  while (n < draw && n < source.length) {
     const card = source[n];
     n += 1;
     if (fromWorldDeck && card.startsWith('vision:')) {

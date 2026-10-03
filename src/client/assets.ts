@@ -110,6 +110,10 @@ ul.inbox a { font-weight: 600; text-decoration: none; }
   border: none; border-radius: 4px; box-shadow: 0 1px 5px #000a;
 }
 .rq-slot.open { border: 0.2rem dashed #ffd54a88; border-radius: 8px; }
+/* The four printed modifiers, readable whether covered or not (Law §2.3). */
+.rq-powers { width: var(--pb-w); margin: 0.4rem 0 0; padding-left: 1.1rem; font-size: 0.8rem; }
+.rq-powers li { margin-bottom: 0.25rem; }
+.rq-powers li.covered { color: var(--muted); }
 
 /* Banner placards, the Oathkeeper title and the Grand Scepter — drawn at
    their TRUE size against the player board (widths are set inline, as the

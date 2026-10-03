@@ -93,7 +93,8 @@ function costText(opt: Option): string {
     c.favor ? `${c.favor} favor` : null,
     c.secrets ? `${c.secrets} secret${c.secrets === 1 ? '' : 's'}` : null,
   ].filter((p) => p !== null);
-  const law = opt.law ? ` (Law ${opt.law})` : '';
+  const law = opt.law ? ` (${opt.law})` : '';
+  if (!parts.length && law && c.supply === 0) return ` — no Supply${law}`; // a power made it free
   return parts.length ? ` — ${parts.join(', ')}${law}` : law;
 }
 

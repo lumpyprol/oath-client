@@ -11,6 +11,8 @@ import { seatColors, seatTitle } from '../oath/game/seats.js';
 import type { BattleTotals } from '../oath/game/actions/campaign.js';
 import type { DefenseFace } from '../oath/game/state.js';
 import { STABLE_REGIME_TARGET } from '../oath/game/victory.js';
+import { RELIQUARY_TEXT } from '../oath/game/reliquary-text.js';
+import type { ReliquaryModifier } from '../oath/game/state.js';
 
 
 /** A pending decision as the inbox sees it — the engine's fields plus the HTTP layer's `since`/`url`. */
@@ -211,6 +213,9 @@ export interface ReliquaryModel {
   label: string;
   covered: boolean;
   relic: FaceModel | null; // named only where peeked
+  /** The printed modifier (Law §2.3): the action it modifies and its text. Public — it is on the board. */
+  action: string;
+  text: string;
 }
 
 export interface CampaignModel {
@@ -512,6 +517,7 @@ export function boardModel(
       label: cap(sp.modifier),
       covered: sp.covered,
       relic: sp.id !== null ? faceOf(sp.id) : null,
+      ...RELIQUARY_TEXT[sp.modifier as ReliquaryModifier],
     })),
     // A two-faced banner shows face #1 when flipped (the People's Favor's Mob
     // side, Law §2.5.3); the art manifest keys that as `${id}#1`.

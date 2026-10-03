@@ -364,11 +364,15 @@ function reliquaryBoard(model: BoardModel, art: ArtResolver): Raw {
       const style = `left:${pos.x}%;top:${pos.y}%`;
       if (sp.covered) {
         // Facedown even when peeked; the face shows on hover for whoever peeked.
-        return html`<div class="rq-slot" style="${raw(style)}" title="${sp.label}: a facedown relic">${relicBack(sp.relic, art)}</div>`;
+        return html`<div class="rq-slot" style="${raw(style)}" title="${sp.label} (${sp.action}, covered): ${sp.text}">${relicBack(sp.relic, art)}</div>`;
       }
-      return html`<div class="rq-slot open" style="${raw(style)}" title="${sp.label}: uncovered — the Chancellor may use this modifier"></div>`;
+      return html`<div class="rq-slot open" style="${raw(style)}" title="${sp.label} (${sp.action}, the Chancellor's): ${sp.text}"></div>`;
     })}
-  </div>`;
+  </div>
+  <ul class="rq-powers">${model.reliquary.map(
+    // Covered spaces are muted; the text colour says which are in effect.
+    (sp) => html`<li class="${sp.covered ? 'covered' : 'open'}"><b>${sp.label}</b> (${sp.action}): ${sp.text}</li>`,
+  )}</ul>`;
 }
 
 /**

@@ -58,15 +58,16 @@ function shrouded(): OathState {
 }
 
 describe('Shrouded Wood: an enemy ruler chooses where you go (Law §11.7)', () => {
-  it('Travel takes no destination: you pay 2 Supply and the ruler is asked', () => {
+  it('Travel takes no destination: the ruler is asked, and you pay 2 Supply when they choose', () => {
     const s = shrouded();
     const travel = entry(s, 1, 'travel')!;
     expect(travel.fields).toEqual([]);
-    expect(travel.note).toMatch(/rules it, so they choose where you go \(Law §11\.7\)/);
+    expect(travel.note).toMatch(/rules it, so they choose where you go.*2 Supply \(Law §11\.7\)/);
     expect(() => act(s, 'travel', 1, { siteIndex: 0 })).toThrow(/name no destination/);
 
     const out = act(s, 'travel', 1, {});
-    expect(out.players[1].supply).toBe(2);
+    expect(out.players[1].supply).toBe(4); // not yet: the cost depends on the site chosen
+    expect(act(out, 'travel.direct', 2, { siteIndex: 0 }).players[1].supply).toBe(2);
     expect(out.players[1].pawnSite).toBe('site:shrouded-wood');
     expect(out.shroudedTravel).toMatchObject({ traveller: 1, chooser: 2, via: 'travel' });
     expect(oath.pending(out)).toEqual([expect.objectContaining({ seat: 2, kind: 'shrouded', resolves: ['travel.direct'] })]);

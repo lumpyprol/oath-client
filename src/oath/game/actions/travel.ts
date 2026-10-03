@@ -64,11 +64,16 @@ function travel(state: OathState, action: GameAction): OathState {
         `travel: the ${seatTitle(state.players, chooser)} rules Shrouded Wood and chooses where you go — name no destination (Law §11.7)`,
       );
     }
-    if (player.supply < SHROUDED_WOOD_COST) {
-      throw new IllegalAction(`travel: costs ${SHROUDED_WOOD_COST} Supply, you have ${player.supply} (Law §11.7)`);
+    // What it costs depends on where they send you (Decadent changes it by
+    // region), so it is paid when they choose — and they choose among the
+    // sites you can afford ("a site they are able to travel to", §5.5.7.3).
+    const cheapest = state.sites
+      .map((_, i) => (i === state.sites.findIndex((x) => x.id === player.pawnSite) ? null : travelRoute(state, seat, i, 'supply')))
+      .filter((r) => r !== null && !r.blocked);
+    if (cheapest.length === 0) {
+      throw new IllegalAction(`travel: costs at least ${SHROUDED_WOOD_COST} Supply from Shrouded Wood, you have ${player.supply} (Law §11.7)`);
     }
     const next = structuredClone(state);
-    next.players[seat].supply -= SHROUDED_WOOD_COST;
     next.shroudedTravel = { traveller: seat, chooser, via: 'travel', startedAt: state.actionCount };
     return next;
   }
@@ -163,8 +168,13 @@ function direct(state: OathState, action: GameAction): OathState {
   if (dest.id === state.players[t.traveller].pawnSite) {
     throw new IllegalAction('travel.direct: choose a site other than the one they are on (Law §5.6.1)');
   }
+  // A Travel pays now, for the site chosen (Law §11.7's cost, plus any
+  // Decadent change); a banish spends no Supply (§5.5.7.3).
+  const cost = t.via === 'travel' ? travelRoute(state, t.traveller, siteIndex, 'supply') : null;
+  if (cost?.blocked) throw new IllegalAction(`travel.direct: that site ${cost.blocked.replace(/, you have/, ', they have')}`);
   const next = applyEffects(state, t.traveller, arrivalEffects(state, siteIndex));
   next.players[t.traveller].pawnSite = dest.id; // Law §5.6.2
+  if (cost) next.players[t.traveller].supply -= cost.cost;
   next.shroudedTravel = null;
   return next;
 }

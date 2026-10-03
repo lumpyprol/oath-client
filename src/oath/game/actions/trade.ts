@@ -27,6 +27,7 @@ import { IllegalAction, type GameAction } from '../../../engine/types.js';
 import { applyEffects, type Effect } from '../effects.js';
 import type { OathState, PlayerState } from '../state.js';
 import { pawnSiteOf, requireActiveSeat, type Handler } from '../turn.js';
+import { chancellorHas } from '../reliquary-text.js';
 
 const TRADE_COST = 1; // Supply (Law §5.3.1)
 
@@ -39,6 +40,32 @@ export function matchingFaceupAdvisers(player: PlayerState, suit: Suit): number 
     if ('suit' in card && card.suit === suit) n += 1;
   }
   return n;
+}
+
+/**
+ * What a Trade with a card of `suit` pays `seat` (Law §5.3.2), as both the
+ * reducer and the form work it out:
+ *   - for a secret: 1 favor + 1 per matching faceup adviser;
+ *   - for 2 favor: 1 secret per matching faceup adviser.
+ * With the Reliquary's Careless space (the Chancellor's once uncovered):
+ * "You gain one more favor (even when trading for secrets). You must gain one
+ * less secret when trading for secrets." Favor is capped by the suit's bank
+ * (§9.3); secrets are not (the shared bank is inexhaustible).
+ */
+export function tradePayout(
+  state: OathState,
+  seat: number,
+  suit: Suit,
+): { forSecret: { favor: number; wanted: number }; forFavor: { secrets: number; favor: number }; careless: boolean } {
+  const matches = matchingFaceupAdvisers(state.players[seat], suit);
+  const careless = chancellorHas(state, seat, 'careless');
+  const extra = careless ? 1 : 0;
+  const bank = state.favorBanks[suit];
+  return {
+    forSecret: { favor: Math.min(1 + matches + extra, bank), wanted: 1 + matches + extra },
+    forFavor: { secrets: Math.max(0, matches - extra), favor: Math.min(extra, bank) },
+    careless,
+  };
 }
 
 const TradePayloadSchema = z.object({
@@ -75,7 +102,7 @@ function trade(state: OathState, action: GameAction): OathState {
   }
 
   const suit = card.suit;
-  const matches = matchingFaceupAdvisers(player, suit);
+  const pays = tradePayout(state, seat, suit);
   const effects: Effect[] = [];
 
   if (parsed.data.for === 'favor') {
@@ -88,14 +115,12 @@ function trade(state: OathState, action: GameAction): OathState {
       to: { kind: 'siteCardSecrets', siteId, cardId },
       amount: 1,
     });
-    const want = 1 + matches;
-    const gain = Math.min(want, state.favorBanks[suit]); // §9.3
-    if (gain > 0) {
+    if (pays.forSecret.favor > 0) {
       effects.push({
         kind: 'favor',
         from: { kind: 'favorBank', suit },
         to: { kind: 'seatFavor', seat },
-        amount: gain,
+        amount: pays.forSecret.favor,
       });
     }
   } else {
@@ -108,13 +133,17 @@ function trade(state: OathState, action: GameAction): OathState {
       to: { kind: 'siteCardFavor', siteId, cardId },
       amount: 2,
     });
-    if (matches > 0) {
+    if (pays.forFavor.secrets > 0) {
       effects.push({
         kind: 'secret',
         from: { kind: 'sharedSecrets' }, // §9.3: inexhaustible
         to: { kind: 'seatSecrets', seat },
-        amount: matches,
+        amount: pays.forFavor.secrets,
       });
+    }
+    if (pays.forFavor.favor > 0) {
+      // Careless: one more favor even when trading for secrets.
+      effects.push({ kind: 'favor', from: { kind: 'favorBank', suit }, to: { kind: 'seatFavor', seat }, amount: pays.forFavor.favor });
     }
   }
 
